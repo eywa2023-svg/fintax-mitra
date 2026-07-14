@@ -6590,14 +6590,14 @@ export default function App(){
   };
 
   // State wrappers to automatically sync changes
-  const setClients = (v) => { _setClients(p => { const n = typeof v === 'function' ? v(p) : v; if (syncEnabled) syncClientsToSupabase(p, n); return n; }); };
-  const setWorks = (v) => { _setWorks(p => { const n = typeof v === 'function' ? v(p) : v; if (syncEnabled) syncWorksToSupabase(p, n); return n; }); };
-  const setInvoices = (v) => { _setInvoices(p => { const n = typeof v === 'function' ? v(p) : v; if (syncEnabled) syncInvoicesToSupabase(p, n); return n; }); };
-  const setReceipts = (v) => { _setReceipts(p => { const n = typeof v === 'function' ? v(p) : v; if (syncEnabled) syncReceiptsToSupabase(p, n); return n; }); };
-  const setComputations = (v) => { _setComputations(p => { const n = typeof v === 'function' ? v(p) : v; if (syncEnabled) syncComputationsToSupabase(p, n); return n; }); };
-  const setFirmSettings = (v) => { _setFirmSettings(p => { const n = typeof v === 'function' ? v(p) : v; if (syncEnabled) syncFirmSettingsToSupabase(n); return n; }); };
-  const setDd = (v) => { _setDd(p => { const n = typeof v === 'function' ? v(p) : v; if (syncEnabled) syncDevSettingsToSupabase(n, pws); return n; }); };
-  const setPws = (v) => { _setPws(p => { const n = typeof v === 'function' ? v(p) : v; if (syncEnabled) syncDevSettingsToSupabase(dd, n); return n; }); };
+  const setClients = (valOrFn) => { _setClients(p => { const n = typeof valOrFn === 'function' ? valOrFn(p) : valOrFn; if (syncEnabled) syncClientsToSupabase(p, n); return n; }); };
+  const setWorks = (valOrFn) => { _setWorks(p => { const n = typeof valOrFn === 'function' ? valOrFn(p) : valOrFn; if (syncEnabled) syncWorksToSupabase(p, n); return n; }); };
+  const setInvoices = (valOrFn) => { _setInvoices(p => { const n = typeof valOrFn === 'function' ? valOrFn(p) : valOrFn; if (syncEnabled) syncInvoicesToSupabase(p, n); return n; }); };
+  const setReceipts = (valOrFn) => { _setReceipts(p => { const n = typeof valOrFn === 'function' ? valOrFn(p) : valOrFn; if (syncEnabled) syncReceiptsToSupabase(p, n); return n; }); };
+  const setComputations = (valOrFn) => { _setComputations(p => { const n = typeof valOrFn === 'function' ? valOrFn(p) : valOrFn; if (syncEnabled) syncComputationsToSupabase(p, n); return n; }); };
+  const setFirmSettings = (valOrFn) => { _setFirmSettings(p => { const n = typeof valOrFn === 'function' ? valOrFn(p) : valOrFn; if (syncEnabled) syncFirmSettingsToSupabase(n); return n; }); };
+  const setDd = (valOrFn) => { _setDd(p => { const n = typeof valOrFn === 'function' ? valOrFn(p) : valOrFn; if (syncEnabled) syncDevSettingsToSupabase(n, pws); return n; }); };
+  const setPws = (valOrFn) => { _setPws(p => { const n = typeof valOrFn === 'function' ? valOrFn(p) : valOrFn; if (syncEnabled) syncDevSettingsToSupabase(dd, n); return n; }); };
 
   // Auth session listener
   useEffect(() => {
