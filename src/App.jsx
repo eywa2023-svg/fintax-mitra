@@ -6563,7 +6563,15 @@ export default function App(){
 
   const syncFirmSettingsToSupabase = async (settings) => {
     try {
-      const { error } = await supabase.from('firm_settings').upsert({ id: 1, settings });
+      // Strip heavy base64 images to avoid "Failed to fetch" payload size errors
+      const lightSettings = { ...settings };
+      const imageKeys = ['logo', 'stamp', 'signature', 'qrCode', 'statusStamp'];
+      imageKeys.forEach(k => {
+        if (lightSettings[k] && lightSettings[k].startsWith('data:image')) {
+          lightSettings[k] = null;
+        }
+      });
+      const { error } = await supabase.from('firm_settings').upsert({ id: 1, settings: lightSettings });
       if (error) throw error;
     } catch (err) {
       console.error("Error syncing firm settings:", err);
@@ -6607,6 +6615,24 @@ export default function App(){
     });
     return () => subscription.unsubscribe();
   }, []);
+
+  // Persist heavy firm images locally to avoid database payload limits
+  useEffect(() => {
+    const imageKeys = ['logo', 'stamp', 'signature', 'qrCode', 'statusStamp'];
+    const images = {};
+    imageKeys.forEach(k => {
+      if (firmSettings[k]) {
+        images[k] = firmSettings[k];
+      }
+    });
+    if (Object.keys(images).length > 0) {
+      try {
+        localStorage.setItem("ftm_firm_images", JSON.stringify(images));
+      } catch (e) {
+        console.error("Error saving images locally:", e);
+      }
+    }
+  }, [firmSettings]);
 
   // Database fetch & seeding
   useEffect(() => {
@@ -6683,7 +6709,14 @@ export default function App(){
         _setInvoices(dbInvoices);
         _setReceipts(dbReceipts);
         _setComputations(dbComputations || []);
-        _setFirmSettings(dbFirm.settings);
+        let localImages = {};
+        try {
+          const saved = localStorage.getItem("ftm_firm_images");
+          if (saved) localImages = JSON.parse(saved);
+        } catch (e) {
+          console.error("Error loading local images:", e);
+        }
+        _setFirmSettings({ ...dbFirm.settings, ...localImages });
         _setDd(dbDev.dropdown_defaults);
         _setPws(dbDev.passwords);
         setSyncEnabled(true);
