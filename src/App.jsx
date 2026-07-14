@@ -6599,25 +6599,22 @@ export default function App(){
         let { data: dbDev, error: errDev } = await supabase.from('developer_settings').select('*').maybeSingle();
         if (errDev) throw errDev;
 
-        // Seeding database if empty
+        // Seeding database if empty (Only if there are no clients at all)
         if (!dbClients || dbClients.length === 0) {
-          const { error } = await supabase.from('clients').insert(SC);
-          if (error) throw new Error("Seeding clients failed: " + error.message);
+          const { error: errC } = await supabase.from('clients').insert(SC);
+          if (errC) throw new Error("Seeding clients failed: " + errC.message);
           dbClients = [...SC];
-        }
-        if (!dbWorks || dbWorks.length === 0) {
-          const { error } = await supabase.from('works').insert(SW);
-          if (error) throw new Error("Seeding works failed: " + error.message);
+
+          const { error: errW } = await supabase.from('works').insert(SW);
+          if (errW) throw new Error("Seeding works failed: " + errW.message);
           dbWorks = [...SW];
-        }
-        if (!dbInvoices || dbInvoices.length === 0) {
-          const { error } = await supabase.from('invoices').insert(SEED_INVOICES);
-          if (error) throw new Error("Seeding invoices failed: " + error.message);
+
+          const { error: errI } = await supabase.from('invoices').insert(SEED_INVOICES);
+          if (errI) throw new Error("Seeding invoices failed: " + errI.message);
           dbInvoices = [...SEED_INVOICES];
-        }
-        if (!dbReceipts || dbReceipts.length === 0) {
-          const { error } = await supabase.from('receipts').insert(SEED_RECEIPTS);
-          if (error) throw new Error("Seeding receipts failed: " + error.message);
+
+          const { error: errR } = await supabase.from('receipts').insert(SEED_RECEIPTS);
+          if (errR) throw new Error("Seeding receipts failed: " + errR.message);
           dbReceipts = [...SEED_RECEIPTS];
         }
         if (!dbFirm) {
