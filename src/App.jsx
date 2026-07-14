@@ -2691,12 +2691,12 @@ function DevTab({dd,setDd,pws,setPws,darkMode,setDarkMode,profilePic,setProfileP
   const LISTS=[{k:"services",l:"Services",icon:"📋",cat:"Work"},{k:"staff",l:"Staff Members",icon:"👤",cat:"Work"},{k:"billingItems",l:"Billing Items",icon:"🧾",cat:"Work"},{k:"sources",l:"Lead Sources",icon:"📣",cat:"Client"},{k:"clientTypes",l:"Client Types",icon:"🏢",cat:"Client"},{k:"pwTypes",l:"Password Types",icon:"🔑",cat:"Client"},{k:"fyOptions",l:"Financial Years",icon:"📅",cat:"General"},{k:"states",l:"States",icon:"🗺",cat:"General"}];
   const cur=dd[sec]||[];
   const cm=LISTS.find(l=>l.k===sec);
-  const add=()=>{const v=nv.trim();if(!v)return;if(cur.includes(v)){setConfirmDel({type:"dup",msg:v+" already exists in this list!"});return;}setDd(p=>({...p,[sec]:[...p[sec],v]}));setNv("");};
+  const add=()=>{const v=nv.trim();if(!v)return;if(cur.includes(v)){setConfirmDel({type:"dup",msg:v+" already exists in this list!"});return;}setDd(p=>({...p,[sec]:[...(p[sec]||[]),v]}));setNv("");};
   const del=i=>setConfirmDel({type:"del",idx:i,label:cur[i]});
-  const doDelete=i=>{setDd(p=>({...p,[sec]:p[sec].filter((_,j)=>j!==i)}));setConfirmDel(null);};
-  const saveE=i=>{const v=ev.trim();if(!v)return;setDd(p=>({...p,[sec]:p[sec].map((x,j)=>j===i?v:x)}));setEi(null);setEv("");};
-  const mu=i=>{if(i===0)return;setDd(p=>{const a=[...p[sec]];[a[i-1],a[i]]=[a[i],a[i-1]];return{...p,[sec]:a};});};
-  const md=i=>{if(i>=cur.length-1)return;setDd(p=>{const a=[...p[sec]];[a[i],a[i+1]]=[a[i+1],a[i]];return{...p,[sec]:a};});};
+  const doDelete=i=>{setDd(p=>({...p,[sec]:(p[sec]||[]).filter((_,j)=>j!==i)}));setConfirmDel(null);};
+  const saveE=i=>{const v=ev.trim();if(!v)return;setDd(p=>({...p,[sec]:(p[sec]||[]).map((x,j)=>j===i?v:x)}));setEi(null);setEv("");};
+  const mu=i=>{if(i===0)return;setDd(p=>{const a=[...(p[sec]||[])];[a[i-1],a[i]]=[a[i],a[i-1]];return{...p,[sec]:a};});};
+  const md=i=>{if(i>=cur.length-1)return;setDd(p=>{const a=[...(p[sec]||[])];[a[i],a[i+1]]=[a[i+1],a[i]];return{...p,[sec]:a};});};
   const savePw=()=>{const np={...pws};if(pf.owner.trim())np.owner=pf.owner.trim();if(pf.dev.trim())np.dev=pf.dev.trim();setPws(np);setPf({owner:"",dev:""});setPm("Passwords updated!");setTimeout(()=>setPm(""),3000);};
   const[devSideOpen,setDevSideOpen]=useState(true);
 
