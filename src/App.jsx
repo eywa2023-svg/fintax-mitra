@@ -9,6 +9,27 @@ import * as XLSX from "xlsx";
 import * as XLSXStyle from "xlsx-js-style";
 import { supabase } from "./supabaseClient";
 
+// Mock window.storage for browser environment using localStorage
+if (typeof window !== "undefined" && !window.storage) {
+  window.storage = {
+    get: async (key) => {
+      try {
+        const val = localStorage.getItem(key);
+        return val ? { value: val } : null;
+      } catch {
+        return null;
+      }
+    },
+    set: async (key, value) => {
+      try {
+        localStorage.setItem(key, value);
+      } catch (e) {
+        console.error("LocalStorage write failed:", e);
+      }
+    }
+  };
+}
+
 // ─── Theme ────────────────────────────────────────────────────────────────────
 // G is updated dynamically by App theme selection
 let G = {
@@ -6572,8 +6593,13 @@ export default function App(){
       setSession(session);
       setAuthLoading(false);
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSession(prev => {
+        if (prev?.user?.id === newSession?.user?.id) {
+          return prev;
+        }
+        return newSession;
+      });
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -6582,7 +6608,7 @@ export default function App(){
   useEffect(() => {
     if (!session) return;
     const loadData = async () => {
-      setDbLoading(true);
+      if (!syncEnabled) setDbLoading(true);
       try {
         let { data: dbClients, error: errClients } = await supabase.from('clients').select('*');
         if (errClients) throw errClients;
