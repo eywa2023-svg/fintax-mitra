@@ -6506,7 +6506,11 @@ export default function App(){
         return !p || JSON.stringify(p) !== JSON.stringify(n);
       });
       if (addedOrUpdated.length > 0) {
-        const { error } = await supabase.from('invoices').upsert(addedOrUpdated);
+        const mapped = addedOrUpdated.map(inv => ({
+          ...inv,
+          workId: inv.workId === "" || inv.workId == null ? null : Number(inv.workId)
+        }));
+        const { error } = await supabase.from('invoices').upsert(mapped);
         if (error) throw error;
       }
     } catch (err) {
@@ -6616,6 +6620,12 @@ export default function App(){
         if (errWorks) throw errWorks;
         let { data: dbInvoices, error: errInvoices } = await supabase.from('invoices').select('*');
         if (errInvoices) throw errInvoices;
+        if (dbInvoices) {
+          dbInvoices = dbInvoices.map(inv => ({
+            ...inv,
+            workId: inv.workId == null ? "" : String(inv.workId)
+          }));
+        }
         let { data: dbReceipts, error: errReceipts } = await supabase.from('receipts').select('*');
         if (errReceipts) throw errReceipts;
         let { data: dbComputations, error: errComputations } = await supabase.from('computations').select('*');
