@@ -6435,17 +6435,20 @@ export default function App(){
     try {
       const deleted = prev.filter(p => !next.some(n => n.pan === p.pan));
       for (const c of deleted) {
-        await supabase.from('clients').delete().eq('pan', c.pan);
+        const { error } = await supabase.from('clients').delete().eq('pan', c.pan);
+        if (error) throw error;
       }
       const addedOrUpdated = next.filter(n => {
         const p = prev.find(x => x.pan === n.pan);
         return !p || JSON.stringify(p) !== JSON.stringify(n);
       });
       if (addedOrUpdated.length > 0) {
-        await supabase.from('clients').upsert(addedOrUpdated);
+        const { error } = await supabase.from('clients').upsert(addedOrUpdated);
+        if (error) throw error;
       }
     } catch (err) {
       console.error("Error syncing clients:", err);
+      toast("Error syncing clients: " + err.message, "err");
     }
   };
 
@@ -6453,17 +6456,20 @@ export default function App(){
     try {
       const deleted = prev.filter(p => !next.some(n => n.id === p.id));
       for (const w of deleted) {
-        await supabase.from('works').delete().eq('id', w.id);
+        const { error } = await supabase.from('works').delete().eq('id', w.id);
+        if (error) throw error;
       }
       const addedOrUpdated = next.filter(n => {
         const p = prev.find(x => x.id === n.id);
         return !p || JSON.stringify(p) !== JSON.stringify(n);
       });
       if (addedOrUpdated.length > 0) {
-        await supabase.from('works').upsert(addedOrUpdated);
+        const { error } = await supabase.from('works').upsert(addedOrUpdated);
+        if (error) throw error;
       }
     } catch (err) {
       console.error("Error syncing works:", err);
+      toast("Error syncing works: " + err.message, "err");
     }
   };
 
@@ -6471,17 +6477,20 @@ export default function App(){
     try {
       const deleted = prev.filter(p => !next.some(n => n.id === p.id));
       for (const inv of deleted) {
-        await supabase.from('invoices').delete().eq('id', inv.id);
+        const { error } = await supabase.from('invoices').delete().eq('id', inv.id);
+        if (error) throw error;
       }
       const addedOrUpdated = next.filter(n => {
         const p = prev.find(x => x.id === n.id);
         return !p || JSON.stringify(p) !== JSON.stringify(n);
       });
       if (addedOrUpdated.length > 0) {
-        await supabase.from('invoices').upsert(addedOrUpdated);
+        const { error } = await supabase.from('invoices').upsert(addedOrUpdated);
+        if (error) throw error;
       }
     } catch (err) {
       console.error("Error syncing invoices:", err);
+      toast("Error syncing invoices: " + err.message, "err");
     }
   };
 
@@ -6489,17 +6498,20 @@ export default function App(){
     try {
       const deleted = prev.filter(p => !next.some(n => n.id === p.id));
       for (const r of deleted) {
-        await supabase.from('receipts').delete().eq('id', r.id);
+        const { error } = await supabase.from('receipts').delete().eq('id', r.id);
+        if (error) throw error;
       }
       const addedOrUpdated = next.filter(n => {
         const p = prev.find(x => x.id === n.id);
         return !p || JSON.stringify(p) !== JSON.stringify(n);
       });
       if (addedOrUpdated.length > 0) {
-        await supabase.from('receipts').upsert(addedOrUpdated);
+        const { error } = await supabase.from('receipts').upsert(addedOrUpdated);
+        if (error) throw error;
       }
     } catch (err) {
       console.error("Error syncing receipts:", err);
+      toast("Error syncing receipts: " + err.message, "err");
     }
   };
 
@@ -6507,33 +6519,40 @@ export default function App(){
     try {
       const deleted = prev.filter(p => !next.some(n => n.id === p.id));
       for (const comp of deleted) {
-        await supabase.from('computations').delete().eq('id', comp.id);
+        const { error } = await supabase.from('computations').delete().eq('id', comp.id);
+        if (error) throw error;
       }
       const addedOrUpdated = next.filter(n => {
         const p = prev.find(x => x.id === n.id);
         return !p || JSON.stringify(p) !== JSON.stringify(n);
       });
       if (addedOrUpdated.length > 0) {
-        await supabase.from('computations').upsert(addedOrUpdated);
+        const { error } = await supabase.from('computations').upsert(addedOrUpdated);
+        if (error) throw error;
       }
     } catch (err) {
       console.error("Error syncing computations:", err);
+      toast("Error syncing computations: " + err.message, "err");
     }
   };
 
   const syncFirmSettingsToSupabase = async (settings) => {
     try {
-      await supabase.from('firm_settings').upsert({ id: 1, settings });
+      const { error } = await supabase.from('firm_settings').upsert({ id: 1, settings });
+      if (error) throw error;
     } catch (err) {
       console.error("Error syncing firm settings:", err);
+      toast("Error syncing firm settings: " + err.message, "err");
     }
   };
 
   const syncDevSettingsToSupabase = async (dropdown_defaults, passwords) => {
     try {
-      await supabase.from('developer_settings').upsert({ id: 1, dropdown_defaults, passwords });
+      const { error } = await supabase.from('developer_settings').upsert({ id: 1, dropdown_defaults, passwords });
+      if (error) throw error;
     } catch (err) {
       console.error("Error syncing developer settings:", err);
+      toast("Error syncing developer settings: " + err.message, "err");
     }
   };
 
@@ -6565,29 +6584,40 @@ export default function App(){
     const loadData = async () => {
       setDbLoading(true);
       try {
-        let { data: dbClients } = await supabase.from('clients').select('*');
-        let { data: dbWorks } = await supabase.from('works').select('*');
-        let { data: dbInvoices } = await supabase.from('invoices').select('*');
-        let { data: dbReceipts } = await supabase.from('receipts').select('*');
-        let { data: dbComputations } = await supabase.from('computations').select('*');
-        let { data: dbFirm } = await supabase.from('firm_settings').select('*').maybeSingle();
-        let { data: dbDev } = await supabase.from('developer_settings').select('*').maybeSingle();
+        let { data: dbClients, error: errClients } = await supabase.from('clients').select('*');
+        if (errClients) throw errClients;
+        let { data: dbWorks, error: errWorks } = await supabase.from('works').select('*');
+        if (errWorks) throw errWorks;
+        let { data: dbInvoices, error: errInvoices } = await supabase.from('invoices').select('*');
+        if (errInvoices) throw errInvoices;
+        let { data: dbReceipts, error: errReceipts } = await supabase.from('receipts').select('*');
+        if (errReceipts) throw errReceipts;
+        let { data: dbComputations, error: errComputations } = await supabase.from('computations').select('*');
+        if (errComputations) throw errComputations;
+        let { data: dbFirm, error: errFirm } = await supabase.from('firm_settings').select('*').maybeSingle();
+        if (errFirm) throw errFirm;
+        let { data: dbDev, error: errDev } = await supabase.from('developer_settings').select('*').maybeSingle();
+        if (errDev) throw errDev;
 
         // Seeding database if empty
         if (!dbClients || dbClients.length === 0) {
-          await supabase.from('clients').insert(SC);
+          const { error } = await supabase.from('clients').insert(SC);
+          if (error) throw new Error("Seeding clients failed: " + error.message);
           dbClients = [...SC];
         }
         if (!dbWorks || dbWorks.length === 0) {
-          await supabase.from('works').insert(SW);
+          const { error } = await supabase.from('works').insert(SW);
+          if (error) throw new Error("Seeding works failed: " + error.message);
           dbWorks = [...SW];
         }
         if (!dbInvoices || dbInvoices.length === 0) {
-          await supabase.from('invoices').insert(SEED_INVOICES);
+          const { error } = await supabase.from('invoices').insert(SEED_INVOICES);
+          if (error) throw new Error("Seeding invoices failed: " + error.message);
           dbInvoices = [...SEED_INVOICES];
         }
         if (!dbReceipts || dbReceipts.length === 0) {
-          await supabase.from('receipts').insert(SEED_RECEIPTS);
+          const { error } = await supabase.from('receipts').insert(SEED_RECEIPTS);
+          if (error) throw new Error("Seeding receipts failed: " + error.message);
           dbReceipts = [...SEED_RECEIPTS];
         }
         if (!dbFirm) {
@@ -6604,12 +6634,14 @@ export default function App(){
             terms:"Fees once paid are non-refundable. The client is responsible for ensuring data accuracy and timely submission. Fin-Tax Mitra is not liable for any penalties or losses resulting from client delays or incorrect data.",
             logo:null, stamp:null, signature:null, qrCode:null, statusStamp:null,
           }};
-          await supabase.from('firm_settings').insert(defaultFirm);
+          const { error } = await supabase.from('firm_settings').insert(defaultFirm);
+          if (error) throw new Error("Seeding firm settings failed: " + error.message);
           dbFirm = defaultFirm;
         }
         if (!dbDev) {
           const defaultDev = { id: 1, dropdown_defaults: DEF_DD, passwords: DEF_PW };
-          await supabase.from('developer_settings').insert(defaultDev);
+          const { error } = await supabase.from('developer_settings').insert(defaultDev);
+          if (error) throw new Error("Seeding dev settings failed: " + error.message);
           dbDev = defaultDev;
         }
 
@@ -6624,6 +6656,7 @@ export default function App(){
         setSyncEnabled(true);
       } catch (err) {
         console.error("Error loading data from Supabase:", err);
+        toast("Database load failed: " + err.message, "err");
       } finally {
         setDbLoading(false);
       }
