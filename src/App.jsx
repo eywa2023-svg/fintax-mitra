@@ -1282,7 +1282,31 @@ function InvoiceForm({invoices,setInvoices,clients,works,dd,toast,onClose,genId,
                 <span style={{fontSize:11,fontWeight:800,color:isReimb?G.amb:G.mut,flexShrink:0}}>{isReimb?"REIMB":"SVC"} #{idx+1}</span>
                 {isReimb
                   ?<div style={{flex:1,fontSize:12,fontWeight:700,color:G.amb}}>Reimbursement (No GST, Qty fixed = 1)</div>
-                  :<div style={{flex:1}}><S val={it.service} set={v=>setItem(idx,{service:v})} opts={dd.services} ph="Select or type service..."/></div>}
+                  :<div style={{flex:1}}>
+                    <select
+                      value={it.service && dd.billingItems && dd.billingItems.some(bi => bi.split("|")[0] === it.service) 
+                        ? dd.billingItems.find(bi => bi.split("|")[0] === it.service) 
+                        : it.service}
+                      onChange={e => {
+                        const val = e.target.value;
+                        if (val.includes("|")) {
+                          const [name, price] = val.split("|");
+                          setItem(idx, { service: name, rate: price });
+                        } else {
+                          setItem(idx, { service: val });
+                        }
+                      }}
+                      style={{...IS, cursor:"pointer", color:it.service?G.wh:G.mut}}
+                    >
+                      <option value="">Select billing item...</option>
+                      {(dd.billingItems || []).map(o => {
+                        const [name, price] = o.split("|");
+                        return <option key={o} value={o} style={{background:"#0B1610"}}>
+                          {name} {price ? `(₹${price})` : ""}
+                        </option>;
+                      })}
+                    </select>
+                  </div>}
                 {f.items.length>1&&<button onClick={()=>delItem(idx)} style={{background:"transparent",border:`1px solid ${G.red}55`,color:G.red,borderRadius:8,padding:"6px 10px",cursor:"pointer",flexShrink:0}}>🗑</button>}
               </div>
               <div style={{marginBottom:8}}>
