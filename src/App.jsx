@@ -2706,7 +2706,7 @@ function PerformaDesigner({firmSettings, setFirmSettings}){
 }
 
 
-function DevTab({dd,setDd,pws,setPws,darkMode,setDarkMode,profilePic,setProfilePic,firmSettings,setFirmSettings,clients,setClients,works,setWorks,invoices,setInvoices,receipts,setReceipts,toast}){
+function DevTab({dd,setDd,pws,setPws,darkMode,setDarkMode,profilePic,setProfilePic,firmSettings,setFirmSettings,clients,setClients,works,setWorks,invoices,setInvoices,receipts,setReceipts,toast,googleUser,linkGoogleDrive,disconnectGoogleDrive,uploadBackupToGoogleDrive}){
   const[sec,setSec]=useState("services"),[nv,setNv]=useState(""),[ei,setEi]=useState(null),[ev,setEv]=useState("");
   const[pf,setPf]=useState({owner:"",dev:""}),[pm,setPm]=useState("");
   const[confirmDel,setConfirmDel]=useState(null);
@@ -2934,6 +2934,70 @@ function DevTab({dd,setDd,pws,setPws,darkMode,setDarkMode,profilePic,setProfileP
           <div onClick={()=>setFirmSettings(p=>({...p,autoBackup:!p.autoBackup}))}
             style={{width:44,height:24,borderRadius:12,background:firmSettings.autoBackup?G.green:G.bdr,cursor:"pointer",position:"relative",transition:"background .2s",flexShrink:0}}>
             <div style={{position:"absolute",top:2,width:20,height:20,borderRadius:"50%",background:"#fff",transition:"left .2s",left:firmSettings.autoBackup?"22px":"2px"}}/>
+          </div>
+        </div>
+
+        {/* Google Drive Auto-Backup Card */}
+        <div style={{background:G.card,border:`1px solid ${G.bdr}`,borderRadius:12,padding:"14px 16px"}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+            <div>
+              <div style={{fontSize:12,fontWeight:700,color:G.txt,display:"flex",alignItems:"center",gap:8}}><span style={{background:"#4285F420",color:"#4285F4",width:24,height:24,borderRadius:6,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13}}>☁️</span> Google Drive Sync</div>
+              <div style={{fontSize:11,color:G.mut,marginTop:4}}>Automatically uploads JSON backups to Google Drive.</div>
+            </div>
+            <div onClick={()=>setFirmSettings(p=>({...p,googleDriveEnabled:!p.googleDriveEnabled}))}
+              style={{width:44,height:24,borderRadius:12,background:firmSettings.googleDriveEnabled?G.green:G.bdr,cursor:"pointer",position:"relative",transition:"background .2s",flexShrink:0}}>
+              <div style={{position:"absolute",top:2,width:20,height:20,borderRadius:"50%",background:"#fff",transition:"left .2s",left:firmSettings.googleDriveEnabled?"22px":"2px"}}/>
+            </div>
+          </div>
+
+          <div style={{display:"flex",flexDirection:"column",gap:10,marginTop:12,paddingTop:12,borderTop:`1px dashed ${G.bdr}`}}>
+            <div>
+              <label style={{fontSize:10,fontWeight:700,color:G.mut,textTransform:"uppercase",display:"block",marginBottom:4}}>Google OAuth Client ID</label>
+              <input 
+                type="text" 
+                value={firmSettings.googleClientId || ""} 
+                onChange={e=>setFirmSettings(p=>({...p,googleClientId:e.target.value}))} 
+                placeholder="Enter Google Client ID" 
+                style={{
+                  background: G.surf, 
+                  border: `1.5px solid ${G.bdr}`, 
+                  borderRadius: 8, 
+                  color: G.wh, 
+                  fontSize: 12, 
+                  padding: "8px 11px", 
+                  outline: "none", 
+                  width: "100%", 
+                  boxSizing: "border-box", 
+                  fontFamily: "monospace"
+                }}
+              />
+            </div>
+
+            <div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap",marginTop:4}}>
+              {googleUser ? (
+                <>
+                  <div style={{flex:1,minWidth:180}}>
+                    <span style={{fontSize:11,color:G.mut}}>Status: </span>
+                    <span style={{fontSize:11,color:G.green,fontWeight:700}}>Connected</span>
+                    <div style={{fontSize:10,color:G.txt,fontFamily:"monospace",marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{googleUser.email}</div>
+                  </div>
+                  <button onClick={disconnectGoogleDrive} style={{padding:"8px 12px",borderRadius:8,border:`1px solid ${G.red}33`,background:"transparent",color:G.red,fontSize:11,fontWeight:700,cursor:"pointer"}}>Disconnect</button>
+                  <button onClick={()=>uploadBackupToGoogleDrive(true)} style={{padding:"8px 12px",borderRadius:8,border:"none",background:`linear-gradient(135deg,#3B82F6,#2563EB)`,color:"#fff",fontSize:11,fontWeight:700,cursor:"pointer"}}>Upload Backup Now</button>
+                </>
+              ) : (
+                <>
+                  <div style={{flex:1,minWidth:180}}>
+                    <span style={{fontSize:11,color:G.mut}}>Status: </span>
+                    <span style={{fontSize:11,color:G.red,fontWeight:700}}>Not Linked</span>
+                  </div>
+                  <button onClick={linkGoogleDrive} style={{padding:"8px 14px",borderRadius:8,border:"none",background:`linear-gradient(135deg,#3B82F6,#2563EB)`,color:"#fff",fontSize:11,fontWeight:700,cursor:"pointer"}}>🔗 Link Google Drive</button>
+                </>
+              )}
+            </div>
+            
+            <div style={{fontSize:10,color:G.mut,lineHeight:1.5,marginTop:6,background:G.surf,padding:"8px 12px",borderRadius:8,border:`1px solid ${G.bdr}`}}>
+              🔑 Note: Google OAuth only requests permission to write files created by this app (Drive scope: `drive.file`). Your other files are 100% private and protected.
+            </div>
           </div>
         </div>
 
@@ -6483,6 +6547,8 @@ export default function App(){
     terms:"Fees once paid are non-refundable. The client is responsible for ensuring data accuracy and timely submission. Fin-Tax Mitra is not liable for any penalties or losses resulting from client delays or incorrect data.",
     logo:null, stamp:null, signature:null, qrCode:null, statusStamp:null,
     autoBackup:true,
+    googleClientId:"738596578042-qd24uv0mkqe5j9bvjm8d4blpntg3vm7b.apps.googleusercontent.com",
+    googleDriveEnabled:false,
   });
   const[dd, _setDd]=useState(DEF_DD);
   const[pws, _setPws]=useState(DEF_PW);
@@ -6785,6 +6851,8 @@ export default function App(){
             terms:"Fees once paid are non-refundable. The client is responsible for ensuring data accuracy and timely submission. Fin-Tax Mitra is not liable for any penalties or losses resulting from client delays or incorrect data.",
             logo:null, stamp:null, signature:null, qrCode:null, statusStamp:null,
             autoBackup:true,
+            googleClientId:"738596578042-qd24uv0mkqe5j9bvjm8d4blpntg3vm7b.apps.googleusercontent.com",
+            googleDriveEnabled:false,
           }};
           const { error } = await supabase.from('firm_settings').insert(defaultFirm);
           if (error) throw new Error("Seeding firm settings failed: " + error.message);
@@ -6846,48 +6914,325 @@ export default function App(){
     window.addEventListener("resize",onResize);
     return ()=>window.removeEventListener("resize",onResize);
   },[]);
+
+  // Dynamically load Google Identity Services SDK
+  useEffect(() => {
+    if (typeof window === "undefined" || document.getElementById("google-gsi-client")) return;
+    const script = document.createElement("script");
+    script.id = "google-gsi-client";
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.defer = true;
+    document.body.appendChild(script);
+  }, []);
+
   const[darkMode,setDarkMode]=useState(true);
   const[profilePic,setProfilePic]=useState(null);
   // Apply theme globally
   Object.assign(G, darkMode ? DARK_THEME : LIGHT_THEME);
   const toast=(msg,tp="ok")=>{const id=Date.now();setToasts(t=>[...t,{id,msg,tp}]);setTimeout(()=>setToasts(t=>t.filter(x=>x.id!==id)),3200);};
 
-  // Auto-backup handler (generates daily json backups automatically on launch)
-  useEffect(() => {
-    if (!syncEnabled || !firmSettings.autoBackup || !clients.length) return;
+  const [googleUser, setGoogleUser] = useState(() => {
     try {
-      const lastBackup = localStorage.getItem("ftm_last_autobackup");
-      const today = new Date().toDateString();
-      if (lastBackup !== today) {
-        const timer = setTimeout(() => {
-          try {
-            const data = JSON.stringify({
-              meta: { app: "Fin-Tax Mitra", exportedAt: new Date().toISOString(), version: 1, type: "auto" },
-              clients, works, invoices, receipts, dd, pws, firmSettings, darkMode,
-            }, null, 2);
-            
-            const d = new Date();
-            const p = n => String(n).padStart(2, "0");
-            const filename = `FinTaxMitra_AutoBackup_${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}.json`;
-            
-            const blob = new Blob([data], { type: "application/json" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url; a.download = filename; document.body.appendChild(a); a.click();
-            document.body.removeChild(a); URL.revokeObjectURL(url);
-            
-            localStorage.setItem("ftm_last_autobackup", today);
-            toast("Daily auto-backup downloaded!", "ok");
-          } catch (e) {
-            console.error("Auto backup download failed:", e);
-          }
-        }, 5000);
-        return () => clearTimeout(timer);
-      }
+      const saved = localStorage.getItem("ftm_google_user");
+      return saved ? JSON.parse(saved) : null;
     } catch (e) {
-      console.error("Auto backup check failed:", e);
+      return null;
     }
-  }, [syncEnabled, firmSettings.autoBackup, clients, works, invoices, receipts, dd, pws, darkMode]);
+  });
+
+  const getBackupChecksum = () => {
+    try {
+      const payload = { clients, works, invoices, receipts, dd, pws, firmSettings };
+      const str = JSON.stringify(payload);
+      let hash = 0;
+      for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = (hash << 5) - hash + char;
+        hash = hash & hash;
+      }
+      return String(hash) + "_" + str.length;
+    } catch (e) {
+      return "";
+    }
+  };
+
+  const linkGoogleDrive = () => {
+    if (typeof window === "undefined" || !window.google) {
+      toast("Google Identity Services not loaded yet, please try again in a few seconds.", "err");
+      return;
+    }
+    const clientId = firmSettings.googleClientId?.trim();
+    if (!clientId) {
+      toast("Please enter a valid Google Client ID first.", "err");
+      return;
+    }
+    try {
+      const client = window.google.accounts.oauth2.initTokenClient({
+        client_id: clientId,
+        scope: "https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email",
+        callback: async (response) => {
+          if (response.error) {
+            toast("Google link failed: " + response.error, "err");
+            return;
+          }
+          if (response.access_token) {
+            try {
+              const res = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+                headers: { Authorization: `Bearer ${response.access_token}` }
+              });
+              const info = await res.json();
+              const userObj = {
+                email: info.email || "Connected Account",
+                accessToken: response.access_token,
+                expiresAt: Date.now() + (Number(response.expires_in) || 3600) * 1000
+              };
+              setGoogleUser(userObj);
+              localStorage.setItem("ftm_google_user", JSON.stringify(userObj));
+              toast("Google Drive linked successfully!", "ok");
+            } catch (e) {
+              const userObj = {
+                email: "Connected Account",
+                accessToken: response.access_token,
+                expiresAt: Date.now() + (Number(response.expires_in) || 3600) * 1000
+              };
+              setGoogleUser(userObj);
+              localStorage.setItem("ftm_google_user", JSON.stringify(userObj));
+              toast("Google Drive linked!", "ok");
+            }
+          }
+        }
+      });
+      client.requestAccessToken({ prompt: "consent" });
+    } catch (err) {
+      toast("Google Auth initialization error: " + err.message, "err");
+    }
+  };
+
+  const disconnectGoogleDrive = () => {
+    setGoogleUser(null);
+    localStorage.removeItem("ftm_google_user");
+    toast("Google Drive disconnected", "ok");
+  };
+
+  const getGoogleAccessToken = () => {
+    return new Promise((resolve, reject) => {
+      if (!googleUser) {
+        reject(new Error("Google account not linked."));
+        return;
+      }
+      if (googleUser.accessToken && googleUser.expiresAt > Date.now() + 300 * 1000) {
+        resolve(googleUser.accessToken);
+        return;
+      }
+      if (typeof window === "undefined" || !window.google) {
+        reject(new Error("Google library not loaded"));
+        return;
+      }
+      const clientId = firmSettings.googleClientId?.trim();
+      if (!clientId) {
+        reject(new Error("Google Client ID is missing"));
+        return;
+      }
+      try {
+        const client = window.google.accounts.oauth2.initTokenClient({
+          client_id: clientId,
+          scope: "https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email",
+          callback: async (response) => {
+            if (response.error) {
+              reject(new Error("Token refresh failed: " + response.error));
+              return;
+            }
+            if (response.access_token) {
+              try {
+                const res = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+                  headers: { Authorization: `Bearer ${response.access_token}` }
+                });
+                const info = await res.json();
+                const userObj = {
+                  email: info.email || googleUser.email,
+                  accessToken: response.access_token,
+                  expiresAt: Date.now() + (Number(response.expires_in) || 3600) * 1000
+                };
+                setGoogleUser(userObj);
+                localStorage.setItem("ftm_google_user", JSON.stringify(userObj));
+                resolve(response.access_token);
+              } catch (e) {
+                const userObj = {
+                  email: googleUser.email,
+                  accessToken: response.access_token,
+                  expiresAt: Date.now() + (Number(response.expires_in) || 3600) * 1000
+                };
+                setGoogleUser(userObj);
+                localStorage.setItem("ftm_google_user", JSON.stringify(userObj));
+                resolve(response.access_token);
+              }
+            } else {
+              reject(new Error("No token returned"));
+            }
+          }
+        });
+        client.requestAccessToken({ prompt: "" });
+      } catch (err) {
+        reject(err);
+      }
+    });
+  };
+
+  const uploadBackupToGoogleDrive = async (isManual = false) => {
+    try {
+      const token = await getGoogleAccessToken();
+      if (isManual) toast("Uploading backup to Google Drive...", "ok");
+      
+      let folderId = "";
+      const searchRes = await fetch(
+        "https://www.googleapis.com/drive/v3/files?q=name='FinTaxMitra Backups' and mimeType='application/vnd.google-apps.folder' and trashed=false",
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const searchData = await searchRes.json();
+      if (searchData.files && searchData.files.length > 0) {
+        folderId = searchData.files[0].id;
+      } else {
+        const createRes = await fetch("https://www.googleapis.com/drive/v3/files", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            name: "FinTaxMitra Backups",
+            mimeType: "application/vnd.google-apps.folder"
+          })
+        });
+        const folder = await createRes.json();
+        folderId = folder.id;
+      }
+      
+      if (!folderId) throw new Error("Could not find or create Google Drive folder");
+      
+      const payload = {
+        meta: { app: "Fin-Tax Mitra", exportedAt: new Date().toISOString(), version: 1, type: "google_auto" },
+        clients, works, invoices, receipts, dd, pws, firmSettings, darkMode
+      };
+      const jsonContent = JSON.stringify(payload, null, 2);
+      
+      const d = new Date();
+      const p = n => String(n).padStart(2, "0");
+      const filename = `FinTaxMitra_AutoBackup_${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}.json`;
+      
+      const boundary = "-------314159265358979323846";
+      const delimiter = "\r\n--" + boundary + "\r\n";
+      const closeDelim = "\r\n--" + boundary + "--";
+      const metadata = { name: filename, mimeType: "application/json", parents: [folderId] };
+      
+      const multipartBody =
+        delimiter +
+        "Content-Type: application/json; charset=UTF-8\r\n\r\n" +
+        JSON.stringify(metadata) +
+        delimiter +
+        "Content-Type: application/json\r\n\r\n" +
+        jsonContent +
+        closeDelim;
+        
+      const uploadRes = await fetch(
+        "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": `multipart/related; boundary=${boundary}`
+          },
+          body: multipartBody
+        }
+      );
+      
+      if (!uploadRes.ok) {
+        const errorData = await uploadRes.json();
+        throw new Error(errorData.error?.message || "Upload failed");
+      }
+      
+      const currentChecksum = getBackupChecksum();
+      localStorage.setItem("ftm_last_google_backup_checksum", currentChecksum);
+      localStorage.setItem("ftm_last_google_backup", new Date().toDateString());
+      toast("Backup uploaded to Google Drive!", "ok");
+    } catch (err) {
+      console.error("Google Drive upload error:", err);
+      if (isManual) {
+        toast("Google Drive upload failed: " + err.message, "err");
+      } else {
+        toast("Auto-backup to Google Drive failed. Link Google account in settings.", "err");
+      }
+    }
+  };
+
+  // Auto-backup handler (generates daily backups automatically on launch if data changed)
+  useEffect(() => {
+    if (!syncEnabled || !clients.length) return;
+    
+    const today = new Date().toDateString();
+    const currentChecksum = getBackupChecksum();
+    
+    const runLocalBackup = () => {
+      if (!firmSettings.autoBackup) return;
+      const lastLocalBackup = localStorage.getItem("ftm_last_autobackup");
+      const lastLocalChecksum = localStorage.getItem("ftm_last_local_backup_checksum");
+      
+      if (lastLocalBackup !== today) {
+        if (currentChecksum === lastLocalChecksum) {
+          console.log("Local auto-backup skipped: No changes since last backup");
+          localStorage.setItem("ftm_last_autobackup", today);
+          return;
+        }
+        
+        try {
+          const data = JSON.stringify({
+            meta: { app: "Fin-Tax Mitra", exportedAt: new Date().toISOString(), version: 1, type: "auto" },
+            clients, works, invoices, receipts, dd, pws, firmSettings, darkMode,
+          }, null, 2);
+          
+          const d = new Date();
+          const p = n => String(n).padStart(2, "0");
+          const filename = `FinTaxMitra_AutoBackup_${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}.json`;
+          
+          const blob = new Blob([data], { type: "application/json" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url; a.download = filename; document.body.appendChild(a); a.click();
+          document.body.removeChild(a); URL.revokeObjectURL(url);
+          
+          localStorage.setItem("ftm_last_autobackup", today);
+          localStorage.setItem("ftm_last_local_backup_checksum", currentChecksum);
+          toast("Daily auto-backup downloaded!", "ok");
+        } catch (e) {
+          console.error("Local auto backup failed:", e);
+        }
+      }
+    };
+
+    const runGoogleBackup = () => {
+      if (!firmSettings.googleDriveEnabled || !googleUser) return;
+      const lastGoogleBackup = localStorage.getItem("ftm_last_google_backup");
+      const lastGoogleChecksum = localStorage.getItem("ftm_last_google_backup_checksum");
+      
+      if (lastGoogleBackup !== today) {
+        if (currentChecksum === lastGoogleChecksum) {
+          console.log("Google Drive auto-backup skipped: No changes since last backup");
+          localStorage.setItem("ftm_last_google_backup", today);
+          return;
+        }
+        setTimeout(() => {
+          uploadBackupToGoogleDrive(false);
+        }, 3000);
+      }
+    };
+
+    const timer = setTimeout(() => {
+      runLocalBackup();
+      runGoogleBackup();
+    }, 5000);
+    
+    return () => clearTimeout(timer);
+  }, [syncEnabled, firmSettings.autoBackup, firmSettings.googleDriveEnabled, googleUser, clients, works, invoices, receipts, dd, pws, darkMode]);
   const NAV=[
     {id:"wdash",icon:"⬡",label:"Work Dashboard"},
     {id:"fin",icon:"💰",label:"Finance",prot:true,go:()=>ownerOn?setTab("fin"):(setPendingProt("fin"),setShowOA(true))},
@@ -7069,7 +7414,7 @@ export default function App(){
             <button onClick={()=>{setPendingProt("invoice");setShowOA(true);}} style={{padding:"11px 26px",borderRadius:11,border:"none",cursor:"pointer",background:`linear-gradient(135deg,${G.g2},${G.green})`,color:"#fff",fontWeight:700,fontSize:14}}>🔐 Unlock</button>
           </div>)}
         {tab==="receipts"&&<ReceiptsModule receipts={receipts} setReceipts={setReceipts} invoices={invoices} setInvoices={setInvoices} clients={clients} dd={dd} toast={toast}/>}
-        {tab==="dev"&&(devOn?<DevTab dd={dd} setDd={setDd} pws={pws} setPws={setPws} darkMode={darkMode} setDarkMode={setDarkMode} profilePic={profilePic} setProfilePic={setProfilePic} firmSettings={firmSettings} setFirmSettings={setFirmSettings} clients={clients} setClients={setClients} works={works} setWorks={setWorks} invoices={invoices} setInvoices={setInvoices} receipts={receipts} setReceipts={setReceipts} toast={toast}/>
+        {tab==="dev"&&(devOn?<DevTab dd={dd} setDd={setDd} pws={pws} setPws={setPws} darkMode={darkMode} setDarkMode={setDarkMode} profilePic={profilePic} setProfilePic={setProfilePic} firmSettings={firmSettings} setFirmSettings={setFirmSettings} clients={clients} setClients={setClients} works={works} setWorks={setWorks} invoices={invoices} setInvoices={setInvoices} receipts={receipts} setReceipts={setReceipts} toast={toast} googleUser={googleUser} linkGoogleDrive={linkGoogleDrive} disconnectGoogleDrive={disconnectGoogleDrive} uploadBackupToGoogleDrive={uploadBackupToGoogleDrive}/>
           :<div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"60vh",flexDirection:"column",gap:14}}>
             <span style={{fontSize:48}}>⚙️</span><div style={{fontWeight:700,fontSize:17}}>Developer Access Required</div>
             <button onClick={()=>setShowDA(true)} style={{padding:"11px 26px",borderRadius:11,border:"none",cursor:"pointer",background:`linear-gradient(135deg,${G.g2},${G.green})`,color:"#fff",fontWeight:700,fontSize:14}}>🔐 Unlock Dev</button>
