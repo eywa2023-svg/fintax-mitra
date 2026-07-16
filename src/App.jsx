@@ -2925,6 +2925,18 @@ function DevTab({dd,setDd,pws,setPws,darkMode,setDarkMode,profilePic,setProfileP
           Export a full backup of all app data - clients, work tracker, invoices, receipts, dropdown lists, passwords and firm settings - exactly as stored. Keep backups somewhere safe; anyone with the file can see saved portal passwords.
         </div>
 
+        {/* Auto Backup Toggle */}
+        <div style={{background:G.card,border:`1px solid ${G.bdr}`,borderRadius:12,padding:"14px 16px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+          <div style={{flex:1,marginRight:16}}>
+            <div style={{fontSize:12,fontWeight:700,color:G.txt,display:"flex",alignItems:"center",gap:8}}><span style={{background:G.green+"20",color:G.green,width:24,height:24,borderRadius:6,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13}}>🔄</span> Daily Auto-Backup</div>
+            <div style={{fontSize:11,color:G.mut,marginTop:4}}>Downloads a JSON backup file to your computer once every 24 hours automatically on page launch.</div>
+          </div>
+          <div onClick={()=>setFirmSettings(p=>({...p,autoBackup:!p.autoBackup}))}
+            style={{width:44,height:24,borderRadius:12,background:firmSettings.autoBackup?G.green:G.bdr,cursor:"pointer",position:"relative",transition:"background .2s",flexShrink:0}}>
+            <div style={{position:"absolute",top:2,width:20,height:20,borderRadius:"50%",background:"#fff",transition:"left .2s",left:firmSettings.autoBackup?"22px":"2px"}}/>
+          </div>
+        </div>
+
         {/* Export */}
         <div style={{background:G.card,border:`1px solid ${G.bdr}`,borderRadius:12,padding:"14px 16px"}}>
           <div style={{fontSize:12,fontWeight:700,color:G.txt,marginBottom:12,display:"flex",alignItems:"center",gap:8}}><span style={{background:G.green+"20",color:G.green,width:24,height:24,borderRadius:6,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13}}>⬇️</span> Export Data</div>
@@ -6470,6 +6482,7 @@ export default function App(){
     upiId:"7319440039@kotak",
     terms:"Fees once paid are non-refundable. The client is responsible for ensuring data accuracy and timely submission. Fin-Tax Mitra is not liable for any penalties or losses resulting from client delays or incorrect data.",
     logo:null, stamp:null, signature:null, qrCode:null, statusStamp:null,
+    autoBackup:true,
   });
   const[dd, _setDd]=useState(DEF_DD);
   const[pws, _setPws]=useState(DEF_PW);
@@ -6771,6 +6784,7 @@ export default function App(){
             upiId:"7319440039@kotak",
             terms:"Fees once paid are non-refundable. The client is responsible for ensuring data accuracy and timely submission. Fin-Tax Mitra is not liable for any penalties or losses resulting from client delays or incorrect data.",
             logo:null, stamp:null, signature:null, qrCode:null, statusStamp:null,
+            autoBackup:true,
           }};
           const { error } = await supabase.from('firm_settings').insert(defaultFirm);
           if (error) throw new Error("Seeding firm settings failed: " + error.message);
@@ -6837,6 +6851,43 @@ export default function App(){
   // Apply theme globally
   Object.assign(G, darkMode ? DARK_THEME : LIGHT_THEME);
   const toast=(msg,tp="ok")=>{const id=Date.now();setToasts(t=>[...t,{id,msg,tp}]);setTimeout(()=>setToasts(t=>t.filter(x=>x.id!==id)),3200);};
+
+  // Auto-backup handler (generates daily json backups automatically on launch)
+  useEffect(() => {
+    if (!syncEnabled || !firmSettings.autoBackup || !clients.length) return;
+    try {
+      const lastBackup = localStorage.getItem("ftm_last_autobackup");
+      const today = new Date().toDateString();
+      if (lastBackup !== today) {
+        const timer = setTimeout(() => {
+          try {
+            const data = JSON.stringify({
+              meta: { app: "Fin-Tax Mitra", exportedAt: new Date().toISOString(), version: 1, type: "auto" },
+              clients, works, invoices, receipts, dd, pws, firmSettings, darkMode,
+            }, null, 2);
+            
+            const d = new Date();
+            const p = n => String(n).padStart(2, "0");
+            const filename = `FinTaxMitra_AutoBackup_${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}.json`;
+            
+            const blob = new Blob([data], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url; a.download = filename; document.body.appendChild(a); a.click();
+            document.body.removeChild(a); URL.revokeObjectURL(url);
+            
+            localStorage.setItem("ftm_last_autobackup", today);
+            toast("Daily auto-backup downloaded!", "ok");
+          } catch (e) {
+            console.error("Auto backup download failed:", e);
+          }
+        }, 5000);
+        return () => clearTimeout(timer);
+      }
+    } catch (e) {
+      console.error("Auto backup check failed:", e);
+    }
+  }, [syncEnabled, firmSettings.autoBackup, clients, works, invoices, receipts, dd, pws, darkMode]);
   const NAV=[
     {id:"wdash",icon:"⬡",label:"Work Dashboard"},
     {id:"fin",icon:"💰",label:"Finance",prot:true,go:()=>ownerOn?setTab("fin"):(setPendingProt("fin"),setShowOA(true))},
