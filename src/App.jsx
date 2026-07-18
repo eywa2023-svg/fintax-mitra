@@ -6513,7 +6513,7 @@ const CSS = `
 /* Personal Information key/value table */
 .sheet-kv-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 12.5px; margin-bottom: 2px; }
 .sheet-kv-table tr:nth-child(even) td { background: #FAFAF8; }
-.sheet-kv-table td { padding: 5px 8px; }
+.sheet-kv-table td { padding: 5px 8px; text-align: left; }
 .sheet-kv-table td:first-child { width: 200px; color: #666; font-weight: 700; border-radius: 4px 0 0 4px; }
 .sheet-kv-table td:last-child { color: #111; border-radius: 0 4px 4px 0; }
 .sheet-kv-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; margin-bottom: 2px; }
