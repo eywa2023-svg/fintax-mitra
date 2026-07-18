@@ -1054,11 +1054,36 @@ function InvoiceModule({invoices,setInvoices,receipts,setReceipts,clients,works,
   const totUnpaid=filtered.filter(i=>i.status!=="Paid").reduce((s,i)=>s+i.total,0);
 
   const genInvId=()=>{
-    const yr=new Date().getFullYear();
-    const existing=invoices.filter(i=>i.id.startsWith(`INV-${yr}-`));
-    const next=String(existing.length+1).padStart(3,"0");
-    return `INV-${yr}-${next}`;
-  };
+    const getFySegment = () => {
+      const now = new Date();
+      const yr = now.getFullYear();
+      const month = now.getMonth();
+      if (month >= 3) {
+        return `${yr}-${String(yr + 1).slice(-2)}`;
+      } else {
+        return `${yr - 1}-${String(yr).slice(-2)}`;
+      }
+    };
+    if (!invoices || !invoices.length) {
+      return `FTM/${getFySegment()}/10001`;
+    }
+    const ftmInvoices = invoices.filter(inv => inv.id && inv.id.startsWith("FTM/"));
+    if (!ftmInvoices.length) {
+      return `FTM/${getFySegment()}/10001`;
+    }
+    ftmInvoices.sort((a, b) => b.id.localeCompare(a.id));
+    const lastId = ftmInvoices[0].id;
+    const parts = lastId.split('/');
+    if (parts.length >= 3) {
+      const prefix = parts[0];
+      const fySeg = parts[1];
+      const lastNumStr = parts[parts.length - 1];
+      const nextNum = parseInt(lastNumStr, 10) + 1;
+      const nextNumStr = String(nextNum).padStart(lastNumStr.length, '0');
+      return `${prefix}/${fySeg}/${nextNumStr}`;
+    }
+    return `FTM/${getFySegment()}/10001`;
+  }
 
   const deleteInv=id=>{
     setInvoices(p=>p.filter(i=>i.id!==id));
@@ -1168,6 +1193,12 @@ function InvoiceForm({invoices,setInvoices,clients,works,dd,toast,onClose,genId,
     discount:String(editInv.discount||""),gst:editInv.gst}:blank);
   const[err,setErr]=useState({});
   const[manualId,setManualId]=useState(isEdit);
+  const lastInv = useMemo(() => {
+    if (!invoices || !invoices.length) return "None";
+    const ftm = [...invoices].filter(i => i.id && i.id.startsWith("FTM/"));
+    ftm.sort((a, b) => b.id.localeCompare(a.id));
+    return ftm.length ? ftm[0].id : "None";
+  }, [invoices]);
 
   const selClient=clients.find(c=>c.pan===f.pan);
   const clientWorks=works.filter(w=>w.pan===f.pan);
@@ -1230,7 +1261,10 @@ function InvoiceForm({invoices,setInvoices,clients,works,dd,toast,onClose,genId,
         {/* Invoice Number */}
         <div style={{background:G.card,border:`1px solid ${G.green}33`,borderRadius:10,padding:"10px 14px"}}>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
-            <span style={{fontSize:12,fontWeight:700,color:G.txt}}>Invoice Number</span>
+            <div style={{display:"flex",alignItems:"center",gap:6}}>
+              <span style={{fontSize:12,fontWeight:700,color:G.txt}}>Invoice Number</span>
+              <span style={{fontSize:11,color:G.mut}}>| Last: <span style={{color:G.wh,fontWeight:700,fontFamily:"monospace"}}>{lastInv}</span></span>
+            </div>
             <div style={{display:"flex",gap:6,alignItems:"center"}}>
               <span style={{fontSize:11,color:G.mut}}>Auto-generate</span>
               <div onClick={()=>{setManualId(p=>!p);if(manualId)setF(pf=>({...pf,id:""}));}}
@@ -1242,12 +1276,33 @@ function InvoiceForm({invoices,setInvoices,clients,works,dd,toast,onClose,genId,
           </div>
           {manualId
             ?<div>
-              <I val={f.id||""} set={v=>setF({...f,id:v.toUpperCase()})} ph="e.g. FTM/2025-26/10032" mono sty={{borderColor:err.id?G.red:G.bdr}}/>
+              <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:6}}>
+                <div style={{flex:1}}>
+                  <I val={f.id||""} set={v=>setF({...f,id:v.toUpperCase()})} ph="e.g. FTM/2025-26/10032" mono sty={{borderColor:err.id?G.red:G.bdr}}/>
+                </div>
+                <button 
+                  onClick={(e)=>{e.preventDefault();setF(pf=>({...pf,id:genId()}));}} 
+                  style={{
+                    background: `${G.green}18`,
+                    border: `1.5px solid ${G.green}40`,
+                    color: G.green,
+                    borderRadius: 6,
+                    padding: "6px 12px",
+                    cursor: "pointer",
+                    fontSize: 11,
+                    fontWeight: 700,
+                    whiteSpace: "nowrap",
+                    transition: "all 0.2s"
+                  }}
+                  title="Auto-fill the next invoice serial number"
+                >📋 Next No.</button>
+              </div>
               {err.id&&<span style={{fontSize:11,color:G.red,marginTop:3,display:"block"}}>⚠️ {err.id}</span>}
-              <div style={{fontSize:10,color:G.mut,marginTop:4}}>Enter a unique invoice number. Leave blank to auto-generate: {genId()}</div>
+              <div style={{fontSize:10,color:G.mut,marginTop:4}}>Enter a unique invoice number, or click "Next No." to auto-fill.</div>
             </div>
             :<div style={{padding:"6px 10px",background:G.surf,borderRadius:8,border:`1px solid ${G.bdr}`,fontFamily:"monospace",fontSize:13,color:G.cyn,fontWeight:700}}>{genId()}</div>}
         </div>
+
         {/* Client selector */}
         <F label="Select Client" req>
           <PanPick clients={clients} val={f.pan} set={v=>{
