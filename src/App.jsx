@@ -1626,6 +1626,7 @@ function InvoiceForm({invoices,setInvoices,clients,works,dd,toast,onClose,genId,
 
 // ─── Invoice Print View ───────────────────────────────────────────────────────
 function InvoicePrint({inv,clients,firmSettings,onClose,toast}){
+  const [printStatus, setPrintStatus] = useState(true);
   const cl=clients.find(c=>c.pan===inv.pan);
   const F=firmSettings||{};
   const isGST=(inv.gst||0)>0;
@@ -1757,6 +1758,15 @@ function InvoicePrint({inv,clients,firmSettings,onClose,toast}){
         <span style={{fontSize:11,padding:"2px 9px",borderRadius:20,fontWeight:600,background:G.ind+"20",color:G.ind,border:`1px solid ${G.ind}44`}}>{invType}</span>
       </div>
       <div style={{display:"flex",gap:8,alignItems:"center"}}>
+        <label style={{display:"flex",alignItems:"center",gap:6,color:G.wh,fontSize:12,cursor:"pointer",marginRight:12,userSelect:"none"}}>
+          <input 
+            type="checkbox" 
+            checked={printStatus} 
+            onChange={e=>setPrintStatus(e.target.checked)} 
+            style={{cursor:"pointer",accentColor:G.green}}
+          />
+          Print Universal Stamp
+        </label>
         {pdfMsg&&<span style={{fontSize:11,color:pdfMsg[0]==="✓"?G.green:G.red,fontWeight:600}}>{pdfMsg}</span>}
         <button onClick={downloadPDF} disabled={pdfBusy} style={{padding:"8px 20px",borderRadius:9,border:"none",cursor:pdfBusy?"default":"pointer",background:`linear-gradient(135deg,${G.g2},${G.green})`,color:"#fff",fontWeight:700,fontSize:13,opacity:pdfBusy?.7:1}}>{pdfBusy?"⏳ Opening...":"🖨 Print / Save as PDF"}</button>
         <button onClick={onClose} style={{padding:"8px 14px",borderRadius:9,border:`1px solid ${G.bdr}`,background:"transparent",color:G.mut,cursor:"pointer",fontWeight:600}}>✕ Close</button>
@@ -1999,7 +2009,7 @@ function InvoicePrint({inv,clients,firmSettings,onClose,toast}){
         {key:"stamp",       dw:80,  dh:80,  defX:490, defY:870},
         {key:"signature",   dw:140, dh:44,  defX:450, defY:930},
         {key:"statusStamp", dw:160, dh:160, defX:280, defY:380},
-      ].filter(img=>!!F[img.key]).map(img=>{
+      ].filter(img=>!!F[img.key] && (img.key !== "statusStamp" || printStatus)).map(img=>{
         const x=F[img.key+"X"]!==undefined?F[img.key+"X"]:img.defX;
         const y=F[img.key+"Y"]!==undefined?F[img.key+"Y"]:img.defY;
         const w=F[img.key+"W"]||img.dw;
@@ -2211,7 +2221,30 @@ function PortalPw({pw,pid}){
 }
 
 function WorkTracker({works,setWorks,clients,ownerOn,dd,pws,toast,invoices,setInvoices,receipts}){
-  const[flt,setFlt]=useState("All"),[fy,setFy]=useState(getCurrentFY()),[q,setQ]=useState("");
+  const[flt,setFlt]=useState(() => localStorage.getItem("fmt_tracker_flt") || "All");
+  const[fy,setFy]=useState(() => localStorage.getItem("fmt_tracker_fy") || getCurrentFY());
+  const[q,setQ]=useState(() => localStorage.getItem("fmt_tracker_q") || "");
+
+  useEffect(() => {
+    localStorage.setItem("fmt_tracker_flt", flt);
+  }, [flt]);
+
+  useEffect(() => {
+    localStorage.setItem("fmt_tracker_fy", fy);
+  }, [fy]);
+
+  useEffect(() => {
+    localStorage.setItem("fmt_tracker_q", q);
+  }, [q]);
+
+  const clearFilters = () => {
+    setFlt("All");
+    setFy(getCurrentFY());
+    setQ("");
+    localStorage.setItem("fmt_tracker_flt", "All");
+    localStorage.setItem("fmt_tracker_fy", getCurrentFY());
+    localStorage.setItem("fmt_tracker_q", "");
+  };
   const[showAuth,setShowAuth]=useState(false),[feesOn,setFeesOn]=useState(ownerOn);
   const[editW,setEditW]=useState(null),[opP,setOpP]=useState({}),[vpw,setVpw]=useState({});
   const[selClient,setSelClient]=useState(null);
@@ -2338,6 +2371,24 @@ function WorkTracker({works,setWorks,clients,ownerOn,dd,pws,toast,invoices,setIn
         {["All",...dd.fyOptions].map(f=><button key={f} onClick={()=>setFy(f)} style={{padding:"4px 11px",borderRadius:14,border:"none",cursor:"pointer",fontSize:12,fontWeight:fy===f?700:500,background:fy===f?`linear-gradient(135deg,${G.g2},${G.green})`:"transparent",color:fy===f?"#fff":G.mut,transition:"all .15s",whiteSpace:"nowrap"}}>{f}{f!=="All"&&<span style={{fontSize:10,opacity:.7}}> ({works.filter(w=>w.fy===f).length})</span>}</button>)}
       </div>
       <div style={{position:"relative",flex:1,minWidth:150}}><span style={{position:"absolute",left:9,top:"50%",transform:"translateY(-50%)",color:G.mut}}>🔍</span><input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search..." style={{...IS,paddingLeft:28,fontSize:12}}/></div>
+      {(flt !== "All" || fy !== getCurrentFY() || q !== "") && (
+        <button 
+          onClick={clearFilters}
+          style={{
+            padding: "5px 14px",
+            borderRadius: 18,
+            border: `1.5px solid ${G.red}aa`,
+            background: `${G.red}18`,
+            color: G.red,
+            cursor: "pointer",
+            fontSize: 12,
+            fontWeight: 700,
+            whiteSpace: "nowrap",
+            transition: "all 0.2s"
+          }}
+          title="Reset all search filters"
+        >✕ Clear Filter</button>
+      )}
       {!feesOn?<button onClick={()=>setShowAuth(true)} style={{padding:"6px 14px",borderRadius:9,border:`1px solid ${G.amb}44`,background:"#43140720",color:G.amb,cursor:"pointer",fontWeight:700,fontSize:12,whiteSpace:"nowrap"}}>🔒 Show Fees</button>
       :<button onClick={()=>setFeesOn(false)} style={{padding:"6px 14px",borderRadius:9,border:`1px solid ${G.red}44`,background:"#450A0A",color:G.red,cursor:"pointer",fontWeight:700,fontSize:12,whiteSpace:"nowrap"}}>🔓 Hide Fees</button>}
     </div>
