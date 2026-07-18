@@ -3594,12 +3594,19 @@ function surchargeFor(taxableIncome, taxBeforeSurcharge, surchargeSlabs, cap, sl
 function computeRegimeTax({ regimeKey, config, totalIncomeExclSpecial, stcgSpecial20, ltcgEquity, ltcgOther, ltcgGrandfatheredTax, ltcgGrandfatheredGain, isEligibleRebate, ageCategory }) {
   const regime = config[regimeKey];
   const slabs = regimeKey === "oldRegime" ? regime.slabsByAge[ageCategory || "normal"] : regime.slabs;
-  const baseTax = slabTax(Math.max(totalIncomeExclSpecial, 0), slabs);
+  
+  // Section 288A: Round total taxable income to the nearest multiple of ten
   const ltcgEquityTaxable = Math.max(ltcgEquity - config.ltcgEquityExemption, 0);
+  const rawTotalTaxableIncome = totalIncomeExclSpecial + stcgSpecial20 + ltcgEquityTaxable + Math.max(ltcgOther, 0) + Math.max(ltcgGrandfatheredGain || 0, 0);
+  const totalTaxableIncome = Math.round(rawTotalTaxableIncome / 10) * 10;
+  
+  // Adjust totalIncomeExclSpecial based on rounded difference for slab calculations
+  const diff = totalTaxableIncome - rawTotalTaxableIncome;
+  const adjustedTotalIncomeExclSpecial = Math.max(totalIncomeExclSpecial + diff, 0);
+
+  const baseTax = slabTax(Math.max(adjustedTotalIncomeExclSpecial, 0), slabs);
   const specialTax = stcgSpecial20 * (config.stcgEquityRate / 100) + ltcgEquityTaxable * (config.ltcgRate / 100) + Math.max(ltcgOther, 0) * (config.ltcgRate / 100) + (ltcgGrandfatheredTax || 0);
   let taxBeforeRebate = baseTax + specialTax;
-
-  const totalTaxableIncome = totalIncomeExclSpecial + stcgSpecial20 + ltcgEquityTaxable + Math.max(ltcgOther, 0) + Math.max(ltcgGrandfatheredGain || 0, 0);
 
   let rebate = 0;
   if (isEligibleRebate && totalTaxableIncome <= regime.rebateLimit) {
@@ -3618,7 +3625,10 @@ function computeRegimeTax({ regimeKey, config, totalIncomeExclSpecial, stcgSpeci
   // Surcharge, with marginal relief applied at every surcharge slab boundary
   const surcharge = surchargeFor(totalTaxableIncome, taxAfterRebate, regime.surcharge, regime.surchargeCap, slabs);
   const cessAmount = (taxAfterRebate + surcharge.amount) * (config.cess / 100);
-  const total = taxAfterRebate + surcharge.amount + cessAmount;
+  const rawTotal = taxAfterRebate + surcharge.amount + cessAmount;
+  
+  // Section 288B: Round tax liability to the nearest multiple of ten
+  const total = Math.round(rawTotal / 10) * 10;
 
   return {
     baseTax, specialTax, taxBeforeRebate, rebate, taxAfterRebate,
@@ -4350,7 +4360,9 @@ function TaxComputationEditor({ initialRecord, clients, allComputations, onSave,
     const withLiability = (r) => {
       const grossTaxLiability = r.total;
       const totalWithInterest = grossTaxLiability + interestTotal;
-      const balance = totalWithInterest - tdsTotal;
+      // Section 288B: Net amount payable or refund due is rounded to the nearest multiple of ten
+      const rawBalance = totalWithInterest - tdsTotal;
+      const balance = Math.round(rawBalance / 10) * 10;
       const interestSuggestions = computeInterestSuggestions({
         assessedTax: grossTaxLiability,
         tdsAndTcs: num(taxPaid.tds) + num(taxPaid.tcs),
@@ -5697,11 +5709,24 @@ function SheetView({ assessee, income, deductions, manualDeductions, config, cal
   } else {
     incomeRows.push({ kind: "line", label: "Less: Deduction", outer: 0 });
   }
-  incomeRows.push({ kind: "line", label: "Total Income (after Rounded off)", outer: Math.round(d.totalTaxableIncome), bold: true, red: true });
+  incomeRows.push({
+    kind: "line",
+    label: <>Total Income <span style={{ fontSize: "11px", fontWeight: "normal", color: "#666", marginLeft: "6px" }}>[after Rounded off as per U/s 288A]</span></>,
+    excelLabel: "Total Income [after Rounded off as per U/s 288A]",
+    outer: d.totalTaxableIncome,
+    bold: true,
+    red: true
+  });
 
   /* -------- tax liability table (page 2) — liability + taxes paid in one table -------- */
   const liabilityRowsRaw = [
-    { kind: "line", label: "Taxable Total Income", outer: d.totalTaxableIncome, bold: true },
+    {
+      kind: "line",
+      label: <>Taxable Total Income <span style={{ fontSize: "11px", fontWeight: "normal", color: "#666", marginLeft: "6px" }}>[after Rounded off as per U/s 288A]</span></>,
+      excelLabel: "Taxable Total Income [after Rounded off as per U/s 288A]",
+      outer: d.totalTaxableIncome,
+      bold: true
+    },
     { kind: "line", label: "Tax Payable on Total Income", outer: d.baseTax + d.specialTax },
     { kind: "line", label: "Less: Rebate U/s 87A", outer: -d.rebate },
     { kind: "line", label: "Tax Payable After Rebate", outer: d.taxAfterRebate, bold: true },
@@ -5805,22 +5830,25 @@ function SheetView({ assessee, income, deductions, manualDeductions, config, cal
         const isTotal = !!r.bold;
         const fill = rowFill(r.kind) || (isTotal ? TOTAL_BG : undefined);
         if (r.kind === "head" || r.kind === "sub" || r.kind === "note") {
+          const labelText = r.excelLabel || r.label;
           aoa.push([
-            { ...styleLabelCell(r.label, r.kind === "head"), s: { ...styleLabelCell(r.label, r.kind === "head").s, fill: fill ? { fgColor: { rgb: fill } } : undefined } },
+            { ...styleLabelCell(labelText, r.kind === "head"), s: { ...styleLabelCell(labelText, r.kind === "head").s, fill: fill ? { fgColor: { rgb: fill } } : undefined } },
             { v: "", t: "s", s: { fill: fill ? { fgColor: { rgb: fill } } : undefined, border } },
             { v: "", t: "s", s: { fill: fill ? { fgColor: { rgb: fill } } : undefined, border } },
           ]);
         } else {
+          const labelText = r.excelLabel || r.label;
           aoa.push([
-            { ...styleLabelCell(r.label, isTotal), s: { ...styleLabelCell(r.label, isTotal).s, fill: fill ? { fgColor: { rgb: fill } } : undefined } },
+            { ...styleLabelCell(labelText, isTotal), s: { ...styleLabelCell(labelText, isTotal).s, fill: fill ? { fgColor: { rgb: fill } } : undefined } },
             styleAmountCell(r.inner != null ? Math.round(r.inner * 100) / 100 : "", { bold: isTotal, fill }),
             styleAmountCell(r.outer != null ? Math.round(r.outer * 100) / 100 : "", { bold: isTotal, fill, red: !!r.red }),
           ]);
         }
       });
       if (finalRow) {
+        const labelText = finalRow.excelLabel || finalRow.label;
         aoa.push([
-          { v: finalRow.label, t: "s", s: { font: { bold: true, sz: 12, color: { rgb: WHITE } }, fill: { fgColor: { rgb: FINAL_BG } }, alignment: { vertical: "center" }, border } },
+          { v: labelText, t: "s", s: { font: { bold: true, sz: 12, color: { rgb: WHITE } }, fill: { fgColor: { rgb: FINAL_BG } }, alignment: { vertical: "center" }, border } },
           { v: "", t: "s", s: { fill: { fgColor: { rgb: FINAL_BG } }, border } },
           { v: finalRow.value, t: "n", z: "#,##0.00;[Red](#,##0.00)", s: { font: { bold: true, sz: 12, color: { rgb: finalRow.value < 0 ? "FF6B6B" : "FFD874" } }, fill: { fgColor: { rgb: FINAL_BG } }, alignment: { horizontal: "right" }, border } },
         ]);
@@ -5834,7 +5862,11 @@ function SheetView({ assessee, income, deductions, manualDeductions, config, cal
     XLSXStyle.utils.book_append_sheet(wb, wsIncome, "Computation of Income");
 
     const refundAmt = Math.round((d.refund > 0 ? -d.refund : d.payable) * 100) / 100;
-    const wsLiability = buildLedgerSheet(liabilityRows, { label: "Tax Paid / (Refund)", value: refundAmt });
+    const wsLiability = buildLedgerSheet(liabilityRows, {
+      label: <>Tax Paid / (Refund) <span style={{ fontSize: "11px", fontWeight: "normal", color: "#666", marginLeft: "6px" }}>[after Rounded off as per U/s 288B]</span></>,
+      excelLabel: "Tax Paid / (Refund) [after Rounded off as per U/s 288B]",
+      value: refundAmt
+    });
     XLSXStyle.utils.book_append_sheet(wb, wsLiability, "Tax Liability");
 
     XLSXStyle.writeFile(wb, `${fileBaseName}.xlsx`);
@@ -5912,7 +5944,7 @@ function SheetView({ assessee, income, deductions, manualDeductions, config, cal
         <LedgerTable rows={liabilityRows} />
 
         <div className="sheet-final">
-          <span>Tax Paid / (Refund)</span>
+          <span>Tax Paid / (Refund) <span style={{ fontSize: "11.5px", fontWeight: "normal", color: "#666", marginLeft: "6px" }}>[after Rounded off as per U/s 288B]</span></span>
           <b>{printFmt(d.refund > 0 ? -d.refund : d.payable)}</b>
         </div>
 
