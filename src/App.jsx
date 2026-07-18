@@ -472,69 +472,251 @@ function WorkDash({works,clients,dd}){
 }
 
 // ─── Finance Dashboard ────────────────────────────────────────────────────────
-function FinDash({works,onLogout,dd,clients,setClients,toast}){
+function FinDash({works,invoices,receipts,onLogout,dd,clients,setClients,toast}){
   const[fy,setFy]=useState("All"),[show,setShow]=useState(false);
   const[viewPan,setViewPan]=useState(null);
+  const[ledgerQ,setLedgerQ]=useState("");
+  const[hoveredKpi,setHoveredKpi]=useState(null);
+
   const fw=fy==="All"?works:works.filter(w=>w.fy===fy);
-  const tf=fw.reduce((s,w)=>s+(w.fees||0),0),tr=fw.reduce((s,w)=>s+(w.rcvd||0),0),tc=fw.reduce((s,w)=>s+(w.comm||0),0);
-  const to=tf-tr,net=tr-tc;
+
+  // Filter invoices and receipts by selected FY
+  const activeInvoices = useMemo(() => {
+    return fy === "All" ? invoices : invoices.filter(inv => inv.fy === fy);
+  }, [invoices, fy]);
+
+  const activeReceipts = useMemo(() => {
+    if (fy === "All") return receipts;
+    return receipts.filter(r => {
+      const inv = invoices.find(i => i.id === r.invId || i.id === r.invoiceId);
+      return inv && inv.fy === fy;
+    });
+  }, [receipts, invoices, fy]);
+
+  // 1. Billed (Invoiced) = TOTAL Amount FROM INV & BILLING
+  const tf = activeInvoices.reduce((s, inv) => s + (inv.total || 0), 0);
+
+  // 2. Received (Receipts) = TOTAL Received FROM Payment Receipts
+  const tr = activeReceipts.reduce((s, r) => s + (r.received || 0), 0);
+
+  // 3. Outstanding Balance = Billed - Received
+  const to = tf - tr;
+
+  // 4. Referral Commission = TOTAL COMMISSION FROM WORK TRACKER
+  const tc = fw.reduce((s, w) => s + (w.comm || 0), 0);
+
+  // 5. NET Revenue = Billed - Referral Commission
+  const net = tf - tc;
+
   const mk=v=>show?v:"****";
-  const bySrc=dd.sources.map(s=>({n:s,comm:fw.filter(w=>w.src===s).reduce((a,w)=>a+(w.comm||0),0),cnt:fw.filter(w=>w.src===s).length})).filter(s=>s.cnt>0);
-  const bySvc=[...new Set(fw.map(w=>w.svc))].map(s=>({n:s,fees:fw.filter(w=>w.svc===s).reduce((a,w)=>a+(w.fees||0),0)})).sort((a,b)=>b.fees-a.fees);
-  const kpis=[{l:"Billed",v:inr(tf),icon:"💳",col:G.green},{l:"Received",v:inr(tr),icon:"💰",col:G.g3},{l:"Outstanding",v:inr(to),icon:"⚠️",col:G.red},{l:"Commission",v:inr(tc),icon:"🔁",col:G.amb},{l:"Net Revenue",v:inr(net),icon:"📈",col:G.cyn},{l:"Avg Fee",v:inr(Math.round(fw.length?tf/fw.length:0)),icon:"📊",col:G.vio}];
+
+  const bySrc = dd.sources.map(s => ({
+    n: s,
+    comm: fw.filter(w => w.src === s).reduce((a, w) => a + (w.comm || 0), 0),
+    cnt: fw.filter(w => w.src === s).length
+  })).filter(s => s.cnt > 0);
+
+  const bySvc = [...new Set(fw.map(w => w.svc))].map(s => ({
+    n: s,
+    fees: fw.filter(w => w.svc === s).reduce((a, w) => a + workBilled(w, invoices), 0)
+  })).sort((a, b) => b.fees - a.fees);
+
+  const kpis = [
+    { l: "Billed (Invoiced)", v: inr(tf), icon: "🧾", col: G.green },
+    { l: "Received (Receipts)", v: inr(tr), icon: "💰", col: G.g3 },
+    { l: "Outstanding Balance", v: inr(to), icon: "⚠️", col: G.red },
+    { l: "Referral Commission", v: inr(tc), icon: "🔁", col: G.amb },
+    { l: "Net Revenue", v: inr(net), icon: "📈", col: G.cyn },
+    { l: "Works Tracked", v: String(fw.length) + " jobs", icon: "📋", col: G.vio }
+  ];
+
+  // Financial Ledger = IF BILL ISSUED THEN SHOW & DATA FETCH FROM WORK TRACKER
+  const ledgerWorks = useMemo(() => {
+    return fw.filter(w => linkedInvoices(w, invoices).length > 0);
+  }, [fw, invoices]);
+
+  // Filter ledger list locally by search term
+  const ledgerFiltered = useMemo(() => {
+    if (!ledgerQ) return ledgerWorks;
+    const lq = ledgerQ.toLowerCase();
+    return ledgerWorks.filter(w =>
+      (w.cn || "").toLowerCase().includes(lq) ||
+      (w.svc || "").toLowerCase().includes(lq) ||
+      (w.src || "").toLowerCase().includes(lq) ||
+      (w.status || "").toLowerCase().includes(lq)
+    );
+  }, [ledgerWorks, ledgerQ]);
+
+  // Export ledger to standard CSV file format
+  const exportLedgerCSV = () => {
+    if (!ledgerWorks.length) {
+      toast("No financial ledger rows to export", "err");
+      return;
+    }
+    const headers = ["Client Name", "Service", "FY", "Lead Source", "Billed Fees", "Received", "Outstanding", "Commission", "Net Revenue", "Work Status"];
+    const csvRows = ledgerWorks.map(w => {
+      const billedVal = workBilled(w, invoices);
+      const rcvdVal = workReceived(w, invoices, receipts);
+      const os = billedVal - rcvdVal;
+      const n = billedVal - (w.comm || 0);
+      return [
+        w.cn || "-",
+        w.svc || "-",
+        w.fy || "-",
+        w.src || "-",
+        billedVal,
+        rcvdVal,
+        os,
+        w.comm || 0,
+        n,
+        w.status || "-"
+      ];
+    });
+
+    const csvContent = [headers, ...csvRows]
+      .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `FMT_Financial_Ledger_${fy}_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast("Financial Ledger exported ✓");
+  };
+
   return <div style={{display:"flex",flexDirection:"column",gap:16}}>
+    {/* Header Security Actions */}
     <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:10}}>
-      <div style={{display:"flex",alignItems:"center",gap:10,padding:"7px 13px",background:"#431407",border:`1px solid ${G.amb}44`,borderRadius:10}}><span>👑</span><span style={{fontSize:13,color:G.amb,fontWeight:700}}>Owner View - Confidential</span></div>
+      <div style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        padding: "8px 16px",
+        background: "linear-gradient(135deg, rgba(67, 20, 7, 0.45), rgba(115, 30, 10, 0.35))",
+        border: `1.5px solid ${G.amb}40`,
+        borderRadius: 12,
+        backdropFilter: "blur(10px)",
+        boxShadow: "0 8px 32px 0 rgba(0, 0, 0, 0.3)"
+      }}>
+        <span style={{ animation: "pulse 2s infinite", display: "inline-block" }}>👑</span>
+        <span style={{fontSize:13,color:G.amb,fontWeight:800,letterSpacing:0.25}}>Owner View — Private & Confidential</span>
+      </div>
       <div style={{display:"flex",gap:7,alignItems:"center",flexWrap:"wrap"}}>
-        {["All",...dd.fyOptions].map(f=><button key={f} onClick={()=>setFy(f)} style={{padding:"5px 10px",borderRadius:18,border:`1.5px solid ${fy===f?G.green:G.bdr}`,cursor:"pointer",fontSize:11,fontWeight:600,background:fy===f?G.green+"18":"transparent",color:fy===f?G.green:G.mut}}>{f}</button>)}
-        {!show?<button onClick={()=>setShow(true)} style={{padding:"6px 14px",borderRadius:9,border:`1px solid ${G.amb}44`,background:"#43140730",color:G.amb,cursor:"pointer",fontWeight:700,fontSize:12}}>🔓 Show Figures</button>
+        {["All",...dd.fyOptions].map(f=><button key={f} onClick={()=>setFy(f)} style={{padding:"5px 12px",borderRadius:18,border:`1.5px solid ${fy===f?G.green:G.bdr}`,cursor:"pointer",fontSize:11,fontWeight:700,background:fy===f?G.green+"18":"transparent",color:fy===f?G.green:G.mut}}>{f}</button>)}
+        {!show?<button onClick={()=>setShow(true)} style={{padding:"6px 14px",borderRadius:9,border:`1.5px solid ${G.amb}44`,background:"#43140730",color:G.amb,cursor:"pointer",fontWeight:700,fontSize:12}}>🔓 Show Figures</button>
         :<button onClick={()=>setShow(false)} style={{padding:"6px 14px",borderRadius:9,border:`1px solid ${G.bdr}`,background:"transparent",color:G.mut,cursor:"pointer",fontWeight:700,fontSize:12}}>🔒 Hide</button>}
-        <button onClick={onLogout} style={{padding:"6px 14px",borderRadius:9,border:`1px solid ${G.red}44`,background:"#450A0A",color:G.red,cursor:"pointer",fontWeight:700,fontSize:12}}>🔐 Lock</button>
+        <button onClick={onLogout} style={{padding:"6px 14px",borderRadius:9,border:`1.5px solid ${G.red}44`,background:"#450A0A",color:G.red,cursor:"pointer",fontWeight:700,fontSize:12}}>🔐 Lock</button>
       </div>
     </div>
+
+    {/* KPI Summary Cards Grid */}
     <div className="kpi-grid-3" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12}}>
-      {kpis.map(k=><div key={k.l} style={{background:G.surf,border:`1px solid ${G.bdr}`,borderRadius:14,padding:"15px 17px"}}>
-        <div style={{display:"flex",gap:11,alignItems:"flex-start"}}>
-          <div style={{width:38,height:38,borderRadius:10,background:k.col+"18",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>{k.icon}</div>
-          <div><div style={{fontSize:10,color:G.mut,textTransform:"uppercase",letterSpacing:.5,fontWeight:600}}>{k.l}</div><div style={{fontWeight:800,fontSize:18,color:show?k.col:G.bdr,marginTop:2}}>{mk(k.v)}</div></div>
+      {kpis.map((k, idx)=><div 
+        key={k.l} 
+        onMouseEnter={()=>setHoveredKpi(idx)}
+        onMouseLeave={()=>setHoveredKpi(null)}
+        style={{
+          background: G.surf,
+          border: `1.5px solid ${hoveredKpi === idx ? k.col + "66" : G.bdr}`,
+          borderRadius: 16,
+          padding: "16px 20px",
+          boxShadow: hoveredKpi === idx ? `0 12px 30px ${k.col}22` : "0 4px 15px rgba(0, 0, 0, 0.15)",
+          transform: hoveredKpi === idx ? "translateY(-4px)" : "none",
+          transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+          cursor: "default"
+        }}
+      >
+        <div style={{display:"flex",gap:12,alignItems:"center"}}>
+          <div style={{width:40,height:40,borderRadius:12,background:k.col+"18",display:"flex",alignItems:"center",justifyContent:"center",fontSize:19,flexShrink:0}}>{k.icon}</div>
+          <div>
+            <div style={{fontSize:10,color:G.mut,textTransform:"uppercase",letterSpacing:0.6,fontWeight:700}}>{k.l}</div>
+            <div style={{fontWeight:800,fontSize:20,color:show?k.col:G.bdr,marginTop:3}}>{mk(k.v)}</div>
+          </div>
         </div>
       </div>)}
     </div>
+
+    {/* Subsections: Commissions & Revenue share */}
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
-      <Crd><SH icon="🔁" title="Commission by Source" acc={G.amb}/>
+      <Crd><SH icon="🔁" title="Commission by Lead Source" acc={G.amb}/>
         <table style={{width:"100%",borderCollapse:"collapse",fontSize:12,marginTop:10}}>
           <thead><tr>{["Source","Works","Commission"].map(h=><th key={h} style={{padding:"7px 9px",textAlign:"left",color:G.mut,fontWeight:600,fontSize:11,borderBottom:`1px solid ${G.bdr}`}}>{h}</th>)}</tr></thead>
-          <tbody>{bySrc.map((s,i)=><tr key={s.n} style={{borderTop:`1px solid ${G.bdr}`,background:i%2?"#0F1D1408":"transparent"}}>
+          <tbody>{bySrc.map((s,i)=><tr key={s.n} style={{borderTop:`1px solid ${G.bdr}`,background:i%2?"#0f1d1408":"transparent"}}>
             <td style={{padding:"8px 9px",fontWeight:600,color:G.txt}}>{s.n}</td>
             <td style={{padding:"8px 9px",color:G.mut}}>{s.cnt}</td>
             <td style={{padding:"8px 9px",color:show?G.amb:G.bdr,fontWeight:700}}>{mk(inr(s.comm))}</td>
           </tr>)}</tbody>
         </table>
       </Crd>
-      <Crd><SH icon="📊" title="Revenue by Service" acc={G.cyn}/>
-        {bySvc.slice(0,7).map((s,i)=>{const cls=[G.green,G.g3,G.cyn,G.amb,G.vio,G.red,G.mut];return <div key={s.n} style={{marginBottom:8}}>
-          <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}><span style={{fontSize:12,color:G.txt}}>{s.n}</span><span style={{fontSize:12,color:show?cls[i%cls.length]:G.bdr,fontWeight:700}}>{mk(inr(s.fees))}</span></div>
+      <Crd><SH icon="📊" title="Revenue by Service Classification" acc={G.cyn}/>
+        {bySvc.slice(0,7).map((s,i)=>{const cls=[G.green,G.g3,G.cyn,G.amb,G.vio,G.red,G.mut];return <div key={s.n} style={{marginBottom:9}}>
+          <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}><span style={{fontSize:12,color:G.txt}}>{s.n}</span><span style={{fontSize:12,color:show?cls[i%cls.length]:G.bdr,fontWeight:700}}>{mk(inr(s.fees))}</span></div>
           <div style={{height:5,background:G.bdr,borderRadius:10,overflow:"hidden"}}><div style={{height:"100%",width:show?`${s.fees/(bySvc[0]?.fees||1)*100}%`:"0%",background:cls[i%cls.length],borderRadius:10,transition:"width .5s"}}/></div>
         </div>;})}
       </Crd>
     </div>
-    <Crd sty={{padding:0,overflow:"hidden"}}><div style={{padding:"13px 17px",borderBottom:`1px solid ${G.bdr}`,fontWeight:700,fontSize:14,color:G.wh}}>Financial Ledger {fy!=="All"&&`- ${fy}`}</div>
+
+    {/* Financial Ledger Section */}
+    <Crd sty={{padding:0,overflow:"hidden"}}>
+      <div style={{padding:"12px 18px",borderBottom:`1px solid ${G.bdr}`,display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:10,background:G.surf}}>
+        <div style={{fontWeight:800,fontSize:14,color:G.wh}}>Financial Ledger {fy!=="All"&&`- ${fy}`} ({ledgerFiltered.length} records)</div>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <div style={{position:"relative",width:200}}>
+            <span style={{position:"absolute",left:8,top:"50%",transform:"translateY(-50%)",fontSize:11,color:G.mut}}>🔍</span>
+            <input 
+              value={ledgerQ} 
+              onChange={e=>setLedgerQ(e.target.value)} 
+              placeholder="Search ledger..." 
+              style={{...IS,padding:"5px 8px 5px 24px",fontSize:11,borderRadius:6,border:`1px solid ${G.bdr}`}}
+            />
+          </div>
+          <button 
+            onClick={exportLedgerCSV}
+            style={{
+              background: `${G.green}18`,
+              border: `1.5px solid ${G.green}40`,
+              color: G.green,
+              borderRadius: 6,
+              padding: "5px 12px",
+              cursor: "pointer",
+              fontSize: 11,
+              fontWeight: 700,
+              transition: "all 0.2s"
+            }}
+          >📥 Export CSV</button>
+        </div>
+      </div>
       <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
-        <thead><tr style={{background:G.bg}}>{["Client","Service","FY","Source","Fees","Received","O/S","Commission","Net","Status"].map(h=><th key={h} style={{padding:"9px 11px",textAlign:"left",color:G.mut,fontWeight:600,fontSize:11,whiteSpace:"nowrap"}}>{h}</th>)}</tr></thead>
-        <tbody>{fw.map((w,i)=>{const os=(w.fees||0)-(w.rcvd||0),n=(w.rcvd||0)-(w.comm||0);return <tr key={w.id} style={{borderTop:`1px solid ${G.bdr}`,background:i%2?"#0F1D1408":"transparent"}}>
-          <td style={{padding:"9px 11px",whiteSpace:"nowrap"}}>
-                  <button onClick={()=>setViewPan(w.pan)} style={{background:"none",border:"none",cursor:"pointer",fontWeight:700,color:G.green,fontSize:12,padding:0,textDecoration:"underline",textUnderlineOffset:3,textDecorationColor:G.green+"55",whiteSpace:"nowrap"}} title="View client details">{w.cn}</button>
-                </td>
-          <td style={{padding:"9px 11px",color:G.mut}}>{w.svc}</td>
-          <td style={{padding:"9px 11px",color:G.mut}}>{w.fy}</td>
-          <td style={{padding:"9px 11px",color:G.mut}}>{w.src||"-"}</td>
-          <td style={{padding:"9px 11px",color:show?G.green:G.bdr,fontWeight:600}}>{mk(inr(w.fees))}</td>
-          <td style={{padding:"9px 11px",color:show?G.g3:G.bdr,fontWeight:600}}>{mk(inr(w.rcvd))}</td>
-          <td style={{padding:"9px 11px",color:show?(os>0?G.red:G.g3):G.bdr,fontWeight:600}}>{mk(inr(os))}</td>
-          <td style={{padding:"9px 11px",color:show?G.amb:G.bdr}}>{mk(inr(w.comm))}</td>
-          <td style={{padding:"9px 11px",color:show?G.cyn:G.bdr,fontWeight:700}}>{mk(inr(n))}</td>
-          <td style={{padding:"9px 11px"}}><Bdg label={w.status}/></td>
-        </tr>;})}
+        <thead><tr style={{background:G.bg}}>{["Client","Service","FY","Source","Fees (Billed)","Received","Outstanding","Commission","Net Revenue","Status"].map(h=><th key={h} style={{padding:"9px 11px",textAlign:"left",color:G.mut,fontWeight:600,fontSize:11,whiteSpace:"nowrap"}}>{h}</th>)}</tr></thead>
+        <tbody>{ledgerFiltered.map((w,i)=>{
+          const billedVal = workBilled(w, invoices);
+          const rcvdVal = workReceived(w, invoices, receipts);
+          const os = billedVal - rcvdVal;
+          const n = billedVal - (w.comm || 0);
+          return <tr key={w.id} style={{borderTop:`1px solid ${G.bdr}`,background:i%2?"#0f1d1408":"transparent",transition:"background 0.2s"}}>
+            <td style={{padding:"9px 11px",whiteSpace:"nowrap"}}>
+              <button onClick={()=>setViewPan(w.pan)} style={{background:"none",border:"none",cursor:"pointer",fontWeight:700,color:G.green,fontSize:12,padding:0,textDecoration:"underline",textUnderlineOffset:3,textDecorationColor:G.green+"55",whiteSpace:"nowrap"} } title="View client details">{w.cn}</button>
+            </td>
+            <td style={{padding:"9px 11px",color:G.mut}}>{w.svc}</td>
+            <td style={{padding:"9px 11px",color:G.mut}}>{w.fy}</td>
+            <td style={{padding:"9px 11px",color:G.mut}}>{w.src||"-"}</td>
+            <td style={{padding:"9px 11px",color:show?G.green:G.bdr,fontWeight:600}}>{mk(inr(billedVal))}</td>
+            <td style={{padding:"9px 11px",color:show?G.g3:G.bdr,fontWeight:600}}>{mk(inr(rcvdVal))}</td>
+            <td style={{
+              padding: "9px 11px",
+              color: show ? (os > 0 ? G.red : G.g3) : G.bdr,
+              fontWeight: 600,
+              background: show && os > 0 ? "rgba(239, 68, 68, 0.05)" : "transparent"
+            }}>{mk(inr(os))}</td>
+            <td style={{padding:"9px 11px",color:show?G.amb:G.bdr}}>{mk(inr(w.comm))}</td>
+            <td style={{padding:"9px 11px",color:show?G.cyn:G.bdr,fontWeight:800}}>{mk(inr(n))}</td>
+            <td style={{padding:"9px 11px"}}><Bdg label={w.status}/></td>
+          </tr>;
+        })}
         </tbody>
         <tfoot><tr style={{background:G.gd,borderTop:`2px solid ${G.green}44`}}>
           <td colSpan={4} style={{padding:"10px 11px",fontWeight:800,color:G.wh,fontSize:13}}>TOTALS</td>
@@ -543,9 +725,10 @@ function FinDash({works,onLogout,dd,clients,setClients,toast}){
         </tr></tfoot>
       </table></div>
     </Crd>
-    {viewPan&&(()=>{const c=clients&&clients.find(x=>x.pan===viewPan);return c?<EditClient c={c} dd={dd} onX={()=>setViewPan(null)} onSave={cf=>{setClients&&setClients(p=>p.map(x=>x.pan===cf.pan?cf:x));setViewPan(null);toast&&toast("Client updated!");}}/>:null;})()}
+    {viewPan&&((()=>{const c=clients&&clients.find(x=>x.pan===viewPan);return c?<EditClient c={c} dd={dd} onX={()=>setViewPan(null)} onSave={cf=>{setClients&&setClients(p=>p.map(x=>x.pan===cf.pan?cf:x));setViewPan(null);toast&&toast("Client updated!");}}/>:null;})())}
   </div>;
 }
+
 
 // ─── Add Client ───────────────────────────────────────────────────────────────
 function AddClient({clients,setClients,dd,toast}){
@@ -6988,24 +7171,23 @@ export default function App(){
         let { data: dbDev, error: errDev } = await supabase.from('developer_settings').select('*').maybeSingle();
         if (errDev) throw errDev;
 
-        // Seeding database if empty (Only if there are no clients at all)
-        if (!dbClients || dbClients.length === 0) {
-          const { error: errC } = await supabase.from('clients').insert(SC);
-          if (errC) throw new Error("Seeding clients failed: " + errC.message);
-          dbClients = [...SC];
+        // Cleanup dummy data from Supabase DB using active session
+        const dummyPans = ["ABCPK1234A", "BCDQL5678B", "CDERM7890C", "DEFNS2345D", "EFGOT6789E"];
+        supabase.from('receipts').delete().in('pan', dummyPans).then();
+        supabase.from('invoices').delete().in('pan', dummyPans).then();
+        supabase.from('computations').delete().in('pan', dummyPans).then();
+        supabase.from('works').delete().in('pan', dummyPans).then();
+        supabase.from('clients').delete().in('pan', dummyPans).then();
 
-          const { error: errW } = await supabase.from('works').insert(SW);
-          if (errW) throw new Error("Seeding works failed: " + errW.message);
-          dbWorks = [...SW];
-
-          const { error: errI } = await supabase.from('invoices').insert(SEED_INVOICES);
-          if (errI) throw new Error("Seeding invoices failed: " + errI.message);
-          dbInvoices = [...SEED_INVOICES];
-
-          const { error: errR } = await supabase.from('receipts').insert(SEED_RECEIPTS);
-          if (errR) throw new Error("Seeding receipts failed: " + errR.message);
-          dbReceipts = [...SEED_RECEIPTS];
+        // Local filter to immediately strip dummy data from UI loads
+        dbClients = (dbClients || []).filter(c => !dummyPans.includes(c.pan));
+        dbWorks = (dbWorks || []).filter(w => !dummyPans.includes(w.pan));
+        dbInvoices = (dbInvoices || []).filter(i => !dummyPans.includes(i.pan));
+        dbReceipts = (dbReceipts || []).filter(r => !dummyPans.includes(r.pan));
+        if (dbComputations) {
+          dbComputations = dbComputations.filter(c => !dummyPans.includes(c.pan));
         }
+
         if (!dbFirm) {
           const defaultFirm = { id: 1, settings: {
             name:"Fin-Tax Mitra",
@@ -7567,7 +7749,7 @@ export default function App(){
       </div>
       <div className="app-content" style={{flex:1,overflow:"auto"}}>
         {tab==="wdash"&&<WorkDash works={works} clients={clients} dd={dd}/>}
-        {tab==="fin"&&(ownerOn?<FinDash works={works} onLogout={()=>{setOwnerOn(false);setTab("wdash");}} dd={dd} clients={clients} setClients={setClients} toast={toast}/>
+        {tab==="fin"&&(ownerOn?<FinDash works={works} invoices={invoices} receipts={receipts} onLogout={()=>{setOwnerOn(false);setTab("wdash");}} dd={dd} clients={clients} setClients={setClients} toast={toast}/>
           :<div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"60vh",flexDirection:"column",gap:14}}>
             <Logo sz={64}/><div style={{fontWeight:700,fontSize:17,marginTop:8}}>Owner Access Required</div>
             <button onClick={()=>{setPendingProt("fin");setShowOA(true);}} style={{padding:"11px 26px",borderRadius:11,border:"none",cursor:"pointer",background:`linear-gradient(135deg,${G.g2},${G.green})`,color:"#fff",fontWeight:700,fontSize:14}}>🔐 Unlock</button>
