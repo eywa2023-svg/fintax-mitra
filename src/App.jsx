@@ -478,7 +478,16 @@ function FinDash({works,invoices,receipts,onLogout,dd,clients,setClients,toast})
   const[ledgerQ,setLedgerQ]=useState("");
   const[hoveredKpi,setHoveredKpi]=useState(null);
 
-  const fw=fy==="All"?works:works.filter(w=>w.fy===fy);
+  const fw = useMemo(() => {
+    if (fy === "All") return works;
+    return works.filter(w => {
+      const linked = linkedInvoices(w, invoices);
+      if (linked.length > 0) {
+        return linked.some(inv => inv.fy === fy);
+      }
+      return w.fy === fy;
+    });
+  }, [works, invoices, fy]);
 
   // Filter invoices and receipts by selected FY
   const activeInvoices = useMemo(() => {
