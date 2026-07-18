@@ -3777,9 +3777,23 @@ function buildPrintCSS(ps) {
   const w = ps.orientation === "landscape" ? base[1] : base[0];
   const h = ps.orientation === "landscape" ? base[0] : base[1];
   const scale = Math.max(50, Math.min(150, num(ps.scale) || 100)) / 100;
+  const printH = h - num(ps.marginTop) - num(ps.marginBottom);
   return `@media print {
     @page { size: ${w}mm ${h}mm; margin: ${num(ps.marginTop)}mm ${num(ps.marginRight)}mm ${num(ps.marginBottom)}mm ${num(ps.marginLeft)}mm; }
+    .sheet {
+      height: ${printH}mm !important;
+      border: none !important;
+      box-shadow: none !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      display: flex !important;
+      flex-direction: column !important;
+      box-sizing: border-box !important;
+    }
     .sheet-page { zoom: ${scale}; }
+    .sheet-footer {
+      margin-top: auto !important;
+    }
   }`;
 }
 
@@ -4112,7 +4126,35 @@ function ManualEntries({ items, onChange, label = "Add manual entry", showRegime
    ============================================================ */
 function TaxComputationEditor({ initialRecord, clients, allComputations, onSave, onExit, onOpenClientEdit, onOpenRecord }) {
   const [nav, setNav] = useState("assessee");
-  const [assessee, setAssessee] = useState(initialRecord.assessee || defaultAssessee);
+  const [assessee, setAssessee] = useState(() => {
+    const rawAssessee = initialRecord.assessee || defaultAssessee;
+    if (rawAssessee.pan && clients) {
+      const client = clients.find(c => c.pan === rawAssessee.pan);
+      if (client) {
+        return {
+          ...rawAssessee,
+          pan: client.pan || rawAssessee.pan,
+          name: client.name || rawAssessee.name,
+          address: client.addr || rawAssessee.address,
+          state: client.state || rawAssessee.state,
+          pin: client.pin || rawAssessee.pin,
+          email: client.email || rawAssessee.email,
+          mobile: client.mob || rawAssessee.mobile,
+          aadhaar: client.aadhaar || rawAssessee.aadhaar,
+          dob: client.dob || rawAssessee.dob,
+          fatherName: client.fatherName || rawAssessee.fatherName,
+          gender: client.gender || rawAssessee.gender,
+          residentialStatus: client.residentialStatus || rawAssessee.residentialStatus,
+          category: CLIENT_CATEGORY_MAP[client.type] || rawAssessee.category,
+          bankName: client.bankName || rawAssessee.bankName,
+          ifsc: client.ifsc || rawAssessee.ifsc,
+          accountNumber: client.accountNumber || rawAssessee.accountNumber,
+          itrType: client.itrType || rawAssessee.itrType,
+        };
+      }
+    }
+    return rawAssessee;
+  });
   const [income, setIncome] = useState(initialRecord.income || defaultIncome);
   const [deductions, setDeductions] = useState(initialRecord.deductions || defaultDeductions);
   const [manualDeductions, setManualDeductions] = useState(initialRecord.manualDeductions || defaultManualDeductions);
@@ -4125,6 +4167,39 @@ function TaxComputationEditor({ initialRecord, clients, allComputations, onSave,
   const [sideOpen, setSideOpen] = useState(true);
   const [openModal, setOpenModal] = useState(false);
   const [osearch, setOsearch] = useState("");
+
+  // Real-time synchronization of assessee details when client profile changes
+  useEffect(() => {
+    if (assessee.pan && clients) {
+      const client = clients.find(c => c.pan === assessee.pan);
+      if (client) {
+        setAssessee(prev => {
+          const next = {
+            ...prev,
+            pan: client.pan || prev.pan,
+            name: client.name || prev.name,
+            address: client.addr || prev.address,
+            state: client.state || prev.state,
+            pin: client.pin || prev.pin,
+            email: client.email || prev.email,
+            mobile: client.mob || prev.mobile,
+            aadhaar: client.aadhaar || prev.aadhaar,
+            dob: client.dob || prev.dob,
+            fatherName: client.fatherName || prev.fatherName,
+            gender: client.gender || prev.gender,
+            residentialStatus: client.residentialStatus || prev.residentialStatus,
+            category: CLIENT_CATEGORY_MAP[client.type] || prev.category,
+            bankName: client.bankName || prev.bankName,
+            ifsc: client.ifsc || prev.ifsc,
+            accountNumber: client.accountNumber || prev.accountNumber,
+            itrType: client.itrType || prev.itrType,
+          };
+          const hasChanged = Object.keys(next).some(k => next[k] !== prev[k]);
+          return hasChanged ? next : prev;
+        });
+      }
+    }
+  }, [clients, assessee.pan]);
 
   const config = TAX_CONFIG[assessee.ay] || TAX_CONFIG["AY 2026-27"];
 
@@ -5429,10 +5504,12 @@ function SheetView({ assessee, income, deductions, manualDeductions, config, cal
   const MM_TO_PX = 3.7795;
   const base = PAPER_SIZES[pageSetup.paperSize] || PAPER_SIZES.A4;
   const paperW = pageSetup.orientation === "landscape" ? base[1] : base[0];
+  const paperH = pageSetup.orientation === "landscape" ? base[0] : base[1];
   const screenScale = 0.82; // fit comfortably in the main content column
   const scalePct = Math.max(50, Math.min(150, num(pageSetup.scale) || 100)) / 100;
   const pageStyle = {
     width: `${paperW * MM_TO_PX * screenScale}px`,
+    minHeight: `${paperH * MM_TO_PX * screenScale}px`,
     paddingTop: `${num(pageSetup.marginTop) * MM_TO_PX * screenScale}px`,
     paddingBottom: `${num(pageSetup.marginBottom) * MM_TO_PX * screenScale}px`,
     paddingLeft: `${num(pageSetup.marginLeft) * MM_TO_PX * screenScale}px`,
@@ -5441,6 +5518,8 @@ function SheetView({ assessee, income, deductions, manualDeductions, config, cal
     transformOrigin: "top center",
     maxWidth: "none",
     position: "relative",
+    display: "flex",
+    flexDirection: "column",
   };
 
   const Letterhead = ({ small }) => (
@@ -6057,6 +6136,9 @@ const CSS = `
   background: #fff; border: 1px solid var(--line); border-radius: 4px; padding: 18px 26px; margin-bottom: 24px;
   font-family: 'Book Antiqua', 'Palatino Linotype', Palatino, 'URW Palladio L', Georgia, serif;
   color: #1a1a1a;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
 }
 .sheet-page { max-width: 780px; }
 .sheet-header { position: relative; display: flex; align-items: center; background: linear-gradient(135deg, #F2F2ED, #EAEAE3); border-radius: 7px; padding: 9px 15px 9px 92px; margin-bottom: 11px; min-height: 46px; }
@@ -6085,7 +6167,7 @@ const CSS = `
 .sheet-final { display: flex; justify-content: space-between; align-items: center; background: linear-gradient(135deg, #FBF1F1, #F6E9E9); padding: 10px 16px; border-radius: 7px; margin: 12px 0; }
 .sheet-final span { font-weight: 700; font-size: 13px; color: #444; }
 .sheet-final b { font-size: 18px; color: #A6272C; }
-.sheet-footer { border-top: 1px solid #EEE; padding-top: 8px; font-size: 10.5px; color: var(--muted); }
+.sheet-footer { border-top: 1px solid #EEE; padding-top: 8px; font-size: 10.5px; color: var(--muted); margin-top: auto; }
 .sheet-footer-ad { background: linear-gradient(135deg, #EFF4F8, #E8F0F6); border-radius: 7px; padding: 8px 12px; margin-bottom: 8px; text-align: center; font-size: 11px; font-weight: 700; color: #2E5C8A; letter-spacing: 0.01em; }
 .sheet-footer-main { position: relative; padding-left: 60px; min-height: 22px; display: flex; align-items: center; }
 .sheet-footer-logo-wrap { position: absolute; left: 0; top: 50%; transform: translateY(-50%); }
