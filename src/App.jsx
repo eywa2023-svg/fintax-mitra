@@ -120,6 +120,11 @@ const SW = [
 const td = () => new Date().toISOString().split("T")[0];
 const fd = d => d ? new Date(d).toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}) : "-";
 const isOD = w => w.status!=="Completed" && new Date(w.due)<new Date();
+const getCurrentFY = () => {
+  const now = new Date();
+  const yr = now.getFullYear();
+  return now.getMonth() >= 3 ? `${yr}-${String(yr + 1).slice(-2)}` : `${yr - 1}-${String(yr).slice(-2)}`;
+};
 // ─── Work ↔ Invoice ↔ Receipt linkage helpers ──────────────────────────────
 // A work can have one or more invoices raised against it (invoice.workId === work.id).
 // Each invoice can have one or more payment receipts (receipt.invId === invoice.id).
@@ -405,7 +410,7 @@ function EditWork({w,onSave,onX,dd,rcvdDisplay,linkedCount}){
 
 // ─── Work Dashboard ───────────────────────────────────────────────────────────
 function WorkDash({works,clients,dd}){
-  const[fy,setFy]=useState("All");
+  const[fy,setFy]=useState(getCurrentFY());
   const fw=fy==="All"?works:works.filter(w=>w.fy===fy);
   const kpis=[
     {l:"Total",v:fw.length,icon:"📋",col:G.green},
@@ -473,7 +478,7 @@ function WorkDash({works,clients,dd}){
 
 // ─── Finance Dashboard ────────────────────────────────────────────────────────
 function FinDash({works,invoices,receipts,onLogout,dd,clients,setClients,toast}){
-  const[fy,setFy]=useState("All"),[show,setShow]=useState(false);
+  const[fy,setFy]=useState(getCurrentFY()),[show,setShow]=useState(false);
   const[viewPan,setViewPan]=useState(null);
   const[ledgerQ,setLedgerQ]=useState("");
   const[hoveredKpi,setHoveredKpi]=useState(null);
@@ -1226,7 +1231,7 @@ const SEED_RECEIPTS = [
 
 // ─── Invoice Module ───────────────────────────────────────────────────────────
 function InvoiceModule({invoices,setInvoices,receipts,setReceipts,clients,works,dd,toast,firmSettings,setFirmSettings}){
-  const[fy,setFy]=useState("All");
+  const[fy,setFy]=useState(getCurrentFY());
   const[status,setStatus]=useState("All");
   const[q,setQ]=useState("");
   const[showForm,setShowForm]=useState(false);
@@ -2206,7 +2211,7 @@ function PortalPw({pw,pid}){
 }
 
 function WorkTracker({works,setWorks,clients,ownerOn,dd,pws,toast,invoices,setInvoices,receipts}){
-  const[flt,setFlt]=useState("All"),[fy,setFy]=useState("All"),[q,setQ]=useState("");
+  const[flt,setFlt]=useState("All"),[fy,setFy]=useState(getCurrentFY()),[q,setQ]=useState("");
   const[showAuth,setShowAuth]=useState(false),[feesOn,setFeesOn]=useState(ownerOn);
   const[editW,setEditW]=useState(null),[opP,setOpP]=useState({}),[vpw,setVpw]=useState({});
   const[selClient,setSelClient]=useState(null);
