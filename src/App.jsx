@@ -1296,6 +1296,7 @@ function InvoiceModule({invoices,setInvoices,receipts,setReceipts,clients,works,
     {showForm&&<InvoiceForm invoices={invoices} setInvoices={setInvoices} clients={clients} works={works} dd={dd} toast={toast} onClose={()=>setShowForm(false)} genId={genInvId} editInv={editInv} setEditInv={setEditInv} receipts={receipts}/>}
     {showPrint&&<InvoicePrint inv={showPrint} clients={clients} firmSettings={firmSettings} onClose={()=>setShowPrint(null)} toast={toast}/>}
 
+<div className="no-print" style={{display:"flex",flexDirection:"column",gap:16}}>
     {/* Summary KPIs */}
     <div className="kpi-grid-4" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12}}>
       {[
@@ -1377,6 +1378,7 @@ function InvoiceModule({invoices,setInvoices,receipts,setReceipts,clients,works,
           </tr>
         </tfoot>}
       </table></div>
+</div>
     </div>
   </div>;
 }
@@ -7756,12 +7758,8 @@ export default function App(){
         .app-root { display: block !important; height: auto !important; overflow: visible !important; background: #fff !important; }
         .app-content { overflow: visible !important; height: auto !important; padding: 0 !important; }
         
-        body.ftm-invoice-printing-active .app-root {
-          display: none !important;
-        }
         body.ftm-invoice-printing-active .ftm-invoice-print-modal {
-          position: absolute !important;
-          inset: 0 !important;
+          position: static !important;
           background: #fff !important;
           display: block !important;
           overflow: visible !important;
