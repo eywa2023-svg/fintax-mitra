@@ -2062,8 +2062,13 @@ function ReceiptsModule({receipts,setReceipts,invoices,setInvoices,clients,dd,to
   const totalReceived=filtered.reduce((s,r)=>s+(r.received||0),0);
 
   const genRcpId=()=>{
-    const n=String(receipts.length+1).padStart(3,"0");
-    return `RCP-${n}`;
+    if(!receipts || !receipts.length) return "RCP-001";
+    const rcpIds = receipts
+      .filter(r => r.id && /^RCP-\d+$/.test(r.id))
+      .map(r => parseInt(r.id.split("-")[1], 10));
+    if(!rcpIds.length) return "RCP-001";
+    const maxId = Math.max(...rcpIds);
+    return `RCP-${String(maxId + 1).padStart(3, "0")}`;
   };
 
   const deleteRcp=id=>{
@@ -7099,7 +7104,19 @@ export default function App(){
         return !p || JSON.stringify(p) !== JSON.stringify(n);
       });
       if (addedOrUpdated.length > 0) {
-        const { error } = await supabase.from('receipts').upsert(addedOrUpdated);
+        const mapped = addedOrUpdated.map(r => ({
+          id: r.id,
+          date: r.date,
+          invId: r.invId,
+          pan: r.pan,
+          clientName: r.clientName,
+          invAmt: Number(r.invAmt) || 0,
+          received: Number(r.received) || 0,
+          mode: r.mode,
+          ref: r.ref || null,
+          note: r.note || null
+        }));
+        const { error } = await supabase.from('receipts').upsert(mapped);
         if (error) throw error;
       }
     } catch (err) {
@@ -7277,6 +7294,12 @@ export default function App(){
         }
         let { data: dbReceipts, error: errReceipts } = await supabase.from('receipts').select('*');
         if (errReceipts) throw errReceipts;
+        if (dbInvoices && dbReceipts) {
+          dbInvoices = dbInvoices.map(inv => ({
+            ...inv,
+            status: computeInvStatus(inv, dbReceipts)
+          }));
+        }
         let { data: dbComputations, error: errComputations } = await supabase.from('computations').select('*');
         if (errComputations) throw errComputations;
         let { data: dbFirm, error: errFirm } = await supabase.from('firm_settings').select('*').maybeSingle();
