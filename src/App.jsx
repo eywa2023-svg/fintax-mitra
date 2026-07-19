@@ -6246,9 +6246,9 @@ function SheetView({ assessee, income, deductions, manualDeductions, config, cal
 
         <LedgerTable rows={liabilityRows} />
 
-        <div className="sheet-final">
+                <div className="sheet-final" style={d.refund > 0 ? { background: "linear-gradient(135deg, #F0FDF4, #DCFCE7)" } : undefined}>
           <span>Tax Paid / (Refund) <span style={{ fontSize: "11.5px", fontWeight: "normal", color: "#666", marginLeft: "6px" }}>[after Rounded off as per U/s 288B]</span></span>
-          <b>{printFmt(d.refund > 0 ? -d.refund : d.payable)}</b>
+          <b style={d.refund > 0 ? { color: "#1E7A4C" } : undefined}>{printFmt(d.refund > 0 ? -d.refund : d.payable)}</b>
         </div>
 
         {letterhead.banner && (
