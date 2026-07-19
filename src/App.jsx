@@ -1730,7 +1730,7 @@ function InvoicePrint({inv,clients,firmSettings,onClose,toast}){
     // wrapper), not as children of it - print the wrapper so they're included.
     const wrapper=el.parentElement||el;
     const win=window.open("","_blank","width=860,height=780");
-    win.document.write(`<!DOCTYPE html><html><head><title>${inv.id}</title>
+    win.document.write(`<!DOCTYPE html><html><head><title>${inv.id} ${inv.clientName}</title>
     <style>
       *{box-sizing:border-box;margin:0;padding:0;}
       html,body{width:${PAGE_W}px;background:#fff;color:#000;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
@@ -4731,7 +4731,15 @@ function TaxComputationEditor({ initialRecord, clients, allComputations, onSave,
           <button className="itc-sbtn" onClick={onExit} title="Back to List"><X size={14} />{sideOpen && " Back"}</button>
           <button className="itc-sbtn" onClick={() => setOpenModal(true)} title="Open a saved / draft computation"><FolderOpen size={14} />{sideOpen && " Open"}</button>
           <button className="itc-sbtn primary" onClick={persistComputation} title="Save"><Save size={14} />{sideOpen && " Save"}</button>
-          <button className="itc-sbtn" onClick={() => { setNav("sheet"); setTimeout(() => window.print(), 200); }} title="Print"><Printer size={14} />{sideOpen && " Print"}</button>
+          <button className="itc-sbtn" onClick={() => {
+            setNav("sheet");
+            const oldTitle = document.title;
+            document.title = `ITR COMPUTATION FY ${assessee.fy} ${assessee.name || "Computation"}`;
+            setTimeout(() => {
+              window.print();
+              setTimeout(() => { document.title = oldTitle; }, 1000);
+            }, 200);
+          }} title="Print"><Printer size={14} />{sideOpen && " Print"}</button>
         </div>
 
         {sideOpen && <div className="itc-ay-badge">{yearOnly(assessee.ay)} <span>({yearOnly(config.fy)})</span></div>}
@@ -6103,7 +6111,7 @@ function SheetView({ assessee, income, deductions, manualDeductions, config, cal
   const piLeft = pageSetup.piTwoColumn ? piRows.slice(0, piMid) : piRows;
   const piRight = pageSetup.piTwoColumn ? piRows.slice(piMid) : [];
 
-  const fileBaseName = `${(assessee.name || "Computation").replace(/\s+/g, "_")}_${assessee.ay}`;
+  const fileBaseName = `ITR COMPUTATION FY ${assessee.fy} ${assessee.name || "Computation"}`;
 
   /* Coloured / formatted Excel export — uses xlsx-js-style (a drop-in fork
      of the xlsx package that can actually write cell fills/fonts/borders;
@@ -6202,8 +6210,11 @@ function SheetView({ assessee, income, deductions, manualDeductions, config, cal
     // No PDF-generation library is bundled here — the browser's own
     // print-to-PDF does the same job with zero dependencies and matches
     // the on-screen preview exactly, since it uses the same @page rules.
+    const oldTitle = document.title;
+    document.title = `ITR COMPUTATION FY ${assessee.fy} ${assessee.name || "Computation"}`;
     window.print();
-  };
+    setTimeout(() => { document.title = oldTitle; }, 1000);
+  }
 
   return (
     <div className="itc-page">
