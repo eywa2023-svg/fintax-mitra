@@ -1729,6 +1729,11 @@ function InvoicePrint({inv,clients,firmSettings,onClose,toast}){
     // #ftm-inv-area (absolute overlays inside the shared position:relative
     // wrapper), not as children of it - print the wrapper so they're included.
     const wrapper=el.parentElement||el;
+    
+    // Temporarily set parent window title to match target filename for print spooler fallback
+    const oldTitle = document.title;
+    document.title = `${inv.id} ${inv.clientName}`;
+
     const win=window.open("","_blank","width=860,height=780");
     win.document.write(`<!DOCTYPE html><html><head><title>${inv.id} ${inv.clientName}</title>
     <style>
@@ -1742,8 +1747,18 @@ function InvoicePrint({inv,clients,firmSettings,onClose,toast}){
     </style></head><body>
     <div id="ftm-print-page">${wrapper.outerHTML}</div>
     </body></html>`);
-    win.document.close();setTimeout(()=>{win.focus();win.print();},600);
-  };
+    win.document.close();
+    
+    try {
+      win.document.title = `${inv.id} ${inv.clientName}`;
+    } catch(e) {}
+
+    setTimeout(()=>{
+      win.focus();
+      win.print();
+      setTimeout(() => { document.title = oldTitle; }, 1200);
+    },600);
+  }
 
   // shared cell styles
   const BDR=`1px solid ${clrB}`;
