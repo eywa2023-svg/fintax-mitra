@@ -7755,25 +7755,59 @@ export default function App(){
       @media print {
         .no-print { display: none !important; }
         html, body { height: auto !important; overflow: visible !important; }
-        .app-root { display: block !important; height: auto !important; overflow: visible !important; background: #fff !important; }
-        .app-content { overflow: visible !important; height: auto !important; padding: 0 !important; }
+        
+        #root {
+          width: 794px !important;
+          max-width: none !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          display: block !important;
+          min-height: 0 !important;
+          border: none !important;
+          box-shadow: none !important;
+          text-align: left !important;
+        }
+        .app-root {
+          width: 794px !important;
+          display: block !important;
+          height: auto !important;
+          overflow: visible !important;
+          background: #fff !important;
+          margin: 0 !important;
+          padding: 0 !important;
+        }
+        .app-content {
+          width: 794px !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          overflow: visible !important;
+        }
         
         body.ftm-invoice-printing-active .ftm-invoice-print-modal {
-          position: static !important;
+          position: absolute !important;
+          left: 0 !important;
+          top: 0 !important;
+          width: 794px !important;
+          height: 1123px !important;
           background: #fff !important;
           display: block !important;
-          overflow: visible !important;
+          overflow: hidden !important;
           z-index: 99999 !important;
         }
         body.ftm-invoice-printing-active .ftm-invoice-paper-area {
           background: #fff !important;
           padding: 0 !important;
-          overflow: visible !important;
+          width: 794px !important;
+          height: 1123px !important;
+          overflow: hidden !important;
+          display: block !important;
         }
         body.ftm-invoice-printing-active .ftm-invoice-page-container {
           box-shadow: none !important;
           border: none !important;
           margin: 0 !important;
+          width: 794px !important;
+          height: 1123px !important;
         }
       }
     `}</style>
