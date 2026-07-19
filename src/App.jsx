@@ -1729,7 +1729,7 @@ function InvoicePrint({inv,clients,firmSettings,onClose,toast}){
 
     const printTitle = `${inv.id} ${inv.clientName}`;
 
-    const htmlContent = `<!DOCTYPE html><html><head><title>${printTitle}</title>
+    const htmlContent = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${printTitle}</title>
     <style>
       *{box-sizing:border-box;margin:0;padding:0;}
       html,body{width:${PAGE_W}px;background:#fff;color:#000;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
@@ -1751,7 +1751,7 @@ function InvoicePrint({inv,clients,firmSettings,onClose,toast}){
     </script>
     </body></html>`;
 
-    const blob = new Blob([htmlContent], { type: 'text/html' });
+    const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const win = window.open(url, "_blank");
 
