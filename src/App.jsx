@@ -1296,7 +1296,6 @@ function InvoiceModule({invoices,setInvoices,receipts,setReceipts,clients,works,
     {showForm&&<InvoiceForm invoices={invoices} setInvoices={setInvoices} clients={clients} works={works} dd={dd} toast={toast} onClose={()=>setShowForm(false)} genId={genInvId} editInv={editInv} setEditInv={setEditInv} receipts={receipts}/>}
     {showPrint&&<InvoicePrint inv={showPrint} clients={clients} firmSettings={firmSettings} onClose={()=>setShowPrint(null)} toast={toast}/>}
 
-<div className="no-print" style={{display:"flex",flexDirection:"column",gap:16}}>
     {/* Summary KPIs */}
     <div className="kpi-grid-4" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12}}>
       {[
@@ -1378,7 +1377,6 @@ function InvoiceModule({invoices,setInvoices,receipts,setReceipts,clients,works,
           </tr>
         </tfoot>}
       </table></div>
-</div>
     </div>
   </div>;
 }
@@ -1629,13 +1627,6 @@ function InvoiceForm({invoices,setInvoices,clients,works,dd,toast,onClose,genId,
 // ─── Invoice Print View ───────────────────────────────────────────────────────
 function InvoicePrint({inv,clients,firmSettings,onClose,toast}){
   const [printStatus, setPrintStatus] = useState(true);
-
-  React.useEffect(() => {
-    document.body.classList.add("ftm-invoice-printing-active");
-    return () => {
-      document.body.classList.remove("ftm-invoice-printing-active");
-    };
-  }, []);
   const cl=clients.find(c=>c.pan===inv.pan);
   const F=firmSettings||{};
   const isGST=(inv.gst||0)>0;
@@ -1732,19 +1723,49 @@ function InvoicePrint({inv,clients,firmSettings,onClose,toast}){
     }
   };
   const doPrint=()=>{
-    const oldTitle = document.title;
-    document.title = `${inv.id} ${inv.clientName}`;
-    window.print();
-    setTimeout(() => { document.title = oldTitle; }, 1200);
+    const el=document.getElementById("ftm-inv-area");
+    if(!el)return;
+    const wrapper=el.parentElement||el;
+
+    const printTitle = `${inv.id} ${inv.clientName}`;
+
+    const htmlContent = `<!DOCTYPE html><html><head><title>${printTitle}</title>
+    <style>
+      *{box-sizing:border-box;margin:0;padding:0;}
+      html,body{width:${PAGE_W}px;background:#fff;color:#000;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+      body{font-family:'Times New Roman',Times,serif;}
+      table{width:100%;border-collapse:collapse;}
+      td,th{word-break:break-word;}
+      #ftm-print-page{width:${PAGE_W}px;height:${PAGE_H}px;overflow:hidden;position:relative;}
+      @media print{@page{size:A4 portrait;margin:0;}body{margin:0;}}
+    </style></head><body>
+    <div id="ftm-print-page">${wrapper.outerHTML}</div>
+    <script>
+      window.onload = function() {
+        document.title = "${printTitle}";
+        setTimeout(function() {
+          window.focus();
+          window.print();
+        }, 300);
+      };
+    </script>
+    </body></html>`;
+
+    const blob = new Blob([htmlContent], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const win = window.open(url, "_blank");
+
+    // Clean up blob URL after print load triggers
+    setTimeout(() => { URL.revokeObjectURL(url); }, 6000);
   };
 
   // shared cell styles
   const BDR=`1px solid ${clrB}`;
   const cs={fontFamily:"'Times New Roman',Times,serif",fontSize:bFsz,color:"#000"};
 
-  return <div className="ftm-invoice-print-modal" style={{position:"fixed",inset:0,background:"#000D",zIndex:6000,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+  return <div style={{position:"fixed",inset:0,background:"#000D",zIndex:6000,display:"flex",flexDirection:"column",overflow:"hidden"}}>
     {/* ── Toolbar ── */}
-    <div className="no-print" style={{background:G.surf,borderBottom:`1px solid ${G.bdr}`,padding:"10px 20px",display:"flex",gap:10,alignItems:"center",justifyContent:"space-between",flexShrink:0}}>
+    <div style={{background:G.surf,borderBottom:`1px solid ${G.bdr}`,padding:"10px 20px",display:"flex",gap:10,alignItems:"center",justifyContent:"space-between",flexShrink:0}}>
       <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
         <span style={{fontWeight:700,fontSize:14,color:G.wh}}>🧾 {inv.id}</span>
         <span style={{fontSize:11,padding:"2px 9px",borderRadius:20,fontWeight:700,background:isGST?G.green+"20":G.amb+"20",color:isGST?G.green:G.amb,border:`1px solid ${isGST?G.green:G.amb}44`}}>{isGST?`With GST (${inv.gst}%)`:"Without GST"}</span>
@@ -1767,8 +1788,8 @@ function InvoicePrint({inv,clients,firmSettings,onClose,toast}){
     </div>
 
     {/* ── Paper area ── */}
-    <div className="ftm-invoice-paper-area" style={{flex:1,overflowY:"auto",overflowX:"auto",background:"#D1D5DB",padding:"12px",display:"flex",flexDirection:"column",alignItems:"center"}}>
-      <div className="ftm-invoice-page-container" style={{width:PAGE_W,height:PAGE_H,position:"relative",flexShrink:0}}>
+    <div style={{flex:1,overflowY:"auto",overflowX:"auto",background:"#D1D5DB",padding:"12px",display:"flex",flexDirection:"column",alignItems:"center"}}>
+      <div style={{width:PAGE_W,height:PAGE_H,position:"relative",flexShrink:0}}>
       {/* REDESIGN: fixed height (not min-height) + flex column. Every section
           below is flexShrink:0 (never squeezed) except the service-table
           section, which is the one flexible region (flex:1) that naturally
@@ -7755,60 +7776,8 @@ export default function App(){
       @media print {
         .no-print { display: none !important; }
         html, body { height: auto !important; overflow: visible !important; }
-        
-        #root {
-          width: 794px !important;
-          max-width: none !important;
-          margin: 0 !important;
-          padding: 0 !important;
-          display: block !important;
-          min-height: 0 !important;
-          border: none !important;
-          box-shadow: none !important;
-          text-align: left !important;
-        }
-        .app-root {
-          width: 794px !important;
-          display: block !important;
-          height: auto !important;
-          overflow: visible !important;
-          background: #fff !important;
-          margin: 0 !important;
-          padding: 0 !important;
-        }
-        .app-content {
-          width: 794px !important;
-          margin: 0 !important;
-          padding: 0 !important;
-          overflow: visible !important;
-        }
-        
-        body.ftm-invoice-printing-active .ftm-invoice-print-modal {
-          position: absolute !important;
-          left: 0 !important;
-          top: 0 !important;
-          width: 794px !important;
-          height: 1123px !important;
-          background: #fff !important;
-          display: block !important;
-          overflow: hidden !important;
-          z-index: 99999 !important;
-        }
-        body.ftm-invoice-printing-active .ftm-invoice-paper-area {
-          background: #fff !important;
-          padding: 0 !important;
-          width: 794px !important;
-          height: 1123px !important;
-          overflow: hidden !important;
-          display: block !important;
-        }
-        body.ftm-invoice-printing-active .ftm-invoice-page-container {
-          box-shadow: none !important;
-          border: none !important;
-          margin: 0 !important;
-          width: 794px !important;
-          height: 1123px !important;
-        }
+        .app-root { display: block !important; height: auto !important; overflow: visible !important; background: #fff !important; }
+        .app-content { overflow: visible !important; height: auto !important; padding: 0 !important; }
       }
     `}</style>
     {showOA&&<Auth title="Owner Access" hint="Finance Dashboard & Invoices/Billing password: 456" pws={{o:pws.owner}} onOk={()=>{setOwnerOn(true);setShowOA(false);setTab(pendingProt);toast("Owner access granted");}} onX={()=>setShowOA(false)}/>}
