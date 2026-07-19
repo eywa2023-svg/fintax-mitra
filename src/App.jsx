@@ -5919,8 +5919,31 @@ function SheetView({ assessee, income, deductions, manualDeductions, config, cal
   if (income.salary.enabled) {
     incomeRows.push({ kind: "head", label: "Income from Salary" });
     const lines = [];
-    const fixedGross = num(income.salary.basic) + num(income.salary.da) + num(income.salary.hra) + num(income.salary.bonus) + num(income.salary.commission) + num(income.salary.perquisites) + num(income.salary.otherAllowances);
-    lines.push({ label: income.salary.employerName ? `Salary From ${income.salary.employerName}` : "Gross Salary", inner: fixedGross });
+    if (income.salary.employerName) {
+      lines.push({ label: `Employer: ${income.salary.employerName}`, inner: null });
+    }
+    if (num(income.salary.basic) > 0) {
+      lines.push({ label: "Basic Salary (U/s 17(1))", inner: num(income.salary.basic) });
+    }
+    if (num(income.salary.da) > 0) {
+      lines.push({ label: "Dearness Allowance (U/s 17(1))", inner: num(income.salary.da) });
+    }
+    if (num(income.salary.hra) > 0) {
+      lines.push({ label: "House Rent Allowance (U/s 17(1))", inner: num(income.salary.hra) });
+    }
+    if (num(income.salary.bonus) > 0) {
+      lines.push({ label: "Bonus / Ex-gratia (U/s 17(1)(iv))", inner: num(income.salary.bonus) });
+    }
+    if (num(income.salary.commission) > 0) {
+      lines.push({ label: "Commission (U/s 17(1)(iv))", inner: num(income.salary.commission) });
+    }
+    if (num(income.salary.perquisites) > 0) {
+      lines.push({ label: "Perquisites (U/s 17(2))", inner: num(income.salary.perquisites) });
+    }
+    if (num(income.salary.otherAllowances) > 0) {
+      lines.push({ label: "Other Allowances (U/s 17(1))", inner: num(income.salary.otherAllowances) });
+    }
+
     (income.salary.manual || []).forEach((m) => lines.push({ label: m.label || "Additional salary item", inner: num(m.amount) }));
     lines.push({ label: "Less: Standard Deduction U/s 16(ia)", inner: -stdDed });
     if (num(income.salary.professionalTax) > 0) lines.push({ label: "Less: Professional Tax U/s 16(iii)", inner: -num(income.salary.professionalTax) });
