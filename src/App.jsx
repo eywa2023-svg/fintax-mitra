@@ -3295,6 +3295,28 @@ function DevTab({dd,setDd,pws,setPws,darkMode,setDarkMode,profilePic,setProfileP
               />
             </div>
 
+            <div>
+              <label style={{fontSize:10,fontWeight:700,color:G.mut,textTransform:"uppercase",display:"block",marginBottom:4}}>Google OAuth Client Secret (Optional - Enable Permanent Silent Refresh)</label>
+              <input 
+                type="password" 
+                value={firmSettings.googleClientSecret || ""} 
+                onChange={e=>setFirmSettings(p=>({...p,googleClientSecret:e.target.value}))} 
+                placeholder="Enter Client Secret for silent background backups" 
+                style={{
+                  background: G.surf, 
+                  border: `1.5px solid ${G.bdr}`, 
+                  borderRadius: 8, 
+                  color: G.wh, 
+                  fontSize: 12, 
+                  padding: "8px 11px", 
+                  outline: "none", 
+                  width: "100%", 
+                  boxSizing: "border-box", 
+                  fontFamily: "monospace"
+                }}
+              />
+            </div>
+
             <div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap",marginTop:4}}>
               {googleUser ? (
                 <>
@@ -7018,6 +7040,9 @@ export default function App(){
     logo:null, stamp:null, signature:null, qrCode:null, statusStamp:null,
     autoBackup:true,
     googleClientId:"738596578042-qd24uv0mkqe5j9bvjm8d4blpntg3vm7b.apps.googleusercontent.com",
+    googleClientSecret:"",
+    googleBackupEmail:"",
+
     googleDriveEnabled:false,
   });
   const[dd, _setDd]=useState(DEF_DD);
@@ -7450,11 +7475,67 @@ export default function App(){
       return;
     }
     const clientId = firmSettings.googleClientId?.trim();
+    const clientSecret = firmSettings.googleClientSecret?.trim();
     if (!clientId) {
       toast("Please enter a valid Google Client ID first.", "err");
       return;
     }
     try {
+      if (clientSecret) {
+        const codeClient = window.google.accounts.oauth2.initCodeClient({
+          client_id: clientId,
+          scope: "https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email",
+          ux_mode: "popup",
+          callback: async (response) => {
+            if (response.error) {
+              toast("Google link failed: " + response.error, "err");
+              return;
+            }
+            if (response.code) {
+              try {
+                const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                  body: new URLSearchParams({
+                    code: response.code,
+                    client_id: clientId,
+                    client_secret: clientSecret,
+                    redirect_uri: window.location.origin,
+                    grant_type: "authorization_code"
+                  })
+                });
+                const tokenData = await tokenRes.json();
+                if (tokenData.access_token) {
+                  let userEmail = "Connected Account";
+                  try {
+                    const infoRes = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+                      headers: { Authorization: `Bearer ${tokenData.access_token}` }
+                    });
+                    const info = await infoRes.json();
+                    if (info.email) userEmail = info.email;
+                  } catch (e) {}
+
+                  const userObj = {
+                    email: userEmail,
+                    accessToken: tokenData.access_token,
+                    refreshToken: tokenData.refresh_token || null,
+                    expiresAt: Date.now() + (Number(tokenData.expires_in) || 3600) * 1000
+                  };
+                  setGoogleUser(userObj);
+                  localStorage.setItem("ftm_google_user", JSON.stringify(userObj));
+                  toast("Google Drive linked with silent auto-backup!", "ok");
+                  return;
+                }
+              } catch (err) {
+                console.error("Code exchange error:", err);
+              }
+            }
+          }
+        });
+        codeClient.requestCode();
+        return;
+      }
+
       const client = window.google.accounts.oauth2.initTokenClient({
         client_id: clientId,
         scope: "https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email",
@@ -7472,6 +7553,7 @@ export default function App(){
               const userObj = {
                 email: info.email || "Connected Account",
                 accessToken: response.access_token,
+                refreshToken: null,
                 expiresAt: Date.now() + (Number(response.expires_in) || 3600) * 1000
               };
               setGoogleUser(userObj);
@@ -7481,6 +7563,7 @@ export default function App(){
               const userObj = {
                 email: "Connected Account",
                 accessToken: response.access_token,
+                refreshToken: null,
                 expiresAt: Date.now() + (Number(response.expires_in) || 3600) * 1000
               };
               setGoogleUser(userObj);
@@ -7502,20 +7585,61 @@ export default function App(){
     toast("Google Drive disconnected", "ok");
   };
 
-  const getGoogleAccessToken = (interactive = true) => {
+  const refreshGoogleTokenSilently = async (refreshToken) => {
+    const clientId = firmSettings.googleClientId?.trim();
+    const clientSecret = firmSettings.googleClientSecret?.trim();
+    if (!clientId || !refreshToken) return null;
+
+    try {
+      const params = new URLSearchParams({
+        client_id: clientId,
+        grant_type: "refresh_token",
+        refresh_token: refreshToken
+      });
+      if (clientSecret) {
+        params.append("client_secret", clientSecret);
+      }
+      const res = await fetch("https://oauth2.googleapis.com/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: params
+      });
+      const data = await res.json();
+      if (data.access_token) {
+        const userObj = {
+          ...googleUser,
+          accessToken: data.access_token,
+          expiresAt: Date.now() + (Number(data.expires_in) || 3600) * 1000,
+          refreshToken: refreshToken
+        };
+        setGoogleUser(userObj);
+        localStorage.setItem("ftm_google_user", JSON.stringify(userObj));
+        return data.access_token;
+      }
+    } catch (e) {
+      console.error("Silent token refresh failed:", e);
+    }
+    return null;
+  };
+
+  const getGoogleAccessToken = async (interactive = true) => {
+    if (!googleUser) {
+      throw new Error("Google account not linked.");
+    }
+    if (googleUser.accessToken && googleUser.expiresAt > Date.now() + 300 * 1000) {
+      return googleUser.accessToken;
+    }
+
+    if (googleUser.refreshToken) {
+      const freshToken = await refreshGoogleTokenSilently(googleUser.refreshToken);
+      if (freshToken) return freshToken;
+    }
+
+    if (!interactive) {
+      throw new Error("Google access token expired.");
+    }
+
     return new Promise((resolve, reject) => {
-      if (!googleUser) {
-        reject(new Error("Google account not linked."));
-        return;
-      }
-      if (googleUser.accessToken && googleUser.expiresAt > Date.now() + 300 * 1000) {
-        resolve(googleUser.accessToken);
-        return;
-      }
-      if (!interactive) {
-        reject(new Error("Google access token expired."));
-        return;
-      }
       if (typeof window === "undefined" || !window.google) {
         reject(new Error("Google library not loaded"));
         return;
@@ -7543,6 +7667,7 @@ export default function App(){
                 const userObj = {
                   email: info.email || googleUser.email,
                   accessToken: response.access_token,
+                  refreshToken: googleUser.refreshToken || null,
                   expiresAt: Date.now() + (Number(response.expires_in) || 3600) * 1000
                 };
                 setGoogleUser(userObj);
@@ -7552,6 +7677,7 @@ export default function App(){
                 const userObj = {
                   email: googleUser.email,
                   accessToken: response.access_token,
+                  refreshToken: googleUser.refreshToken || null,
                   expiresAt: Date.now() + (Number(response.expires_in) || 3600) * 1000
                 };
                 setGoogleUser(userObj);
