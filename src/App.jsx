@@ -7502,7 +7502,7 @@ export default function App(){
     toast("Google Drive disconnected", "ok");
   };
 
-  const getGoogleAccessToken = () => {
+  const getGoogleAccessToken = (interactive = true) => {
     return new Promise((resolve, reject) => {
       if (!googleUser) {
         reject(new Error("Google account not linked."));
@@ -7510,6 +7510,10 @@ export default function App(){
       }
       if (googleUser.accessToken && googleUser.expiresAt > Date.now() + 300 * 1000) {
         resolve(googleUser.accessToken);
+        return;
+      }
+      if (!interactive) {
+        reject(new Error("Google access token expired."));
         return;
       }
       if (typeof window === "undefined" || !window.google) {
@@ -7568,7 +7572,7 @@ export default function App(){
 
   const uploadBackupToGoogleDrive = async (isManual = false) => {
     try {
-      const token = await getGoogleAccessToken();
+      const token = await getGoogleAccessToken(isManual);
       if (isManual) toast("Uploading backup to Google Drive...", "ok");
       
       let folderId = "";
@@ -7647,7 +7651,7 @@ export default function App(){
       if (isManual) {
         toast("Google Drive upload failed: " + err.message, "err");
       } else {
-        toast("Auto-backup to Google Drive failed. Link Google account in settings.", "err");
+        console.log("Auto-backup to Google Drive skipped:", err.message);
       }
     }
   };
