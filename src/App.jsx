@@ -4787,7 +4787,6 @@ function TaxComputationEditor({ initialRecord, clients, allComputations, onSave,
     }
     return merged;
   });
-  const [activeEmpTab, setActiveEmpTab] = useState(0);
   const [deductions, setDeductions] = useState(initialRecord.deductions || defaultDeductions);
   const [manualDeductions, setManualDeductions] = useState(initialRecord.manualDeductions || defaultManualDeductions);
   const [taxPaid, setTaxPaid] = useState(initialRecord.taxPaid || defaultTaxPaid);
@@ -5573,6 +5572,7 @@ function LetterheadView({ letterhead, saveLetterhead, updateLetterheadLive }) {
    INCOME VIEW
    ============================================================ */
 function IncomeView({ income, setIncome, calc }) {
+  const [activeEmpTab, setActiveEmpTab] = useState(0);
   const upd = (section) => (patch) => setIncome((i) => ({ ...i, [section]: { ...i[section], ...patch } }));
   const toggle = (section) => (v) => upd(section)({ enabled: v });
 
