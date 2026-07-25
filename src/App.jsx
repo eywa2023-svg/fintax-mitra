@@ -307,6 +307,87 @@ function PanPick({clients,val,set}){
 // ─── Edit Client Modal ────────────────────────────────────────────────────────
 function EditClient({c,onSave,onX,dd}){
   const[f,setF]=useState({...c,extraPw:c.extraPw||[]});
+  const handlePrefillUpdate = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const json = JSON.parse(event.target.result);
+        const pInfo = json.personalInfo || {};
+        const pPan = pInfo.pan || pInfo.assessorPan || pInfo.assesseVerPan || "";
+        if (!pPan) {
+          toast("Invalid prefill JSON: PAN not found", "err");
+          return;
+        }
+        if (pPan.toUpperCase() !== f.pan.toUpperCase()) {
+          alert(`PAN Mismatch!\n\nPrefill JSON PAN is: ${pPan.toUpperCase()}\nEditing Client PAN is: ${f.pan.toUpperCase()}`);
+          return;
+        }
+
+        const name = pInfo.assesseeVerName || (pInfo.assesseeName ? `${pInfo.assesseeName.firstName || ""} ${pInfo.assesseeName.middleName || ""} ${pInfo.assesseeName.surNameOrOrgName || ""}`.trim() : "");
+        if (confirm(`Do you want to update client details from this prefill JSON?`)) {
+          let aadhaar = pInfo.aadhaarCardNo || "";
+          if (aadhaar) {
+            try {
+              const decoded = atob(aadhaar);
+              if (/^\d+$/.test(decoded)) {
+                aadhaar = decoded;
+              }
+            } catch (err) {}
+          }
+
+          const addrParts = [];
+          if (pInfo.address) {
+            const a = pInfo.address;
+            if (a.residenceNo) addrParts.push(a.residenceNo);
+            if (a.residenceName) addrParts.push(a.residenceName);
+            if (a.roadOrStreet) addrParts.push(a.roadOrStreet);
+            if (a.localityOrArea) addrParts.push(a.localityOrArea);
+            if (a.cityOrTownOrDistrict) addrParts.push(a.cityOrTownOrDistrict);
+          }
+          const combinedAddr = addrParts.join(", ");
+
+          let bankName = "";
+          let ifsc = "";
+          let accountNumber = "";
+          if (Array.isArray(json.bankAccountDtls)) {
+            for (const b of json.bankAccountDtls) {
+              if (Array.isArray(b.addtnlBankDetails)) {
+                const activeBank = b.addtnlBankDetails.find(x => x.useForRefund === "true") || b.addtnlBankDetails[0];
+                if (activeBank) {
+                  bankName = activeBank.bankName || "";
+                  ifsc = activeBank.ifsccode || "";
+                  accountNumber = activeBank.bankAccountNo || "";
+                  break;
+                }
+              }
+            }
+          }
+
+          setF(p => ({
+            ...p,
+            name: name || p.name,
+            fatherName: pInfo.fatherName || p.fatherName,
+            dob: pInfo.dob || p.dob,
+            aadhaar: aadhaar || p.aadhaar,
+            mob: pInfo.address?.mobileNo ? String(pInfo.address.mobileNo) : p.mob,
+            email: pInfo.address?.emailAddress || p.email,
+            addr: combinedAddr || p.addr,
+            pin: pInfo.address?.pinCode ? String(pInfo.address.pinCode) : p.pin,
+            bankName: bankName || p.bankName,
+            ifsc: ifsc || p.ifsc,
+            accountNumber: accountNumber || p.accountNumber
+          }));
+          toast("Prefill data loaded! Click Save to persist changes.");
+        }
+      } catch (err) {
+        toast("Failed to parse JSON: " + err.message, "err");
+      }
+    };
+    reader.readAsText(file);
+  };
+
   const[spw,setSpw]=useState({});
   const sp=(k,fld,v)=>setF(p=>({...p,portals:{...p.portals,[k]:{...p.portals[k],[fld]:v}}}));
   const tp=(k)=>setF(p=>({...p,portals:{...p.portals,[k]:{...p.portals[k],on:!p.portals[k].on}}}));
@@ -320,6 +401,16 @@ function EditClient({c,onSave,onX,dd}){
         <button onClick={onX} style={{background:"transparent",border:`1px solid ${G.bdr}`,color:G.mut,borderRadius:8,padding:"4px 11px",cursor:"pointer"}}>✕</button>
       </div>
       <div style={{padding:20,display:"flex",flexDirection:"column",gap:11}}>
+        <div style={{background:`${G.green}04`,border:`1.5px dashed ${G.green}cc`,borderRadius:12,padding:"10px 14px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"wrap",marginBottom:4}}>
+          <div>
+            <div style={{fontWeight:700,fontSize:13,color:G.wh}}>📂 Update from Prefill JSON</div>
+            <div style={{fontSize:10,color:G.mut,marginTop:2}}>Update this client's details automatically from their Income Tax prefill JSON.</div>
+          </div>
+          <label style={{marginLeft:"auto",background:`linear-gradient(135deg,${G.g2},${G.green})`,color:"#fff",padding:"6px 14px",borderRadius:8,fontSize:11,fontWeight:700,cursor:"pointer",display:"inline-block"}}>
+            Choose File
+            <input type="file" accept=".json" onChange={handlePrefillUpdate} style={{display:"none"}}/>
+          </label>
+        </div>
         <R><F label="Name" w="calc(50% - 6px)"><I val={f.name} set={v=>setF({...f,name:v})}/></F><F label="Business" w="calc(50% - 6px)"><I val={f.biz} set={v=>setF({...f,biz:v})}/></F></R>
         <R><F label="Mobile" w="calc(50% - 6px)"><I val={f.mob} set={v=>setF({...f,mob:v})}/></F><F label="Email" w="calc(50% - 6px)"><I val={f.email} set={v=>setF({...f,email:v})}/></F></R>
         <R><F label="GSTIN" w="calc(50% - 6px)"><I val={f.gstin} set={v=>setF({...f,gstin:v.toUpperCase()})} mono/></F><F label="Source" w="calc(50% - 6px)"><S val={f.src} set={v=>setF({...f,src:v})} opts={dd.sources}/></F></R>
@@ -753,6 +844,85 @@ function AddClient({clients,setClients,dd,toast}){
   const addPw=()=>setF(p=>({...p,extraPw:[...(p.extraPw||[]),{type:dd.pwTypes?.[0]||"Other",label:"",id:"",pw:""}]}));
   const setPwAt=(i,patch)=>setF(p=>({...p,extraPw:p.extraPw.map((x,j)=>j===i?{...x,...patch}:x)}));
   const delPwAt=(i)=>setF(p=>({...p,extraPw:p.extraPw.filter((_,j)=>j!==i)}));
+  const handlePrefillImport = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const json = JSON.parse(event.target.result);
+        const pInfo = json.personalInfo || {};
+        const pPan = pInfo.pan || pInfo.assessorPan || pInfo.assesseVerPan || "";
+        if (!pPan) {
+          toast("Invalid prefill JSON: PAN not found", "err");
+          return;
+        }
+
+        const name = pInfo.assesseeVerName || (pInfo.assesseeName ? `${pInfo.assesseeName.firstName || ""} ${pInfo.assesseeName.middleName || ""} ${pInfo.assesseeName.surNameOrOrgName || ""}`.trim() : "");
+        if (confirm(`Do you want to import details for PAN: ${pPan} (${name})?`)) {
+          let aadhaar = pInfo.aadhaarCardNo || "";
+          if (aadhaar) {
+            try {
+              const decoded = atob(aadhaar);
+              if (/^\d+$/.test(decoded)) {
+                aadhaar = decoded;
+              }
+            } catch (err) {}
+          }
+
+          const addrParts = [];
+          if (pInfo.address) {
+            const a = pInfo.address;
+            if (a.residenceNo) addrParts.push(a.residenceNo);
+            if (a.residenceName) addrParts.push(a.residenceName);
+            if (a.roadOrStreet) addrParts.push(a.roadOrStreet);
+            if (a.localityOrArea) addrParts.push(a.localityOrArea);
+            if (a.cityOrTownOrDistrict) addrParts.push(a.cityOrTownOrDistrict);
+          }
+          const combinedAddr = addrParts.join(", ");
+
+          let bankName = "";
+          let ifsc = "";
+          let accountNumber = "";
+          if (Array.isArray(json.bankAccountDtls)) {
+            for (const b of json.bankAccountDtls) {
+              if (Array.isArray(b.addtnlBankDetails)) {
+                const activeBank = b.addtnlBankDetails.find(x => x.useForRefund === "true") || b.addtnlBankDetails[0];
+                if (activeBank) {
+                  bankName = activeBank.bankName || "";
+                  ifsc = activeBank.ifsccode || "";
+                  accountNumber = activeBank.bankAccountNo || "";
+                  break;
+                }
+              }
+            }
+          }
+
+          setF(p => ({
+            ...p,
+            pan: pPan,
+            name: name || p.name,
+            fatherName: pInfo.fatherName || p.fatherName,
+            dob: pInfo.dob || p.dob,
+            aadhaar: aadhaar || p.aadhaar,
+            mob: pInfo.address?.mobileNo ? String(pInfo.address.mobileNo) : p.mob,
+            email: pInfo.address?.emailAddress || p.email,
+            addr: combinedAddr || p.addr,
+            pin: pInfo.address?.pinCode ? String(pInfo.address.pinCode) : p.pin,
+            bankName: bankName || p.bankName,
+            ifsc: ifsc || p.ifsc,
+            accountNumber: accountNumber || p.accountNumber,
+            type: "Individual"
+          }));
+          toast("Prefill data imported!");
+        }
+      } catch (err) {
+        toast("Failed to parse JSON: " + err.message, "err");
+      }
+    };
+    reader.readAsText(file);
+  };
+
   const save=()=>{
     const e={};
     if(!f.pan)e.pan="Required";else if(f.pan.length!==10)e.pan="10 chars";else if(clients.find(c=>c.pan===f.pan.toUpperCase()))e.pan="Already exists";
@@ -762,6 +932,18 @@ function AddClient({clients,setClients,dd,toast}){
   };
   return <div style={{display:"flex",gap:16}}>
     <div style={{flex:1,display:"flex",flexDirection:"column",gap:13}}>
+      <Crd sty={{border:`1.5px dashed ${G.green}cc`,background:`${G.green}04`}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}>
+          <div>
+            <div style={{fontWeight:700,fontSize:14,color:G.wh}}>📂 Import Prefill JSON</div>
+            <div style={{fontSize:11,color:G.mut,marginTop:2}}>Select an Income Tax prefill JSON file to populate all fields automatically.</div>
+          </div>
+          <label style={{marginLeft:"auto",background:`linear-gradient(135deg,${G.g2},${G.green})`,color:"#fff",padding:"7px 16px",borderRadius:9,fontSize:12,fontWeight:700,cursor:"pointer",display:"inline-block"}}>
+            Choose File
+            <input type="file" accept=".json" onChange={handlePrefillImport} style={{display:"none"}}/>
+          </label>
+        </div>
+      </Crd>
       <Crd><SH icon="👤" title="Client Information"/>
         <div style={{display:"flex",flexDirection:"column",gap:11}}>
           <R><F label="PAN (Client ID)" req w="calc(50% - 6px)"><I val={f.pan} set={v=>setF({...f,pan:v.toUpperCase().slice(0,10)})} ph="ABCDE1234F" mono sty={{borderColor:err.pan?G.red:G.bdr}}/>{err.pan&&<span style={{fontSize:11,color:G.red}}>{err.pan}</span>}</F>
