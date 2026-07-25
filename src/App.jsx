@@ -4743,24 +4743,27 @@ function TaxComputationEditor({ initialRecord, clients, allComputations, onSave,
   const [income, setIncome] = useState(() => {
     const raw = initialRecord.income || defaultIncome;
     if (raw.salary && !raw.salary.employers) {
-      raw.salary = {
-        ...raw.salary,
-        employers: [
-          {
-            id: "emp-legacy",
-            employerName: raw.salary.employerName || "",
-            basic: raw.salary.basic || "",
-            da: raw.salary.da || "",
-            hra: raw.salary.hra || "",
-            bonus: raw.salary.bonus || "",
-            commission: raw.salary.commission || "",
-            perquisites: raw.salary.perquisites || "",
-            otherAllowances: raw.salary.otherAllowances || "",
-            professionalTax: raw.salary.professionalTax || "",
-            entertainmentAllowance: raw.salary.entertainmentAllowance || "",
-            manual: raw.salary.manual || []
-          }
-        ]
+      return {
+        ...raw,
+        salary: {
+          ...raw.salary,
+          employers: [
+            {
+              id: "emp-legacy",
+              employerName: raw.salary.employerName || "",
+              basic: raw.salary.basic || "",
+              da: raw.salary.da || "",
+              hra: raw.salary.hra || "",
+              bonus: raw.salary.bonus || "",
+              commission: raw.salary.commission || "",
+              perquisites: raw.salary.perquisites || "",
+              otherAllowances: raw.salary.otherAllowances || "",
+              professionalTax: raw.salary.professionalTax || "",
+              entertainmentAllowance: raw.salary.entertainmentAllowance || "",
+              manual: raw.salary.manual || []
+            }
+          ]
+        }
       };
     }
     return raw;
