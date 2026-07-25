@@ -4742,31 +4742,50 @@ function TaxComputationEditor({ initialRecord, clients, allComputations, onSave,
   });
   const [income, setIncome] = useState(() => {
     const raw = initialRecord.income || defaultIncome;
-    if (raw.salary && !raw.salary.employers) {
-      return {
-        ...raw,
-        salary: {
-          ...raw.salary,
-          employers: [
-            {
-              id: "emp-legacy",
-              employerName: raw.salary.employerName || "",
-              basic: raw.salary.basic || "",
-              da: raw.salary.da || "",
-              hra: raw.salary.hra || "",
-              bonus: raw.salary.bonus || "",
-              commission: raw.salary.commission || "",
-              perquisites: raw.salary.perquisites || "",
-              otherAllowances: raw.salary.otherAllowances || "",
-              professionalTax: raw.salary.professionalTax || "",
-              entertainmentAllowance: raw.salary.entertainmentAllowance || "",
-              manual: raw.salary.manual || []
-            }
-          ]
+    const merged = {
+      ...defaultIncome,
+      ...raw,
+      salary: {
+        ...defaultIncome.salary,
+        ...(raw.salary || {})
+      },
+      houseProperty: {
+        ...defaultIncome.houseProperty,
+        ...(raw.houseProperty || {})
+      },
+      business: {
+        ...defaultIncome.business,
+        ...(raw.business || {})
+      },
+      capitalGains: {
+        ...defaultIncome.capitalGains,
+        ...(raw.capitalGains || {})
+      },
+      otherSources: {
+        ...defaultIncome.otherSources,
+        ...(raw.otherSources || {})
+      }
+    };
+
+    if (!merged.salary.employers || !merged.salary.employers.length) {
+      merged.salary.employers = [
+        {
+          id: "emp-legacy",
+          employerName: merged.salary.employerName || "",
+          basic: merged.salary.basic || "",
+          da: merged.salary.da || "",
+          hra: merged.salary.hra || "",
+          bonus: merged.salary.bonus || "",
+          commission: merged.salary.commission || "",
+          perquisites: merged.salary.perquisites || "",
+          otherAllowances: merged.salary.otherAllowances || "",
+          professionalTax: merged.salary.professionalTax || "",
+          entertainmentAllowance: merged.salary.entertainmentAllowance || "",
+          manual: merged.salary.manual || []
         }
-      };
+      ];
     }
-    return raw;
+    return merged;
   });
   const [activeEmpTab, setActiveEmpTab] = useState(0);
   const [deductions, setDeductions] = useState(initialRecord.deductions || defaultDeductions);
