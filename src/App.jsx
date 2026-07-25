@@ -3985,10 +3985,59 @@ function monthsBetween(fromDate, toDate) {
    CALCULATION ENGINE
    ============================================================ */
 function calculateSalary(s) {
-  const manualTotal = (s.manual || []).reduce((sum, m) => sum + num(m.amount), 0);
-  const gross = num(s.basic) + num(s.da) + num(s.hra) + num(s.bonus) + num(s.commission) + num(s.perquisites) + num(s.otherAllowances) + manualTotal;
-  const preStdDeduction = gross - num(s.professionalTax) - num(s.entertainmentAllowance);
-  return { gross, preStdDeduction, manualTotal };
+  const employers = s.employers || [
+    {
+      id: "emp-legacy",
+      employerName: s.employerName || "",
+      basic: s.basic || "",
+      da: s.da || "",
+      hra: s.hra || "",
+      bonus: s.bonus || "",
+      commission: s.commission || "",
+      perquisites: s.perquisites || "",
+      otherAllowances: s.otherAllowances || "",
+      professionalTax: s.professionalTax || "",
+      entertainmentAllowance: s.entertainmentAllowance || "",
+      manual: s.manual || []
+    }
+  ];
+
+  let totalGross = 0;
+  let totalPreStdDeduction = 0;
+  let totalManual = 0;
+  let totalProfTax = 0;
+  let totalEntertain = 0;
+
+  const employerBreakdown = employers.map(emp => {
+    const manualTotal = (emp.manual || []).reduce((sum, m) => sum + num(m.amount), 0);
+    const gross = num(emp.basic) + num(emp.da) + num(emp.hra) + num(emp.bonus) + num(emp.commission) + num(emp.perquisites) + num(emp.otherAllowances) + manualTotal;
+    const preStdDeduction = gross - num(emp.professionalTax) - num(emp.entertainmentAllowance);
+
+    totalGross += gross;
+    totalPreStdDeduction += preStdDeduction;
+    totalManual += manualTotal;
+    totalProfTax += num(emp.professionalTax);
+    totalEntertain += num(emp.entertainmentAllowance);
+
+    return {
+      id: emp.id,
+      employerName: emp.employerName,
+      gross,
+      preStdDeduction,
+      manualTotal,
+      professionalTax: num(emp.professionalTax),
+      entertainmentAllowance: num(emp.entertainmentAllowance)
+    };
+  });
+
+  return {
+    gross: totalGross,
+    preStdDeduction: totalPreStdDeduction,
+    manualTotal: totalManual,
+    professionalTax: totalProfTax,
+    entertainmentAllowance: totalEntertain,
+    employers: employerBreakdown
+  };
 }
 
 function calculateHouseProperty(h) {
@@ -4242,7 +4291,7 @@ const defaultAssessee = {
 };
 
 const defaultIncome = {
-  salary: { enabled: false, employerName: "", basic: "", da: "", hra: "", bonus: "", commission: "", perquisites: "", otherAllowances: "", professionalTax: "", entertainmentAllowance: "", manual: [] },
+  salary: { enabled: false, employers: [{ id: "emp-1", employerName: "", basic: "", da: "", hra: "", bonus: "", commission: "", perquisites: "", otherAllowances: "", professionalTax: "", entertainmentAllowance: "", manual: [] }]},
   houseProperty: { enabled: false, type: "self", municipalValue: "", rentReceived: "", municipalTax: "", interest: "", manual: [] },
   business: { enabled: false, businessName: "", type: "normal", income: "", expenses: "", depreciation: "", turnover: "", grossReceipts: "", vehicles: "", months: "", declaredIncome: "", digital: false, manual: [] },
   capitalGains: {
@@ -4691,7 +4740,32 @@ function TaxComputationEditor({ initialRecord, clients, allComputations, onSave,
     }
     return rawAssessee;
   });
-  const [income, setIncome] = useState(initialRecord.income || defaultIncome);
+  const [income, setIncome] = useState(() => {
+    const raw = initialRecord.income || defaultIncome;
+    if (raw.salary && !raw.salary.employers) {
+      raw.salary = {
+        ...raw.salary,
+        employers: [
+          {
+            id: "emp-legacy",
+            employerName: raw.salary.employerName || "",
+            basic: raw.salary.basic || "",
+            da: raw.salary.da || "",
+            hra: raw.salary.hra || "",
+            bonus: raw.salary.bonus || "",
+            commission: raw.salary.commission || "",
+            perquisites: raw.salary.perquisites || "",
+            otherAllowances: raw.salary.otherAllowances || "",
+            professionalTax: raw.salary.professionalTax || "",
+            entertainmentAllowance: raw.salary.entertainmentAllowance || "",
+            manual: raw.salary.manual || []
+          }
+        ]
+      };
+    }
+    return raw;
+  });
+  const [activeEmpTab, setActiveEmpTab] = useState(0);
   const [deductions, setDeductions] = useState(initialRecord.deductions || defaultDeductions);
   const [manualDeductions, setManualDeductions] = useState(initialRecord.manualDeductions || defaultManualDeductions);
   const [taxPaid, setTaxPaid] = useState(initialRecord.taxPaid || defaultTaxPaid);
@@ -5486,26 +5560,143 @@ function IncomeView({ income, setIncome, calc }) {
 
       {/* SALARY */}
       <Card icon={Wallet} title="Income from Salary" subtitle="Basic, allowances, perquisites" enabled={income.salary.enabled} onToggle={toggle("salary")} defaultOpen badge={income.salary.enabled ? fmt(Math.max(calc.sal.preStdDeduction, 0)) : undefined}>
-        <Row><Field label="Employer Name" value={income.salary.employerName} onChange={(v) => upd("salary")({ employerName: v })} type="text" placeholder="e.g. Randstad India Private Limited" /></Row>
-        <Row>
-          <Field label="Basic Salary" value={income.salary.basic} onChange={(v) => upd("salary")({ basic: v })} />
-          <Field label="Dearness Allowance (DA)" value={income.salary.da} onChange={(v) => upd("salary")({ da: v })} />
-        </Row>
-        <Row>
-          <Field label="HRA" value={income.salary.hra} onChange={(v) => upd("salary")({ hra: v })} />
-          <Field label="Bonus" value={income.salary.bonus} onChange={(v) => upd("salary")({ bonus: v })} />
-        </Row>
-        <Row>
-          <Field label="Commission" value={income.salary.commission} onChange={(v) => upd("salary")({ commission: v })} />
-          <Field label="Perquisites" value={income.salary.perquisites} onChange={(v) => upd("salary")({ perquisites: v })} />
-        </Row>
-        <Row><Field label="Other Allowances" value={income.salary.otherAllowances} onChange={(v) => upd("salary")({ otherAllowances: v })} /></Row>
-        <ManualEntries items={income.salary.manual} onChange={(rows) => upd("salary")({ manual: rows })} label="Add salary line item" />
-        <div className="itc-section-label">Deductions from Salary</div>
-        <Row>
-          <Field label="Professional Tax" value={income.salary.professionalTax} onChange={(v) => upd("salary")({ professionalTax: v })} />
-          <Field label="Entertainment Allowance (Govt. employees)" value={income.salary.entertainmentAllowance} onChange={(v) => upd("salary")({ entertainmentAllowance: v })} />
-        </Row>
+        {(() => {
+          const employers = income.salary.employers || [];
+          const activeIndex = employers[activeEmpTab] ? activeEmpTab : 0;
+          const activeEmp = employers[activeIndex] || {};
+
+          const updEmp = (field, value) => {
+            const updated = employers.map((emp, idx) => {
+              if (idx === activeIndex) {
+                return { ...emp, [field]: value };
+              }
+              return emp;
+            });
+            upd("salary")({ employers: updated });
+          };
+
+          const updEmpManual = (manualRows) => {
+            const updated = employers.map((emp, idx) => {
+              if (idx === activeIndex) {
+                return { ...emp, manual: manualRows };
+              }
+              return emp;
+            });
+            upd("salary")({ employers: updated });
+          };
+
+          return (
+            <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
+              <div style={{ display: "flex", gap: 8, marginBottom: 12, borderBottom: `1.5px solid ${G.bdr}`, paddingBottom: 8, overflowX: "auto", alignItems: "center" }}>
+                {employers.map((emp, idx) => (
+                  <button
+                    key={emp.id}
+                    onClick={() => setActiveEmpTab(idx)}
+                    style={{
+                      padding: "5px 12px",
+                      borderRadius: 8,
+                      border: `1.5px solid ${activeIndex === idx ? G.green : G.bdr}`,
+                      background: activeIndex === idx ? `${G.green}18` : "transparent",
+                      color: activeIndex === idx ? G.green : G.mut,
+                      fontSize: 12,
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      transition: "all .2s",
+                      whiteSpace: "nowrap"
+                    }}
+                  >
+                    💼 {emp.employerName || `Employer ${idx + 1}`}
+                  </button>
+                ))}
+                <button
+                  onClick={() => {
+                    const newEmp = {
+                      id: "emp-" + Date.now(),
+                      employerName: "",
+                      basic: "",
+                      da: "",
+                      hra: "",
+                      bonus: "",
+                      commission: "",
+                      perquisites: "",
+                      otherAllowances: "",
+                      professionalTax: "",
+                      entertainmentAllowance: "",
+                      manual: []
+                    };
+                    upd("salary")({ employers: [...employers, newEmp] });
+                    setActiveEmpTab(employers.length);
+                  }}
+                  style={{
+                    padding: "5px 12px",
+                    borderRadius: 8,
+                    border: `1.5px dashed ${G.bdr}`,
+                    background: "transparent",
+                    color: G.cyn,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    whiteSpace: "nowrap"
+                  }}
+                >
+                  ➕ Add Employer
+                </button>
+              </div>
+
+              <Row>
+                <Field label="Employer Name" value={activeEmp.employerName || ""} onChange={(v) => updEmp("employerName", v)} type="text" placeholder="e.g. Randstad India Private Limited" />
+              </Row>
+              <Row>
+                <Field label="Basic Salary" value={activeEmp.basic || ""} onChange={(v) => updEmp("basic", v)} />
+                <Field label="Dearness Allowance (DA)" value={activeEmp.da || ""} onChange={(v) => updEmp("da", v)} />
+              </Row>
+              <Row>
+                <Field label="HRA" value={activeEmp.hra || ""} onChange={(v) => updEmp("hra", v)} />
+                <Field label="Bonus" value={activeEmp.bonus || ""} onChange={(v) => updEmp("bonus", v)} />
+              </Row>
+              <Row>
+                <Field label="Commission" value={activeEmp.commission || ""} onChange={(v) => updEmp("commission", v)} />
+                <Field label="Perquisites" value={activeEmp.perquisites || ""} onChange={(v) => updEmp("perquisites", v)} />
+              </Row>
+              <Row>
+                <Field label="Other Allowances" value={activeEmp.otherAllowances || ""} onChange={(v) => updEmp("otherAllowances", v)} />
+              </Row>
+              <ManualEntries items={activeEmp.manual || []} onChange={(rows) => updEmpManual(rows)} label="Add salary line item" />
+              
+              <div className="itc-section-label">Deductions from Salary (per employer)</div>
+              <Row>
+                <Field label="Professional Tax" value={activeEmp.professionalTax || ""} onChange={(v) => updEmp("professionalTax", v)} />
+                <Field label="Entertainment Allowance (Govt. employees)" value={activeEmp.entertainmentAllowance || ""} onChange={(v) => updEmp("entertainmentAllowance", v)} />
+              </Row>
+
+              {employers.length > 1 && (
+                <button
+                  onClick={() => {
+                    if (confirm(`Are you sure you want to delete this employer (${activeEmp.employerName || `Employer ${activeIndex + 1}`})?`)) {
+                      const updated = employers.filter((_, idx) => idx !== activeIndex);
+                      upd("salary")({ employers: updated });
+                      setActiveEmpTab(Math.max(0, activeIndex - 1));
+                    }
+                  }}
+                  style={{
+                    background: "#450A0A",
+                    border: `1.5px solid ${G.red}44`,
+                    color: G.red,
+                    padding: "8px 16px",
+                    borderRadius: 8,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    alignSelf: "flex-end",
+                    marginTop: 8
+                  }}
+                >
+                  🗑 Delete Active Employer
+                </button>
+              )}
+            </div>
+          );
+        })()}
         <div className="itc-note">Standard deduction (₹75,000 new / ₹50,000 old regime) is applied automatically per regime.</div>
         <LedgerLine label="Salary income before standard deduction" value={calc.sal.preStdDeduction} bold />
       </Card>
@@ -6150,35 +6341,64 @@ function SheetView({ assessee, income, deductions, manualDeductions, config, cal
   if (income.salary.enabled) {
     incomeRows.push({ kind: "head", label: "Income from Salary" });
     const lines = [];
-    if (income.salary.employerName) {
-      lines.push({ label: `Employer: ${income.salary.employerName}`, inner: null });
-    }
-    if (num(income.salary.basic) > 0) {
-      lines.push({ label: "Basic Salary (U/s 17(1))", inner: num(income.salary.basic) });
-    }
-    if (num(income.salary.da) > 0) {
-      lines.push({ label: "Dearness Allowance (U/s 17(1))", inner: num(income.salary.da) });
-    }
-    if (num(income.salary.hra) > 0) {
-      lines.push({ label: "House Rent Allowance (U/s 17(1))", inner: num(income.salary.hra) });
-    }
-    if (num(income.salary.bonus) > 0) {
-      lines.push({ label: "Bonus / Ex-gratia (U/s 17(1)(iv))", inner: num(income.salary.bonus) });
-    }
-    if (num(income.salary.commission) > 0) {
-      lines.push({ label: "Commission (U/s 17(1)(iv))", inner: num(income.salary.commission) });
-    }
-    if (num(income.salary.perquisites) > 0) {
-      lines.push({ label: "Perquisites (U/s 17(2))", inner: num(income.salary.perquisites) });
-    }
-    if (num(income.salary.otherAllowances) > 0) {
-      lines.push({ label: "Other Allowances (U/s 17(1))", inner: num(income.salary.otherAllowances) });
-    }
+    const employers = income.salary.employers || [
+      {
+        id: "emp-legacy",
+        employerName: income.salary.employerName || "",
+        basic: income.salary.basic || "",
+        da: income.salary.da || "",
+        hra: income.salary.hra || "",
+        bonus: income.salary.bonus || "",
+        commission: income.salary.commission || "",
+        perquisites: income.salary.perquisites || "",
+        otherAllowances: income.salary.otherAllowances || "",
+        professionalTax: income.salary.professionalTax || "",
+        entertainmentAllowance: income.salary.entertainmentAllowance || "",
+        manual: income.salary.manual || []
+      }
+    ];
 
-    (income.salary.manual || []).forEach((m) => lines.push({ label: m.label || "Additional salary item", inner: num(m.amount) }));
+    employers.forEach((emp, index) => {
+      if (employers.length > 1) {
+        lines.push({ label: `Employer ${index + 1}: ${emp.employerName || "Unnamed Employer"}`, inner: null });
+      } else if (emp.employerName) {
+        lines.push({ label: `Employer: ${emp.employerName}`, inner: null });
+      }
+
+      if (num(emp.basic) > 0) {
+        lines.push({ label: "  Basic Salary (U/s 17(1))", inner: num(emp.basic) });
+      }
+      if (num(emp.da) > 0) {
+        lines.push({ label: "  Dearness Allowance (U/s 17(1))", inner: num(emp.da) });
+      }
+      if (num(emp.hra) > 0) {
+        lines.push({ label: "  House Rent Allowance (U/s 17(1))", inner: num(emp.hra) });
+      }
+      if (num(emp.bonus) > 0) {
+        lines.push({ label: "  Bonus / Ex-gratia (U/s 17(1)(iv))", inner: num(emp.bonus) });
+      }
+      if (num(emp.commission) > 0) {
+        lines.push({ label: "  Commission (U/s 17(1)(iv))", inner: num(emp.commission) });
+      }
+      if (num(emp.perquisites) > 0) {
+        lines.push({ label: "  Perquisites (U/s 17(2))", inner: num(emp.perquisites) });
+      }
+      if (num(emp.otherAllowances) > 0) {
+        lines.push({ label: "  Other Allowances (U/s 17(1))", inner: num(emp.otherAllowances) });
+      }
+      (emp.manual || []).forEach((m) => {
+        lines.push({ label: `  ${m.label || "Additional salary item"}`, inner: num(m.amount) });
+      });
+
+      if (num(emp.professionalTax) > 0) {
+        lines.push({ label: "  Less: Professional Tax U/s 16(iii)", inner: -num(emp.professionalTax) });
+      }
+      if (num(emp.entertainmentAllowance) > 0) {
+        lines.push({ label: "  Less: Entertainment Allowance U/s 16(ii)", inner: -num(emp.entertainmentAllowance) });
+      }
+    });
+
     lines.push({ label: "Less: Standard Deduction U/s 16(ia)", inner: -stdDed });
-    if (num(income.salary.professionalTax) > 0) lines.push({ label: "Less: Professional Tax U/s 16(iii)", inner: -num(income.salary.professionalTax) });
-    if (num(income.salary.entertainmentAllowance) > 0) lines.push({ label: "Less: Entertainment Allowance U/s 16(ii)", inner: -num(income.salary.entertainmentAllowance) });
     incomeRows.push(...finalizeLines(lines, d.salaryIncome));
   }
 
