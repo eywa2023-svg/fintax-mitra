@@ -434,7 +434,10 @@ function EditClient({c,onSave,onX,dd}){
             <F label="Type" w="22%"><S val={pwItem.type} set={v=>setPwAt(i,{type:v})} opts={dd.pwTypes||[]} ph="Select..."/></F>
             <F label="Label" w="26%"><I val={pwItem.label} set={v=>setPwAt(i,{label:v})} ph="e.g. Personal Email"/></F>
             <F label="User ID" w="24%"><I val={pwItem.id} set={v=>setPwAt(i,{id:v})} mono/></F>
-            <F label="Password" w="20%"><I val={pwItem.pw} set={v=>setPwAt(i,{pw:v})} type="password" mono/></F>
+            <F label="Password" w="20%"><div style={{position:"relative"}}>
+              <I val={pwItem.pw} set={v=>setPwAt(i,{pw:v})} type={spw['other-'+i]?"text":"password"} mono sty={{paddingRight:34}}/>
+              <button type="button" onClick={()=>setSpw(s=>({...s,['other-'+i]:!s['other-'+i]}))} style={{position:"absolute",right:9,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",color:G.mut,fontSize:13}}>{spw['other-'+i]?"🙈":"👁"}</button>
+            </div></F>
             <button onClick={()=>delPwAt(i)} style={{background:"#450A0A",border:`1px solid ${G.red}44`,color:G.red,borderRadius:8,padding:"9px 10px",cursor:"pointer",fontSize:12,flexShrink:0}}>🗑</button>
           </div>)}
           <button onClick={addPw} style={{alignSelf:"flex-start",padding:"7px 14px",borderRadius:8,border:`1px dashed ${G.bdr}`,background:"transparent",color:G.cyn,cursor:"pointer",fontSize:12,fontWeight:600}}>➕ Add Password</button>
@@ -980,7 +983,10 @@ function AddClient({clients,setClients,dd,toast}){
             <F label="Type" w="22%"><S val={pwItem.type} set={v=>setPwAt(i,{type:v})} opts={dd.pwTypes||[]} ph="Select..."/></F>
             <F label="Label" w="26%"><I val={pwItem.label} set={v=>setPwAt(i,{label:v})} ph="e.g. Personal Email"/></F>
             <F label="User ID" w="24%"><I val={pwItem.id} set={v=>setPwAt(i,{id:v})} mono/></F>
-            <F label="Password" w="20%"><I val={pwItem.pw} set={v=>setPwAt(i,{pw:v})} type="password" mono/></F>
+            <F label="Password" w="20%"><div style={{position:"relative"}}>
+              <I val={pwItem.pw} set={v=>setPwAt(i,{pw:v})} type={spw['other-'+i]?"text":"password"} mono sty={{paddingRight:34}}/>
+              <button type="button" onClick={()=>setSpw(s=>({...s,['other-'+i]:!s['other-'+i]}))} style={{position:"absolute",right:9,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",color:G.mut,fontSize:13}}>{spw['other-'+i]?"🙈":"👁"}</button>
+            </div></F>
             <button onClick={()=>delPwAt(i)} style={{background:"#450A0A",border:`1px solid ${G.red}44`,color:G.red,borderRadius:8,padding:"9px 10px",cursor:"pointer",fontSize:12,flexShrink:0}}>🗑</button>
           </div>)}
           <button onClick={addPw} style={{alignSelf:"flex-start",padding:"7px 14px",borderRadius:8,border:`1px dashed ${G.bdr}`,background:"transparent",color:G.cyn,cursor:"pointer",fontSize:12,fontWeight:600}}>➕ Add Password</button>
