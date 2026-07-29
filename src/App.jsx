@@ -3246,7 +3246,7 @@ function PerformaDesigner({firmSettings, setFirmSettings}){
 }
 
 
-function DevTab({dd,setDd,pws,setPws,darkMode,setDarkMode,profilePic,setProfilePic,firmSettings,setFirmSettings,clients,setClients,works,setWorks,invoices,setInvoices,receipts,setReceipts,toast,googleUser,linkGoogleDrive,disconnectGoogleDrive,uploadBackupToGoogleDrive}){
+function DevTab({dd,setDd,pws,setPws,darkMode,setDarkMode,profilePic,setProfilePic,firmSettings,setFirmSettings,clients,setClients,works,setWorks,invoices,setInvoices,receipts,setReceipts,toast,googleUser,linkGoogleDrive,disconnectGoogleDrive,uploadBackupToGoogleDrive,computations,setComputations}){
   const[sec,setSec]=useState("services"),[nv,setNv]=useState(""),[ei,setEi]=useState(null),[ev,setEv]=useState("");
   const[pf,setPf]=useState({owner:"",dev:""}),[pm,setPm]=useState("");
   const[confirmDel,setConfirmDel]=useState(null);
@@ -3268,7 +3268,7 @@ function DevTab({dd,setDd,pws,setPws,darkMode,setDarkMode,profilePic,setProfileP
   const stamp=()=>{const d=new Date();const p=n=>String(n).padStart(2,"0");return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`;};
   const buildBackup=()=>({
     meta:{app:"Fin-Tax Mitra",exportedAt:new Date().toISOString(),version:1},
-    clients, works, invoices, receipts, dd, pws, firmSettings, darkMode,
+    clients, works, invoices, receipts, computations, dd, pws, firmSettings, darkMode,
   });
   const downloadBlob=(data,filename,type)=>{
     const blob=new Blob([data],{type});
@@ -3349,6 +3349,7 @@ function DevTab({dd,setDd,pws,setPws,darkMode,setDarkMode,profilePic,setProfileP
     if(Array.isArray(data.works)) setWorks(data.works);
     if(Array.isArray(data.invoices)) setInvoices(data.invoices);
     if(Array.isArray(data.receipts)) setReceipts(data.receipts);
+    if(Array.isArray(data.computations)) setComputations(data.computations);
     if(data.dd&&typeof data.dd==="object") setDd(data.dd);
     if(data.pws&&typeof data.pws==="object") setPws(data.pws);
     if(data.firmSettings&&typeof data.firmSettings==="object") setFirmSettings(data.firmSettings);
@@ -3432,6 +3433,7 @@ function DevTab({dd,setDd,pws,setPws,darkMode,setDarkMode,profilePic,setProfileP
           Work items: <b>{Array.isArray(confirmRestore.works)?confirmRestore.works.length:"—"}</b><br/>
           Invoices: <b>{Array.isArray(confirmRestore.invoices)?confirmRestore.invoices.length:"—"}</b><br/>
           Receipts: <b>{Array.isArray(confirmRestore.receipts)?confirmRestore.receipts.length:"—"}</b><br/>
+          Computations: <b>{Array.isArray(confirmRestore.computations)?confirmRestore.computations.length:"—"}</b><br/>
           {confirmRestore.meta?.exportedAt&&<>Exported: <b>{new Date(confirmRestore.meta.exportedAt).toLocaleString("en-IN")}</b></>}
         </div>
         <div style={{fontSize:12,color:G.red,marginBottom:18}}>This will overwrite ALL current data in the app. This cannot be undone.</div>
@@ -7874,22 +7876,7 @@ export default function App(){
         let { data: dbDev, error: errDev } = await supabase.from('developer_settings').select('*').maybeSingle();
         if (errDev) throw errDev;
 
-        // Cleanup dummy data from Supabase DB using active session
-        const dummyPans = ["ABCPK1234A", "BCDQL5678B", "CDERM7890C", "DEFNS2345D", "EFGOT6789E"];
-        supabase.from('receipts').delete().in('pan', dummyPans).then();
-        supabase.from('invoices').delete().in('pan', dummyPans).then();
-        supabase.from('computations').delete().in('pan', dummyPans).then();
-        supabase.from('works').delete().in('pan', dummyPans).then();
-        supabase.from('clients').delete().in('pan', dummyPans).then();
 
-        // Local filter to immediately strip dummy data from UI loads
-        dbClients = (dbClients || []).filter(c => !dummyPans.includes(c.pan));
-        dbWorks = (dbWorks || []).filter(w => !dummyPans.includes(w.pan));
-        dbInvoices = (dbInvoices || []).filter(i => !dummyPans.includes(i.pan));
-        dbReceipts = (dbReceipts || []).filter(r => !dummyPans.includes(r.pan));
-        if (dbComputations) {
-          dbComputations = dbComputations.filter(c => !dummyPans.includes(c.pan));
-        }
 
         if (!dbFirm) {
           const defaultFirm = { id: 1, settings: {
@@ -8016,7 +8003,7 @@ export default function App(){
 
   const getBackupChecksum = () => {
     try {
-      const payload = { clients, works, invoices, receipts, dd, pws, firmSettings };
+      const payload = { clients, works, invoices, receipts, computations, dd, pws, firmSettings };
       const str = JSON.stringify(payload);
       let hash = 0;
       for (let i = 0; i < str.length; i++) {
@@ -8290,7 +8277,7 @@ export default function App(){
       
       const payload = {
         meta: { app: "Fin-Tax Mitra", exportedAt: new Date().toISOString(), version: 1, type: "google_auto" },
-        clients, works, invoices, receipts, dd, pws, firmSettings, darkMode
+        clients, works, invoices, receipts, computations, dd, pws, firmSettings, darkMode
       };
       const jsonContent = JSON.stringify(payload, null, 2);
       
@@ -8365,7 +8352,7 @@ export default function App(){
         try {
           const data = JSON.stringify({
             meta: { app: "Fin-Tax Mitra", exportedAt: new Date().toISOString(), version: 1, type: "auto" },
-            clients, works, invoices, receipts, dd, pws, firmSettings, darkMode,
+            clients, works, invoices, receipts, computations, dd, pws, firmSettings, darkMode,
           }, null, 2);
           
           const d = new Date();
@@ -8410,7 +8397,7 @@ export default function App(){
     }, 5000);
     
     return () => clearTimeout(timer);
-  }, [syncEnabled, firmSettings.autoBackup, firmSettings.googleDriveEnabled, googleUser, clients, works, invoices, receipts, dd, pws, darkMode]);
+  }, [syncEnabled, firmSettings.autoBackup, firmSettings.googleDriveEnabled, googleUser, clients, works, invoices, receipts, computations, dd, pws, darkMode]);
   const NAV=[
     {id:"wdash",icon:"⬡",label:"Work Dashboard"},
     {id:"fin",icon:"💰",label:"Finance",prot:true,go:()=>ownerOn?setTab("fin"):(setPendingProt("fin"),setShowOA(true))},
@@ -8803,7 +8790,7 @@ export default function App(){
             <button onClick={()=>{setPendingProt("invoice");setShowOA(true);}} style={{padding:"11px 26px",borderRadius:11,border:"none",cursor:"pointer",background:`linear-gradient(135deg,${G.g2},${G.green})`,color:"#fff",fontWeight:700,fontSize:14}}>🔐 Unlock</button>
           </div>)}
         {tab==="receipts"&&<ReceiptsModule receipts={receipts} setReceipts={setReceipts} invoices={invoices} setInvoices={setInvoices} clients={clients} dd={dd} toast={toast} openReceiptId={openReceiptId} setOpenReceiptId={setOpenReceiptId}/>}
-        {tab==="dev"&&(devOn?<DevTab dd={dd} setDd={setDd} pws={pws} setPws={setPws} darkMode={darkMode} setDarkMode={setDarkMode} profilePic={profilePic} setProfilePic={setProfilePic} firmSettings={firmSettings} setFirmSettings={setFirmSettings} clients={clients} setClients={setClients} works={works} setWorks={setWorks} invoices={invoices} setInvoices={setInvoices} receipts={receipts} setReceipts={setReceipts} toast={toast} googleUser={googleUser} linkGoogleDrive={linkGoogleDrive} disconnectGoogleDrive={disconnectGoogleDrive} uploadBackupToGoogleDrive={uploadBackupToGoogleDrive}/>
+        {tab==="dev"&&(devOn?<DevTab dd={dd} setDd={setDd} pws={pws} setPws={setPws} darkMode={darkMode} setDarkMode={setDarkMode} profilePic={profilePic} setProfilePic={setProfilePic} firmSettings={firmSettings} setFirmSettings={setFirmSettings} clients={clients} setClients={setClients} works={works} setWorks={setWorks} invoices={invoices} setInvoices={setInvoices} receipts={receipts} setReceipts={setReceipts} toast={toast} googleUser={googleUser} linkGoogleDrive={linkGoogleDrive} disconnectGoogleDrive={disconnectGoogleDrive} uploadBackupToGoogleDrive={uploadBackupToGoogleDrive} computations={computations} setComputations={setComputations}/>
           :<div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"60vh",flexDirection:"column",gap:14}}>
             <span style={{fontSize:48}}>⚙️</span><div style={{fontWeight:700,fontSize:17}}>Developer Access Required</div>
             <button onClick={()=>setShowDA(true)} style={{padding:"11px 26px",borderRadius:11,border:"none",cursor:"pointer",background:`linear-gradient(135deg,${G.g2},${G.green})`,color:"#fff",fontWeight:700,fontSize:14}}>🔐 Unlock Dev</button>
