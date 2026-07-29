@@ -3568,7 +3568,10 @@ function DevTab({dd,setDd,pws,setPws,darkMode,setDarkMode,profilePic,setProfileP
             const file=e.target.files[0]; if(!file) return;
             if(file.size>5*1024*1024){alert("Max 5MB");return;}
             const reader=new FileReader();
-            reader.onload=ev=>setFirmSettings(p=>({...p,[key]:ev.target.result}));
+            reader.onload=async ev=>{
+              const compressed = await compressImage(ev.target.result, 400);
+              setFirmSettings(p=>({...p,[key]:compressed}));
+            };
             reader.readAsDataURL(file); e.target.value="";
           };
           const FS=firmSettings;
@@ -3757,7 +3760,10 @@ function DevTab({dd,setDd,pws,setPws,darkMode,setDarkMode,profilePic,setProfileP
               if(!file)return;
               if(file.size>5*1024*1024){alert("File too large! Max 5MB.");return;}
               const reader=new FileReader();
-              reader.onload=ev=>setProfilePic(ev.target.result);
+              reader.onload=async ev=>{
+                const compressed = await compressImage(ev.target.result, 200);
+                setProfilePic(compressed);
+              };
               reader.readAsDataURL(file);
               e.target.value="";
             }}/>
@@ -5385,21 +5391,30 @@ function LogoPanel({ letterhead, saveLetterhead, updateLetterheadLive, open, set
     const file = e.target.files && e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => saveLetterhead({ logo: reader.result });
+    reader.onload = async () => {
+      const compressed = await compressImage(reader.result, 400);
+      saveLetterhead({ logo: compressed });
+    };
     reader.readAsDataURL(file);
   };
   const onFooterFile = (e) => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => saveLetterhead({ footerLogo: reader.result });
+    reader.onload = async () => {
+      const compressed = await compressImage(reader.result, 400);
+      saveLetterhead({ footerLogo: compressed });
+    };
     reader.readAsDataURL(file);
   };
   const onBannerFile = (e) => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => saveLetterhead({ banner: reader.result });
+    reader.onload = async () => {
+      const compressed = await compressImage(reader.result, 600);
+      saveLetterhead({ banner: compressed });
+    };
     reader.readAsDataURL(file);
   };
   return (
@@ -5484,21 +5499,30 @@ function LetterheadView({ letterhead, saveLetterhead, updateLetterheadLive }) {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => saveLetterhead({ logo: reader.result });
+    reader.onload = async () => {
+      const compressed = await compressImage(reader.result, 400);
+      saveLetterhead({ logo: compressed });
+    };
     reader.readAsDataURL(file);
   };
   const onFooterFile = (e) => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => saveLetterhead({ footerLogo: reader.result });
+    reader.onload = async () => {
+      const compressed = await compressImage(reader.result, 400);
+      saveLetterhead({ footerLogo: compressed });
+    };
     reader.readAsDataURL(file);
   };
   const onBannerFile = (e) => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => saveLetterhead({ banner: reader.result });
+    reader.onload = async () => {
+      const compressed = await compressImage(reader.result, 600);
+      saveLetterhead({ banner: compressed });
+    };
     reader.readAsDataURL(file);
   };
   return (
@@ -7190,8 +7214,18 @@ function ITRComputationTab({clients,setClients,computations,setComputations,dd,t
   const[showPicker,setShowPicker]=useState(false);
   const[pickPan,setPickPan]=useState("");
   const[newFy,setNewFy]=useState("");
+  const[newItrType,setNewItrType]=useState("ITR-1");
   const[editClientPan,setEditClientPan]=useState(null);
   const[q,setQ]=useState("");
+
+  useEffect(() => {
+    if (pickPan) {
+      const client = clients.find(c => c.pan === pickPan);
+      if (client && client.itrType) {
+        setNewItrType(client.itrType);
+      }
+    }
+  }, [pickPan, clients]);
 
   const list=useMemo(()=>{
     const base=computations.filter(c=>c.fy===fy);
@@ -7201,10 +7235,10 @@ function ITRComputationTab({clients,setClients,computations,setComputations,dd,t
   },[computations,fy,q]);
 
   const openNew=()=>{setPickPan("");setNewFy(fy);setShowPicker(true);};
-  const beginWithClient=(pan,useFy)=>{
+  const beginWithClient=(pan,useFy,selectedItrType)=>{
     const client=clients.find(c=>c.pan===pan);
     const id=genCompId();
-    const draftObj={id,fy:useFy,pan,name:client?.name||"",assessee:clientToAssessee(client,useFy),income:defaultIncome,deductions:defaultDeductions,manualDeductions:defaultManualDeductions,taxPaid:defaultTaxPaid,printRegime:"new",savedAt:null};
+    const draftObj={id,fy:useFy,pan,name:client?.name||"",assessee:{...clientToAssessee(client,useFy),itrType:selectedItrType||client?.itrType||"ITR-1"},income:defaultIncome,deductions:defaultDeductions,manualDeductions:defaultManualDeductions,taxPaid:defaultTaxPaid,printRegime:"new",savedAt:null};
     setComputations(p=>[draftObj,...p]);
     setDraft(draftObj);
     setShowPicker(false);
@@ -7304,10 +7338,15 @@ function ITRComputationTab({clients,setClients,computations,setComputations,dd,t
               <F label="Select Client">
                 <PanPick clients={clients} val={pickPan} set={setPickPan}/>
               </F>
+              <div style={{marginTop:10}}>
+                <F label="ITR Type">
+                  <S val={newItrType} set={setNewItrType} opts={["ITR-1", "ITR-2", "ITR-3", "ITR-4"]} ph="Select ITR Type..."/>
+                </F>
+              </div>
               <div style={{fontSize:11,color:G.mut,marginTop:8}}>PAN, name, address, contact & any ITR details already on the client's profile will auto-fill. Anything missing can be typed directly into the computation.</div>
             </>}
         <div style={{display:"flex",gap:10,marginTop:16}}>
-          <Btn onClick={()=>newFy&&configuredFYs.includes(newFy)&&pickPan&&beginWithClient(pickPan,newFy)} sty={{flex:1,padding:12,fontSize:14,opacity:(newFy&&configuredFYs.includes(newFy)&&pickPan)?1:.5,cursor:(newFy&&configuredFYs.includes(newFy)&&pickPan)?"pointer":"not-allowed"}}>Start Computation</Btn>
+          <Btn onClick={()=>newFy&&configuredFYs.includes(newFy)&&pickPan&&beginWithClient(pickPan,newFy,newItrType)} sty={{flex:1,padding:12,fontSize:14,opacity:(newFy&&configuredFYs.includes(newFy)&&pickPan)?1:.5,cursor:(newFy&&configuredFYs.includes(newFy)&&pickPan)?"pointer":"not-allowed"}}>Start Computation</Btn>
           <button onClick={()=>setShowPicker(false)} style={{padding:"12px 18px",borderRadius:10,border:`1px solid ${G.bdr}`,background:"transparent",color:G.mut,cursor:"pointer"}}>Cancel</button>
         </div>
       </div>
@@ -7446,11 +7485,40 @@ function AdminLogin({ setSession }) {
   );
 }
 
+const compressImage = (base64Str, maxDim = 600) => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.src = base64Str;
+    img.onload = () => {
+      let w = img.width;
+      let h = img.height;
+      if (w > maxDim || h > maxDim) {
+        if (w > h) {
+          h = Math.round((h * maxDim) / w);
+          w = maxDim;
+        } else {
+          w = Math.round((w * maxDim) / h);
+          h = maxDim;
+        }
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL("image/png"));
+    };
+    img.onerror = () => resolve(base64Str);
+  });
+};
+
 export default function App(){
   const [session, setSession] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [dbLoading, setDbLoading] = useState(true);
   const [syncEnabled, setSyncEnabled] = useState(false);
+  const [globalClientEditPan, setGlobalClientEditPan] = useState(null);
+  const [globalSearchQ, setGlobalSearchQ] = useState("");
 
   const[clients, _setClients]=useState([]);
   const[works, _setWorks]=useState([]);
@@ -7713,6 +7781,7 @@ export default function App(){
 
   // Persist heavy firm images locally to avoid database payload limits
   useEffect(() => {
+    if (!syncEnabled) return; // Wait until initial database load has merged local settings to avoid mount wipeout
     const imageKeys = ['logo', 'stamp', 'signature', 'qrCode', 'statusStamp'];
     const images = {};
     imageKeys.forEach(k => {
@@ -7720,14 +7789,12 @@ export default function App(){
         images[k] = firmSettings[k];
       }
     });
-    if (Object.keys(images).length > 0) {
-      try {
-        localStorage.setItem("ftm_firm_images", JSON.stringify(images));
-      } catch (e) {
-        console.error("Error saving images locally:", e);
-      }
+    try {
+      localStorage.setItem("ftm_firm_images", JSON.stringify(images));
+    } catch (e) {
+      console.error("Error saving images locally:", e);
     }
-  }, [firmSettings]);
+  }, [firmSettings, syncEnabled]);
 
   // Database fetch & seeding
   useEffect(() => {
@@ -7869,7 +7936,26 @@ export default function App(){
   }, []);
 
   const[darkMode,setDarkMode]=useState(true);
-  const[profilePic,setProfilePic]=useState(null);
+  const[profilePic,setProfilePic]=useState(()=>{
+    try {
+      return localStorage.getItem("ftm_profile_pic") || null;
+    } catch(e) {
+      return null;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      if (profilePic) {
+        localStorage.setItem("ftm_profile_pic", profilePic);
+      } else {
+        localStorage.removeItem("ftm_profile_pic");
+      }
+    } catch (e) {
+      console.error("Error saving profile pic:", e);
+    }
+  }, [profilePic]);
+
   // Apply theme globally
   Object.assign(G, darkMode ? DARK_THEME : LIGHT_THEME);
   const toast=(msg,tp="ok")=>{const id=Date.now();setToasts(t=>[...t,{id,msg,tp}]);setTimeout(()=>setToasts(t=>t.filter(x=>x.id!==id)),3200);};
@@ -8429,11 +8515,112 @@ export default function App(){
     </div>
     {/* Main */}
     <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",minWidth:0}}>
-      <div className="app-header no-print" style={{background:"#070E09",borderBottom:`1px solid ${G.bdr}`,height:50,display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0,gap:8}}>
+      <div className="app-header no-print" style={{background:"#070E09",borderBottom:`1px solid ${G.bdr}`,height:50,display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0,gap:8,padding:"0 16px"}}>
         <div style={{display:"flex",alignItems:"center",gap:10,minWidth:0}}>
           <button className="mobile-hamburger" onClick={()=>setSideOpen(true)} style={{display:"none",background:"transparent",border:`1px solid ${G.bdr}`,color:G.txt,borderRadius:8,width:32,height:32,alignItems:"center",justifyContent:"center",fontSize:16,cursor:"pointer",flexShrink:0}}>☰</button>
           <div style={{fontWeight:700,fontSize:15,color:G.txt,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{titles[tab]||""}</div>
         </div>
+
+        {/* Global Search Bar */}
+        <div style={{position:"relative",flex:1,maxWidth:320,marginLeft:20,marginRight:20,zIndex:6000}}>
+          <span style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:G.mut,fontSize:13}}>🔍</span>
+          <input
+            value={globalSearchQ}
+            onChange={e=>setGlobalSearchQ(e.target.value)}
+            placeholder="Global search (name, PAN, mob, email)..."
+            style={{
+              ...IS,
+              paddingLeft:30,
+              paddingRight:30,
+              height:32,
+              fontSize:12,
+              borderRadius:8,
+              border:`1.5px solid ${G.bdr}`,
+              background:G.card,
+              width:"100%"
+            }}
+          />
+          {globalSearchQ && (
+            <button
+              onClick={()=>setGlobalSearchQ("")}
+              style={{
+                position:"absolute",
+                right:10,
+                top:"50%",
+                transform:"translateY(-50%)",
+                background:"none",
+                border:"none",
+                color:G.mut,
+                cursor:"pointer",
+                fontSize:12
+              }}
+            >
+              ✕
+            </button>
+          )}
+          
+          {/* Dropdown list */}
+          {globalSearchQ && (() => {
+            const lq = globalSearchQ.toLowerCase();
+            const matches = clients.filter(c => 
+              (c.name||"").toLowerCase().includes(lq) || 
+              (c.pan||"").toLowerCase().includes(lq) || 
+              (c.mob||"").toLowerCase().includes(lq) || 
+              (c.email||"").toLowerCase().includes(lq)
+            ).slice(0, 8);
+            
+            return (
+              <div style={{
+                position:"absolute",
+                top:"calc(100% + 5px)",
+                left:0,
+                right:0,
+                background:G.surf,
+                border:`1px solid ${G.bdr}`,
+                borderRadius:10,
+                boxShadow:"0 10px 30px rgba(0,0,0,0.5)",
+                padding:"6px 0",
+                maxHeight:300,
+                overflowY:"auto"
+              }}>
+                {matches.length === 0 ? (
+                  <div style={{padding:"8px 12px",fontSize:11,color:G.mut,textAlign:"center"}}>No matching clients found</div>
+                ) : (
+                  matches.map(c => (
+                    <div
+                      key={c.pan}
+                      onClick={() => {
+                        setGlobalClientEditPan(c.pan);
+                        setGlobalSearchQ("");
+                      }}
+                      style={{
+                        padding:"8px 12px",
+                        cursor:"pointer",
+                        display:"flex",
+                        justifyContent:"space-between",
+                        alignItems:"center",
+                        borderBottom:`1px solid ${G.bdr}33`,
+                        transition:"background .15s"
+                      }}
+                      onMouseEnter={e=>e.currentTarget.style.background=G.bdr}
+                      onMouseLeave={e=>e.currentTarget.style.background="transparent"}
+                    >
+                      <div style={{minWidth:0,flex:1,textAlign:"left"}}>
+                        <div style={{fontWeight:600,fontSize:12,color:G.wh,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.name}</div>
+                        <div style={{fontSize:10,color:G.cyn,fontFamily:"monospace",fontWeight:700,marginTop:2}}>{c.pan}</div>
+                      </div>
+                      <div style={{fontSize:10,color:G.mut,textAlign:"right",marginLeft:8}}>
+                        <div>{c.mob || ""}</div>
+                        <div style={{fontSize:9,opacity:0.7}}>{c.type || "Individual"}</div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            );
+          })()}
+        </div>
+
         <div style={{display:"flex",gap:10,alignItems:"center",flexShrink:0}}>
           {tab==="add"&&<div style={{display:"flex",gap:3,background:G.card,border:`1px solid ${G.bdr}`,borderRadius:9,padding:3}}>
             {[{id:"client",l:"➕ Add Client"},{id:"work",l:"📋 Assign Work"}].map(s=><button key={s.id} onClick={()=>setSub(s.id)} style={{padding:"5px 14px",borderRadius:7,border:"none",cursor:"pointer",fontSize:12,fontWeight:700,background:sub===s.id?`linear-gradient(135deg,${G.g2},${G.green})`:"transparent",color:sub===s.id?"#fff":G.mut,transition:"all .2s"}}>{s.l}</button>)}
@@ -8468,6 +8655,21 @@ export default function App(){
           </div>)}
       </div>
     </div>
+    {globalClientEditPan && (() => {
+      const c = clients.find(x => x.pan === globalClientEditPan);
+      return c ? (
+        <EditClient
+          c={c}
+          dd={dd}
+          onX={() => setGlobalClientEditPan(null)}
+          onSave={cf => {
+            setClients(p => p.map(x => x.pan === cf.pan ? cf : x));
+            setGlobalClientEditPan(null);
+            toast("Client updated!");
+          }}
+        />
+      ) : null;
+    })()}
     <Toasts list={toasts}/>
   </div>;
 }
