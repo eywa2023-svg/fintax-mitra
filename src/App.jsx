@@ -1418,13 +1418,23 @@ const SEED_RECEIPTS = [
 ];
 
 // ─── Invoice Module ───────────────────────────────────────────────────────────
-function InvoiceModule({invoices,setInvoices,receipts,setReceipts,clients,works,dd,toast,firmSettings,setFirmSettings}){
+function InvoiceModule({invoices,setInvoices,receipts,setReceipts,clients,works,dd,toast,firmSettings,setFirmSettings,openInvoiceId,setOpenInvoiceId}){
   const[fy,setFy]=useState(getCurrentFY());
   const[status,setStatus]=useState("All");
   const[q,setQ]=useState("");
   const[showForm,setShowForm]=useState(false);
   const[showPrint,setShowPrint]=useState(null);
   const[editInv,setEditInv]=useState(null);
+
+  useEffect(() => {
+    if (openInvoiceId) {
+      const inv = invoices.find(i => i.id === openInvoiceId);
+      if (inv) {
+        setFy(inv.fy);
+        setShowPrint(inv);
+      }
+    }
+  }, [openInvoiceId, invoices]);
 
   const filtered=useMemo(()=>{
     let list=invoices;
@@ -1482,7 +1492,7 @@ function InvoiceModule({invoices,setInvoices,receipts,setReceipts,clients,works,
 
   return <div style={{display:"flex",flexDirection:"column",gap:16,animation:"fadeUp .3s ease"}}>
     {showForm&&<InvoiceForm invoices={invoices} setInvoices={setInvoices} clients={clients} works={works} dd={dd} toast={toast} onClose={()=>setShowForm(false)} genId={genInvId} editInv={editInv} setEditInv={setEditInv} receipts={receipts}/>}
-    {showPrint&&<InvoicePrint inv={showPrint} clients={clients} firmSettings={firmSettings} onClose={()=>setShowPrint(null)} toast={toast}/>}
+    {showPrint&&<InvoicePrint inv={showPrint} clients={clients} firmSettings={firmSettings} onClose={()=>{setShowPrint(null);if(setOpenInvoiceId)setOpenInvoiceId(null);}} toast={toast}/>}
 
     {/* Summary KPIs */}
     <div className="kpi-grid-4" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12}}>
@@ -2236,9 +2246,19 @@ function InvoicePrint({inv,clients,firmSettings,onClose,toast}){
 
 
 // ─── Payment Receipts Module ───────────────────────────────────────────────────
-function ReceiptsModule({receipts,setReceipts,invoices,setInvoices,clients,dd,toast}){
+function ReceiptsModule({receipts,setReceipts,invoices,setInvoices,clients,dd,toast,openReceiptId,setOpenReceiptId}){
   const[showForm,setShowForm]=useState(false);
   const[q,setQ]=useState("");
+
+  useEffect(() => {
+    if (openReceiptId) {
+      setQ(openReceiptId);
+      if (setOpenReceiptId) {
+        setTimeout(() => setOpenReceiptId(null), 500);
+      }
+    }
+  }, [openReceiptId, setOpenReceiptId]);
+
   const MODES=["Cash","UPI","Bank Transfer","Cheque","NEFT","RTGS","Other"];
 
   const filtered=useMemo(()=>{
@@ -2427,10 +2447,20 @@ function PortalPw({pw,pid}){
   </div>;
 }
 
-function WorkTracker({works,setWorks,clients,ownerOn,dd,pws,toast,invoices,setInvoices,receipts}){
+function WorkTracker({works,setWorks,clients,ownerOn,dd,pws,toast,invoices,setInvoices,receipts,openWorkId,setOpenWorkId}){
   const[flt,setFlt]=useState(() => localStorage.getItem("fmt_tracker_flt") || "All");
   const[fy,setFy]=useState(() => localStorage.getItem("fmt_tracker_fy") || getCurrentFY());
   const[q,setQ]=useState(() => localStorage.getItem("fmt_tracker_q") || "");
+
+  useEffect(() => {
+    if (openWorkId) {
+      const w = works.find(x => x.id === openWorkId);
+      if (w) {
+        setFy(w.fy);
+        setEditW(w);
+      }
+    }
+  }, [openWorkId, works]);
 
   useEffect(() => {
     localStorage.setItem("fmt_tracker_flt", flt);
@@ -2476,7 +2506,7 @@ function WorkTracker({works,setWorks,clients,ownerOn,dd,pws,toast,invoices,setIn
   const cnt={All:works.length,Pending:works.filter(w=>w.status==="Pending").length,"In Progress":works.filter(w=>w.status==="In Progress").length,Completed:works.filter(w=>w.status==="Completed").length,Overdue:works.filter(isOD).length};
   return <div style={{display:"flex",flexDirection:"column",gap:13}}>
     {showAuth&&<Auth title="Unlock Fee Data" hint="Finance: 456 | Developer: 123" pws={pws} onOk={()=>{setFeesOn(true);setShowAuth(false);}} onX={()=>setShowAuth(false)}/>}
-    {editW&&<EditWork w={editW} rcvdDisplay={workReceived(editW,invoices,receipts)} linkedCount={linkedInvoices(editW,invoices).length} onSave={wf=>{setWorks(p=>p.map(w=>w.id===wf.id?wf:w));setEditW(null);}} onX={()=>setEditW(null)} dd={dd}/>}
+    {editW&&<EditWork w={editW} rcvdDisplay={workReceived(editW,invoices,receipts)} linkedCount={linkedInvoices(editW,invoices).length} onSave={wf=>{setWorks(p=>p.map(w=>w.id===wf.id?wf:w));setEditW(null);if(setOpenWorkId)setOpenWorkId(null);}} onX={()=>{setEditW(null);if(setOpenWorkId)setOpenWorkId(null);}} dd={dd}/>}
     {/* Client Detail Slide Panel */}
     {selClient&&<div style={{position:"fixed",inset:0,zIndex:4000,display:"flex"}} onClick={()=>setSelClient(null)}>
       <div style={{flex:1,background:"#000A"}}/>
@@ -7206,7 +7236,7 @@ function clientToAssessee(client, fy){
 const genCompId = () => "c_"+Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 
 // ─── ITR Computation Tab ───────────────────────────────────────────────────────
-function ITRComputationTab({clients,setClients,computations,setComputations,dd,toast}){
+function ITRComputationTab({clients,setClients,computations,setComputations,dd,toast,openComputationId,setOpenComputationId}){
   const configuredFYs = useMemo(()=>[...new Set(Object.values(TAX_CONFIG).map(c=>c.fy))],[]);
   const[fy,setFy]=useState(configuredFYs[0]||dd.fyOptions[0]);
   const[mode,setMode]=useState("list");
@@ -7217,6 +7247,17 @@ function ITRComputationTab({clients,setClients,computations,setComputations,dd,t
   const[newItrType,setNewItrType]=useState("ITR-1");
   const[editClientPan,setEditClientPan]=useState(null);
   const[q,setQ]=useState("");
+
+  useEffect(() => {
+    if (openComputationId) {
+      const rec = computations.find(c => c.id === openComputationId);
+      if (rec) {
+        setFy(rec.fy);
+        setDraft(rec);
+        setMode("editor");
+      }
+    }
+  }, [openComputationId, computations]);
 
   useEffect(() => {
     if (pickPan) {
@@ -7271,7 +7312,7 @@ function ITRComputationTab({clients,setClients,computations,setComputations,dd,t
         clients={clients}
         allComputations={computations}
         onSave={handleSave}
-        onExit={()=>{setMode("list");setDraft(null);}}
+        onExit={()=>{setMode("list");setDraft(null);if(setOpenComputationId)setOpenComputationId(null);}}
         onOpenClientEdit={(pan)=>setEditClientPan(pan)}
         onOpenRecord={(rec)=>{setFy(rec.fy);setDraft(rec);}}
       />
@@ -7519,6 +7560,10 @@ export default function App(){
   const [syncEnabled, setSyncEnabled] = useState(false);
   const [globalClientEditPan, setGlobalClientEditPan] = useState(null);
   const [globalSearchQ, setGlobalSearchQ] = useState("");
+  const [openComputationId, setOpenComputationId] = useState(null);
+  const [openInvoiceId, setOpenInvoiceId] = useState(null);
+  const [openReceiptId, setOpenReceiptId] = useState(null);
+  const [openWorkId, setOpenWorkId] = useState(null);
 
   const[clients, _setClients]=useState([]);
   const[works, _setWorks]=useState([]);
@@ -8562,12 +8607,45 @@ export default function App(){
           {/* Dropdown list */}
           {globalSearchQ && (() => {
             const lq = globalSearchQ.toLowerCase();
-            const matches = clients.filter(c => 
+            
+            // 1. Clients matches
+            const clientMatches = clients.filter(c => 
               (c.name||"").toLowerCase().includes(lq) || 
               (c.pan||"").toLowerCase().includes(lq) || 
               (c.mob||"").toLowerCase().includes(lq) || 
               (c.email||"").toLowerCase().includes(lq)
-            ).slice(0, 8);
+            ).slice(0, 4);
+
+            // 2. Computation matches
+            const compMatches = computations.filter(c =>
+              (c.name||c.assessee?.name||"").toLowerCase().includes(lq) ||
+              (c.pan||"").toLowerCase().includes(lq) ||
+              (c.fy||"").toLowerCase().includes(lq)
+            ).slice(0, 4);
+
+            // 3. Invoice matches
+            const invMatches = invoices.filter(i =>
+              (i.clientName||"").toLowerCase().includes(lq) ||
+              (i.pan||"").toLowerCase().includes(lq) ||
+              (i.id||"").toLowerCase().includes(lq)
+            ).slice(0, 4);
+
+            // 4. Receipt matches
+            const rcpMatches = receipts.filter(r =>
+              (r.clientName||"").toLowerCase().includes(lq) ||
+              (r.id||"").toLowerCase().includes(lq) ||
+              (r.invId||"").toLowerCase().includes(lq)
+            ).slice(0, 4);
+
+            // 5. Work Matches
+            const workMatches = works.filter(w =>
+              (w.clientName||w.cn||"").toLowerCase().includes(lq) ||
+              (w.pan||"").toLowerCase().includes(lq) ||
+              (w.desc||w.svc||"").toLowerCase().includes(lq) ||
+              (w.type||"").toLowerCase().includes(lq)
+            ).slice(0, 4);
+
+            const hasAny = clientMatches.length > 0 || compMatches.length > 0 || invMatches.length > 0 || rcpMatches.length > 0 || workMatches.length > 0;
             
             return (
               <div style={{
@@ -8579,42 +8657,119 @@ export default function App(){
                 border:`1px solid ${G.bdr}`,
                 borderRadius:10,
                 boxShadow:"0 10px 30px rgba(0,0,0,0.5)",
-                padding:"6px 0",
-                maxHeight:300,
-                overflowY:"auto"
+                maxHeight:400,
+                overflowY:"auto",
+                zIndex:10000
               }}>
-                {matches.length === 0 ? (
-                  <div style={{padding:"8px 12px",fontSize:11,color:G.mut,textAlign:"center"}}>No matching clients found</div>
+                {!hasAny ? (
+                  <div style={{padding:"12px",fontSize:11,color:G.mut,textAlign:"center"}}>No matching items found</div>
                 ) : (
-                  matches.map(c => (
-                    <div
-                      key={c.pan}
-                      onClick={() => {
-                        setGlobalClientEditPan(c.pan);
-                        setGlobalSearchQ("");
-                      }}
-                      style={{
-                        padding:"8px 12px",
-                        cursor:"pointer",
-                        display:"flex",
-                        justifyContent:"space-between",
-                        alignItems:"center",
-                        borderBottom:`1px solid ${G.bdr}33`,
-                        transition:"background .15s"
-                      }}
-                      onMouseEnter={e=>e.currentTarget.style.background=G.bdr}
-                      onMouseLeave={e=>e.currentTarget.style.background="transparent"}
-                    >
-                      <div style={{minWidth:0,flex:1,textAlign:"left"}}>
-                        <div style={{fontWeight:600,fontSize:12,color:G.wh,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.name}</div>
-                        <div style={{fontSize:10,color:G.cyn,fontFamily:"monospace",fontWeight:700,marginTop:2}}>{c.pan}</div>
+                  <div style={{display:"flex",flexDirection:"column"}}>
+                    {/* Clients Section */}
+                    {clientMatches.length > 0 && (
+                      <div>
+                        <div style={{padding:"6px 12px",fontSize:10,fontWeight:800,color:G.green,background:`${G.green}0A`,borderBottom:`1.5px solid ${G.bdr}22`}}>📁 CLIENTS</div>
+                        {clientMatches.map(c => (
+                          <div key={c.pan} onClick={() => { setGlobalClientEditPan(c.pan); setGlobalSearchQ(""); }}
+                            style={{padding:"8px 12px",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:`1px solid ${G.bdr}11` }}
+                            onMouseEnter={e=>e.currentTarget.style.background=G.bdr} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                            <div style={{minWidth:0,flex:1,textAlign:"left"}}>
+                              <div style={{fontWeight:600,fontSize:11,color:G.wh,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.name}</div>
+                              <div style={{fontSize:9,color:G.cyn,fontFamily:"monospace",fontWeight:700,marginTop:2}}>{c.pan}</div>
+                            </div>
+                            <div style={{fontSize:9,color:G.mut,textAlign:"right",marginLeft:8}}>
+                              <div>{c.mob || ""}</div>
+                              <div style={{opacity:0.7}}>{c.type || "Individual"}</div>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                      <div style={{fontSize:10,color:G.mut,textAlign:"right",marginLeft:8}}>
-                        <div>{c.mob || ""}</div>
-                        <div style={{fontSize:9,opacity:0.7}}>{c.type || "Individual"}</div>
+                    )}
+
+                    {/* Computations Section */}
+                    {compMatches.length > 0 && (
+                      <div>
+                        <div style={{padding:"6px 12px",fontSize:10,fontWeight:800,color:G.amb,background:`${G.amb}0A`,borderBottom:`1.5px solid ${G.bdr}22`}}>🧮 ITR COMPUTATIONS</div>
+                        {compMatches.map(c => (
+                          <div key={c.id} onClick={() => { setTab("itr"); setOpenComputationId(c.id); setGlobalSearchQ(""); }}
+                            style={{padding:"8px 12px",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:`1px solid ${G.bdr}11` }}
+                            onMouseEnter={e=>e.currentTarget.style.background=G.bdr} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                            <div style={{minWidth:0,flex:1,textAlign:"left"}}>
+                              <div style={{fontWeight:600,fontSize:11,color:G.wh,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.name || c.assessee?.name || "Untitled"}</div>
+                              <div style={{fontSize:9,color:G.cyn,fontFamily:"monospace",fontWeight:700,marginTop:2}}>{c.pan} <span style={{color:G.mut,fontWeight:400}}>· FY {c.fy}</span></div>
+                            </div>
+                            <div style={{fontSize:9,color:G.mut,textAlign:"right",marginLeft:8}}>
+                              <div>{c.assessee?.ay || ""}</div>
+                              <div style={{opacity:0.7,color:G.amb,fontWeight:700}}>{c.assessee?.itrType || "ITR-1"}</div>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    </div>
-                  ))
+                    )}
+
+                    {/* Invoices Section */}
+                    {invMatches.length > 0 && (
+                      <div>
+                        <div style={{padding:"6px 12px",fontSize:10,fontWeight:800,color:G.cyn,background:`${G.cyn}0A`,borderBottom:`1.5px solid ${G.bdr}22`}}>🧾 INVOICES</div>
+                        {invMatches.map(i => (
+                          <div key={i.id} onClick={() => { setTab("invoice"); setOpenInvoiceId(i.id); setGlobalSearchQ(""); }}
+                            style={{padding:"8px 12px",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:`1px solid ${G.bdr}11` }}
+                            onMouseEnter={e=>e.currentTarget.style.background=G.bdr} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                            <div style={{minWidth:0,flex:1,textAlign:"left"}}>
+                              <div style={{fontWeight:600,fontSize:11,color:G.wh,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{i.clientName}</div>
+                              <div style={{fontSize:9,color:G.cyn,fontFamily:"monospace",fontWeight:700,marginTop:2}}>{i.id} <span style={{color:G.mut,fontWeight:400}}>· FY {i.fy}</span></div>
+                            </div>
+                            <div style={{fontSize:9,color:G.mut,textAlign:"right",marginLeft:8}}>
+                              <div style={{fontWeight:700,color:G.wh}}>₹{i.total}</div>
+                              <div style={{opacity:0.8,color:i.status==="Paid"?G.green:G.red}}>{i.status}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Payments/Receipts Section */}
+                    {rcpMatches.length > 0 && (
+                      <div>
+                        <div style={{padding:"6px 12px",fontSize:10,fontWeight:800,color:G.vio,background:`${G.vio}0A`,borderBottom:`1.5px solid ${G.bdr}22`}}>💸 PAYMENTS / RECEIPTS</div>
+                        {rcpMatches.map(r => (
+                          <div key={r.id} onClick={() => { setTab("receipts"); setOpenReceiptId(r.id); setGlobalSearchQ(""); }}
+                            style={{padding:"8px 12px",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:`1px solid ${G.bdr}11` }}
+                            onMouseEnter={e=>e.currentTarget.style.background=G.bdr} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                            <div style={{minWidth:0,flex:1,textAlign:"left"}}>
+                              <div style={{fontWeight:600,fontSize:11,color:G.wh,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.clientName}</div>
+                              <div style={{fontSize:9,color:G.cyn,fontFamily:"monospace",fontWeight:700,marginTop:2}}>{r.id} <span style={{color:G.mut,fontWeight:400}}>· for {r.invId}</span></div>
+                            </div>
+                            <div style={{fontSize:9,color:G.mut,textAlign:"right",marginLeft:8}}>
+                              <div style={{fontWeight:700,color:G.green}}>+₹{r.received}</div>
+                              <div style={{opacity:0.7}}>{r.mode}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Work Tracker Section */}
+                    {workMatches.length > 0 && (
+                      <div>
+                        <div style={{padding:"6px 12px",fontSize:10,fontWeight:800,color:G.amb,background:`${G.amb}0A`,borderBottom:`1.5px solid ${G.bdr}22`}}>📋 WORK TRACKER</div>
+                        {workMatches.map(w => (
+                          <div key={w.id} onClick={() => { setTab("tracker"); setOpenWorkId(w.id); setGlobalSearchQ(""); }}
+                            style={{padding:"8px 12px",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:`1px solid ${G.bdr}11` }}
+                            onMouseEnter={e=>e.currentTarget.style.background=G.bdr} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                            <div style={{minWidth:0,flex:1,textAlign:"left"}}>
+                              <div style={{fontWeight:600,fontSize:11,color:G.wh,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{w.desc || w.svc || "Untitled"}</div>
+                              <div style={{fontSize:9,color:G.cyn,fontFamily:"monospace",fontWeight:700,marginTop:2}}>{w.clientName || w.cn} <span style={{color:G.mut,fontWeight:400}}>· FY {w.fy}</span></div>
+                            </div>
+                            <div style={{fontSize:9,color:G.mut,textAlign:"right",marginLeft:8}}>
+                              <div style={{fontWeight:700,color:w.status==="Completed"?G.green:w.status==="In Progress"?G.cyn:G.red}}>{w.status}</div>
+                              <div style={{opacity:0.7}}>{w.type}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             );
@@ -8640,14 +8795,14 @@ export default function App(){
         {tab==="add"&&sub==="client"&&<AddClient clients={clients} setClients={setClients} dd={dd} toast={toast}/>}
         {tab==="add"&&sub==="work"&&<AssignWork clients={clients} works={works} setWorks={setWorks} dd={dd} toast={toast}/>}
         {tab==="clients"&&<ClientList clients={clients} setClients={setClients} dd={dd} toast={toast}/>}
-        {tab==="itr"&&<ITRComputationTab clients={clients} setClients={setClients} computations={computations} setComputations={setComputations} dd={dd} toast={toast}/>}
-        {tab==="tracker"&&<WorkTracker works={works} setWorks={setWorks} clients={clients} ownerOn={ownerOn} dd={dd} pws={pws} toast={toast} invoices={invoices} setInvoices={setInvoices} receipts={receipts}/>}
-        {tab==="invoice"&&(ownerOn?<InvoiceModule invoices={invoices} setInvoices={setInvoices} receipts={receipts} setReceipts={setReceipts} clients={clients} works={works} dd={dd} toast={toast} firmSettings={firmSettings} setFirmSettings={setFirmSettings}/>
+        {tab==="itr"&&<ITRComputationTab clients={clients} setClients={setClients} computations={computations} setComputations={setComputations} dd={dd} toast={toast} openComputationId={openComputationId} setOpenComputationId={setOpenComputationId}/>}
+        {tab==="tracker"&&<WorkTracker works={works} setWorks={setWorks} clients={clients} ownerOn={ownerOn} dd={dd} pws={pws} toast={toast} invoices={invoices} setInvoices={setInvoices} receipts={receipts} openWorkId={openWorkId} setOpenWorkId={setOpenWorkId}/>}
+        {tab==="invoice"&&(ownerOn?<InvoiceModule invoices={invoices} setInvoices={setInvoices} receipts={receipts} setReceipts={setReceipts} clients={clients} works={works} dd={dd} toast={toast} firmSettings={firmSettings} setFirmSettings={setFirmSettings} openInvoiceId={openInvoiceId} setOpenInvoiceId={setOpenInvoiceId}/>
           :<div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"60vh",flexDirection:"column",gap:14}}>
             <Logo sz={64}/><div style={{fontWeight:700,fontSize:17,marginTop:8}}>Owner Access Required</div>
             <button onClick={()=>{setPendingProt("invoice");setShowOA(true);}} style={{padding:"11px 26px",borderRadius:11,border:"none",cursor:"pointer",background:`linear-gradient(135deg,${G.g2},${G.green})`,color:"#fff",fontWeight:700,fontSize:14}}>🔐 Unlock</button>
           </div>)}
-        {tab==="receipts"&&<ReceiptsModule receipts={receipts} setReceipts={setReceipts} invoices={invoices} setInvoices={setInvoices} clients={clients} dd={dd} toast={toast}/>}
+        {tab==="receipts"&&<ReceiptsModule receipts={receipts} setReceipts={setReceipts} invoices={invoices} setInvoices={setInvoices} clients={clients} dd={dd} toast={toast} openReceiptId={openReceiptId} setOpenReceiptId={setOpenReceiptId}/>}
         {tab==="dev"&&(devOn?<DevTab dd={dd} setDd={setDd} pws={pws} setPws={setPws} darkMode={darkMode} setDarkMode={setDarkMode} profilePic={profilePic} setProfilePic={setProfilePic} firmSettings={firmSettings} setFirmSettings={setFirmSettings} clients={clients} setClients={setClients} works={works} setWorks={setWorks} invoices={invoices} setInvoices={setInvoices} receipts={receipts} setReceipts={setReceipts} toast={toast} googleUser={googleUser} linkGoogleDrive={linkGoogleDrive} disconnectGoogleDrive={disconnectGoogleDrive} uploadBackupToGoogleDrive={uploadBackupToGoogleDrive}/>
           :<div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"60vh",flexDirection:"column",gap:14}}>
             <span style={{fontSize:48}}>⚙️</span><div style={{fontWeight:700,fontSize:17}}>Developer Access Required</div>
