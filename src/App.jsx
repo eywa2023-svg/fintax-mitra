@@ -4344,6 +4344,7 @@ const defaultIncome = {
     lt: { rows: [] },
   },
   otherSources: { enabled: false, rows: [] },
+  exemptIncome: { enabled: false, rows: [] },
 };
 
 const defaultDeductions = Object.fromEntries(
@@ -4808,6 +4809,10 @@ function TaxComputationEditor({ initialRecord, clients, allComputations, onSave,
       otherSources: {
         ...defaultIncome.otherSources,
         ...(raw.otherSources || {})
+      },
+      exemptIncome: {
+        ...defaultIncome.exemptIncome,
+        ...(raw.exemptIncome || {})
       }
     };
 
@@ -5062,6 +5067,7 @@ function TaxComputationEditor({ initialRecord, clients, allComputations, onSave,
   const navItems = [
     { id: "assessee", label: "Assessee Details", icon: User },
     { id: "income", label: "Income Computation", icon: Wallet },
+    { id: "exempt", label: "Exempt Income", icon: Coins },
     { id: "deductions", label: "Deductions (Ch. VI-A)", icon: ShieldCheck },
     { id: "regime", label: "Tax Regime Comparison", icon: Scale },
     { id: "liability", label: "Tax Paid & Liability", icon: Receipt },
@@ -5122,6 +5128,9 @@ function TaxComputationEditor({ initialRecord, clients, allComputations, onSave,
         )}
         {nav === "income" && (
           <IncomeView income={income} setIncome={setIncome} calc={calc} />
+        )}
+        {nav === "exempt" && (
+          <ExemptIncomeView income={income} setIncome={setIncome} />
         )}
         {nav === "deductions" && (
           <DeductionsView deductions={deductions} setDeductions={setDeductions} manualDeductions={manualDeductions} setManualDeductions={setManualDeductions} config={config} old={calc.old} />
@@ -5997,6 +6006,85 @@ function OtherSourcesSection({ rows, onChange }) {
 }
 
 /* ============================================================
+   EXEMPT INCOME VIEW
+   ============================================================ */
+const EXEMPT_INCOME_TYPES = [
+  "Agricultural Income - Sec 10(1)",
+  "Share of Profit from Firm - Sec 10(2A)",
+  "Life Insurance Maturity - Sec 10(10D)",
+  "EPF/PPF Interest - Sec 10(11)/10(12)",
+  "Scholarships - Sec 10(16)",
+  "Other Exempt Income",
+];
+
+function ExemptIncomeView({ income, setIncome }) {
+  const upd = (section) => (patch) => setIncome((i) => ({ ...i, [section]: { ...i[section], ...patch } }));
+  const toggle = (section) => (v) => upd(section)({ enabled: v });
+  const totalExempt = (income.exemptIncome?.rows || []).reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+
+  return (
+    <div className="itc-page">
+      <PageHeader title="Exempt Income" subtitle="Declare exempt income for disclosure / reporting (does not affect taxable income)" />
+
+      <Card icon={Coins} title="Exempt Income Details" subtitle="Declare details for Section 10 exempt incomes" enabled={income.exemptIncome?.enabled} onToggle={toggle("exemptIncome")} defaultOpen badge={income.exemptIncome?.enabled ? fmt(totalExempt) : undefined}>
+        <ExemptIncomeSection rows={income.exemptIncome?.rows || []} onChange={(rows) => upd("exemptIncome")({ rows })} />
+      </Card>
+    </div>
+  );
+}
+
+function ExemptIncomeSection({ rows, onChange }) {
+  const dragIndex = React.useRef(null);
+  const [overIndex, setOverIndex] = useState(null);
+  const addRow = () => onChange([...rows, { id: uid(), type: EXEMPT_INCOME_TYPES[0], customLabel: "", amount: "" }]);
+  const updateRow = (id, patch) => onChange(rows.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+  const removeRow = (id) => onChange(rows.filter((r) => r.id !== id));
+
+  const onDragStart = (idx) => (e) => { dragIndex.current = idx; e.dataTransfer.effectAllowed = "move"; };
+  const onDragOver = (idx) => (e) => { e.preventDefault(); if (overIndex !== idx) setOverIndex(idx); };
+  const onDrop = (idx) => (e) => {
+    e.preventDefault();
+    const from = dragIndex.current;
+    setOverIndex(null);
+    if (from === null || from === idx) return;
+    onChange(moveItem(rows, from, idx));
+    dragIndex.current = null;
+  };
+  const onDragEnd = () => { dragIndex.current = null; setOverIndex(null); };
+
+  return (
+    <div className="itc-subsection">
+      <div className="itc-subsection-head">
+        <span>Entries</span>
+        <button className="itc-add-row" onClick={addRow}><Plus size={13} /> Add entry</button>
+      </div>
+      {rows.length === 0 && <div className="itc-empty small">No entries yet — add agricultural income, PPF interest etc.</div>}
+      {rows.map((r, idx) => (
+        <div
+          key={r.id}
+          className={"itc-os-row" + (overIndex === idx ? " drag-over" : "")}
+          draggable
+          onDragStart={onDragStart(idx)}
+          onDragOver={onDragOver(idx)}
+          onDrop={onDrop(idx)}
+          onDragEnd={onDragEnd}
+        >
+          <span className="itc-drag-handle" title="Drag to reorder"><GripVertical size={14} /></span>
+          <select value={r.type} onChange={(e) => updateRow(r.id, { type: e.target.value })}>
+            {EXEMPT_INCOME_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+          </select>
+          <div className="itc-input-wrap"><span className="itc-rupee">₹</span><input type="number" value={r.amount} onChange={(e) => updateRow(r.id, { amount: e.target.value })} /></div>
+          <button className="itc-icon-btn" onClick={() => removeRow(r.id)}><Trash2 size={14} /></button>
+          {r.type === "Other Exempt Income" && (
+            <input className="itc-os-custom" type="text" placeholder="Describe this exempt income for print" value={r.customLabel || ""} onChange={(e) => updateRow(r.id, { customLabel: e.target.value })} />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ============================================================
    DEDUCTIONS VIEW
    ============================================================ */
 function DeductionsView({ deductions, setDeductions, manualDeductions, setManualDeductions, config, old }) {
@@ -6578,6 +6666,16 @@ function SheetView({ assessee, income, deductions, manualDeductions, config, cal
     bold: true,
     red: true
   });
+
+  if (income.exemptIncome?.enabled && income.exemptIncome?.rows?.length > 0) {
+    incomeRows.push({ kind: "head", label: "Exempt Income (For Disclosure Only)" });
+    income.exemptIncome.rows.forEach((r) => {
+      const typeLabel = r.type === "Other Exempt Income" && r.customLabel ? r.customLabel : r.type;
+      incomeRows.push({ kind: "line", label: typeLabel, inner: num(r.amount) });
+    });
+    const totalExempt = income.exemptIncome.rows.reduce((sum, r) => sum + (num(r.amount) || 0), 0);
+    incomeRows.push({ kind: "line", label: "Total Exempt Income", outer: totalExempt, bold: true });
+  }
 
   /* -------- tax liability table (page 2) — liability + taxes paid in one table -------- */
   const liabilityRowsRaw = [
