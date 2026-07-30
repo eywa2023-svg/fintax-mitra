@@ -4345,6 +4345,15 @@ const defaultIncome = {
   },
   otherSources: { enabled: false, rows: [] },
   exemptIncome: { enabled: false, rows: [] },
+  bfLosses: {
+    enabled: false,
+    hpLoss: "",
+    bizLoss: "",
+    speculativeLoss: "",
+    stcl: "",
+    ltcl: "",
+    raceHorseLoss: ""
+  }
 };
 
 const defaultDeductions = Object.fromEntries(
@@ -4813,6 +4822,10 @@ function TaxComputationEditor({ initialRecord, clients, allComputations, onSave,
       exemptIncome: {
         ...defaultIncome.exemptIncome,
         ...(raw.exemptIncome || {})
+      },
+      bfLosses: {
+        ...defaultIncome.bfLosses,
+        ...(raw.bfLosses || {})
       }
     };
 
@@ -4962,13 +4975,62 @@ function TaxComputationEditor({ initialRecord, clients, allComputations, onSave,
       const hpIncomeRaw = income.houseProperty.enabled
         ? (income.houseProperty.type === "self" && regimeKey === "newRegime" ? 0 : hp.income)
         : 0;
-      // Section 71(3A): house-property loss set off against other heads is
-      // capped at ₹2,00,000 (regime-neutral); any excess carries forward.
+      // Brought Forward & Carry Forward Losses Set-off Math
+      // HP Loss Set-off (Sec 71B)
+      const hpLossBF = num(income.bfLosses?.hpLoss);
+      const hpLossBFSetOff = hpIncomeRaw > 0 ? Math.min(hpIncomeRaw, hpLossBF) : 0;
+      const hpIncomeAfterBF = hpIncomeRaw - hpLossBFSetOff;
+      
       const hpLossCap = config.hpLossSetOffCap || 200000;
-      const hpIncome = hpIncomeRaw < 0 ? Math.max(hpIncomeRaw, -hpLossCap) : hpIncomeRaw;
-      const hpCarryForward = hpIncomeRaw < -hpLossCap ? -(hpIncomeRaw + hpLossCap) : 0;
-      const slabIncomeCG = cg.st.slab;
-      const totalIncomeExclSpecial = salaryIncome + hpIncome + biz.income + other.total + slabIncomeCG;
+      const hpIncome = hpIncomeAfterBF < 0 ? Math.max(hpIncomeAfterBF, -hpLossCap) : hpIncomeAfterBF;
+      const hpCarryForwardCY = hpIncomeAfterBF < -hpLossCap ? -(hpIncomeAfterBF + hpLossCap) : 0;
+      const hpCarryForward = hpCarryForwardCY + (hpLossBF - hpLossBFSetOff);
+
+      // Business Loss Set-off (Sec 72 & Sec 73)
+      const bizLossBF = num(income.bfLosses?.bizLoss);
+      const speculativeLossBF = num(income.bfLosses?.speculativeLoss);
+      const bizLossBFSetOff = biz.income > 0 ? Math.min(biz.income, bizLossBF) : 0;
+      const speculativeLossBFSetOff = (biz.income > bizLossBFSetOff) ? Math.min(biz.income - bizLossBFSetOff, speculativeLossBF) : 0;
+      const bizIncome = biz.income - bizLossBFSetOff - speculativeLossBFSetOff;
+      
+      const bizCarryForwardCY = biz.income < 0 ? -biz.income : 0;
+      const bizCarryForward = bizCarryForwardCY + (bizLossBF - bizLossBFSetOff);
+      const speculativeCarryForward = speculativeLossBF - speculativeLossBFSetOff;
+
+      // Capital Loss Set-off (Sec 74)
+      const stclBF = num(income.bfLosses?.stcl);
+      const ltclBF = num(income.bfLosses?.ltcl);
+      const ltcgTotal = cg.lt.equity + cg.lt.other + cg.lt.grandfatheredGain;
+      const stcgTotal = cg.st.slab + cg.st.special20;
+      
+      const ltclBFSetOff = ltcgTotal > 0 ? Math.min(ltcgTotal, ltclBF) : 0;
+      const remainingLTCG = ltcgTotal - ltclBFSetOff;
+      
+      const stclBFSetOffSTCG = stcgTotal > 0 ? Math.min(stcgTotal, stclBF) : 0;
+      const remainingSTCL = stclBF - stclBFSetOffSTCG;
+      const stclBFSetOffLTCG = remainingLTCG > 0 ? Math.min(remainingLTCG, remainingSTCL) : 0;
+      
+      const ltcgPostSetOff = ltcgTotal - ltclBFSetOff - stclBFSetOffLTCG;
+      const stcgPostSetOff = stcgTotal - stclBFSetOffSTCG;
+      
+      const stclCarryForwardCY = stcgTotal < 0 ? -stcgTotal : 0;
+      const stclCarryForward = stclCarryForwardCY + (stclBF - stclBFSetOffSTCG - stclBFSetOffLTCG);
+      const ltclCarryForward = (ltcgTotal < 0 ? -ltcgTotal : 0) + (ltclBF - ltclBFSetOff);
+
+      // Other Sources Race Horse Loss Set-off (Sec 74A)
+      const raceHorseLossBF = num(income.bfLosses?.raceHorseLoss);
+      const raceHorseLossBFSetOff = other.total > 0 ? Math.min(other.total, raceHorseLossBF) : 0;
+      const otherIncome = other.total - raceHorseLossBFSetOff;
+      const raceHorseCarryForward = raceHorseLossBF - raceHorseLossBFSetOff;
+
+      // Special CG parts
+      const stcgSpecial20Post = cg.st.special20 > 0 ? Math.max(cg.st.special20 - stclBFSetOffSTCG, 0) : 0;
+      const ltcgEquityPost = cg.lt.equity > 0 ? Math.max(cg.lt.equity - ltclBFSetOff - stclBFSetOffLTCG, 0) : 0;
+      const ltcgOtherPost = cg.lt.other > 0 ? Math.max(cg.lt.other - Math.max(ltclBFSetOff + stclBFSetOffLTCG - cg.lt.equity, 0), 0) : 0;
+      const ltcgGrandfatheredGainPost = cg.lt.grandfatheredGain > 0 ? Math.max(cg.lt.grandfatheredGain - Math.max(ltclBFSetOff + stclBFSetOffLTCG - cg.lt.equity - cg.lt.other, 0), 0) : 0;
+
+      const slabIncomeCG = Math.max(stcgPostSetOff - stcgSpecial20Post, 0);
+      const totalIncomeExclSpecial = salaryIncome + hpIncome + Math.max(bizIncome, 0) + Math.max(otherIncome, 0) + slabIncomeCG;
 
       // Chapter VI-A only for old regime (except 80CCD2)
       let chapterVIATotal = 0;
@@ -5000,19 +5062,21 @@ function TaxComputationEditor({ initialRecord, clients, allComputations, onSave,
         regimeKey,
         config,
         totalIncomeExclSpecial: taxableExclSpecial,
-        stcgSpecial20: cg.st.special20,
-        ltcgEquity: cg.lt.equity,
-        ltcgOther: cg.lt.other,
-        ltcgGrandfatheredTax: cg.lt.grandfatheredTax,
-        ltcgGrandfatheredGain: cg.lt.grandfatheredGain,
+        stcgSpecial20: stcgSpecial20Post,
+        ltcgEquity: ltcgEquityPost,
+        ltcgOther: ltcgOtherPost,
+        ltcgGrandfatheredTax: cg.lt.grandfatheredTax, // keep grandfathered logic references
+        ltcgGrandfatheredGain: ltcgGrandfatheredGainPost,
         isEligibleRebate: isResidentIndividual,
         ageCategory,
       });
 
       return {
-        salaryIncome, hpIncome, hpIncomeRaw, hpCarryForward, bizIncome: biz.income, otherIncome: other.total, slabIncomeCG,
-        gti: totalIncomeExclSpecial + cg.st.special20 + cg.lt.equity + cg.lt.other + cg.lt.grandfatheredGain,
+        salaryIncome, hpIncome, hpIncomeRaw, hpCarryForward, bizIncome, otherIncome, slabIncomeCG,
+        gti: totalIncomeExclSpecial + stcgSpecial20Post + ltcgEquityPost + ltcgOtherPost + ltcgGrandfatheredGainPost,
         chapterVIATotal, chapterVIABreakup, taxableExclSpecial, ageCategory, ...result,
+        hpLossBFSetOff, bizLossBFSetOff, speculativeLossBFSetOff, ltclBFSetOff, stclBFSetOffSTCG, stclBFSetOffLTCG, raceHorseLossBFSetOff,
+        hpCarryForward, bizCarryForward, speculativeCarryForward, stclCarryForward, ltclCarryForward, raceHorseCarryForward,
       };
     };
 
@@ -5068,6 +5132,7 @@ function TaxComputationEditor({ initialRecord, clients, allComputations, onSave,
     { id: "assessee", label: "Assessee Details", icon: User },
     { id: "income", label: "Income Computation", icon: Wallet },
     { id: "exempt", label: "Exempt Income", icon: Coins },
+    { id: "losses", label: "Losses (Set-off & CF)", icon: TrendingUp },
     { id: "deductions", label: "Deductions (Ch. VI-A)", icon: ShieldCheck },
     { id: "regime", label: "Tax Regime Comparison", icon: Scale },
     { id: "liability", label: "Tax Paid & Liability", icon: Receipt },
@@ -5131,6 +5196,9 @@ function TaxComputationEditor({ initialRecord, clients, allComputations, onSave,
         )}
         {nav === "exempt" && (
           <ExemptIncomeView income={income} setIncome={setIncome} />
+        )}
+        {nav === "losses" && (
+          <LossesView income={income} setIncome={setIncome} calc={calc} />
         )}
         {nav === "deductions" && (
           <DeductionsView deductions={deductions} setDeductions={setDeductions} manualDeductions={manualDeductions} setManualDeductions={setManualDeductions} config={config} old={calc.old} />
@@ -6085,6 +6153,157 @@ function ExemptIncomeSection({ rows, onChange }) {
 }
 
 /* ============================================================
+   LOSSES VIEW (SET-OFF & CARRY FORWARD)
+   ============================================================ */
+function LossesView({ income, setIncome, calc }) {
+  const upd = (section) => (patch) => setIncome((i) => ({ ...i, [section]: { ...i[section], ...patch } }));
+  const toggle = (section) => (v) => upd(section)({ enabled: v });
+
+  // Get active calculations for display (use old regime by default, but set-off logic is regime-neutral for heads)
+  const d = calc.old;
+  const bf = income.bfLosses || {};
+
+  return (
+    <div className="itc-page">
+      <PageHeader title="Brought Forward & Carry Forward Losses" subtitle="Declare previous years' losses (BF) to set-off against current year income, and track losses carried forward (CF)" />
+
+      <Card icon={TrendingUp} title="Brought Forward (BF) Losses" subtitle="Declare losses from prior assessment years to set off against this year's income" enabled={bf.enabled} onToggle={toggle("bfLosses")} defaultOpen>
+        <div style={{ display: "flex", flexDirection: "column", gap: "20px", marginTop: "10px" }}>
+          <div className="itc-note">BF losses will be automatically set off against respective head incomes in the print preview and tax liability calculations.</div>
+          
+          <Row>
+            <Field label="BF House Property Loss (Sec 71B)" value={bf.hpLoss} onChange={(v) => upd("bfLosses")({ hpLoss: v })} type="number" placeholder="₹" />
+            <Field label="BF Business Loss (Non-speculative) (Sec 72)" value={bf.bizLoss} onChange={(v) => upd("bfLosses")({ bizLoss: v })} type="number" placeholder="₹" />
+          </Row>
+
+          <Row>
+            <Field label="BF Speculative Business Loss (Sec 73)" value={bf.speculativeLoss} onChange={(v) => upd("bfLosses")({ speculativeLoss: v })} type="number" placeholder="₹" />
+            <Field label="BF Short-Term Capital Loss (Sec 74)" value={bf.stcl} onChange={(v) => upd("bfLosses")({ stcl: v })} type="number" placeholder="₹" />
+          </Row>
+
+          <Row>
+            <Field label="BF Long-Term Capital Loss (Sec 74)" value={bf.ltcl} onChange={(v) => upd("bfLosses")({ ltcl: v })} type="number" placeholder="₹" />
+            <Field label="BF Race Horse Loss (Sec 74A)" value={bf.raceHorseLoss} onChange={(v) => upd("bfLosses")({ raceHorseLoss: v })} type="number" placeholder="₹" />
+          </Row>
+        </div>
+      </Card>
+
+      {bf.enabled && (
+        <>
+          <div className="itc-card static" style={{ marginTop: "24px" }}>
+            <div style={{ fontWeight: 800, fontSize: "14px", color: G.wh, marginBottom: "16px", display: "flex", alignItems: "center", gap: "8px" }}>
+              📋 Brought Forward Losses Set-off (Current Year)
+            </div>
+            <table className="itc-sub-table">
+              <thead>
+                <tr>
+                  <th style={{ textAlign: "left" }}>Loss Head & Section</th>
+                  <th style={{ textAlign: "right" }}>BF Amount</th>
+                  <th style={{ textAlign: "right" }}>Amount Set-off</th>
+                  <th style={{ textAlign: "right" }}>Unabsorbed Loss</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>House Property Loss (Sec 71B)</td>
+                  <td style={{ textAlign: "right" }}>{fmt(num(bf.hpLoss))}</td>
+                  <td style={{ textAlign: "right", color: G.green }}>{fmt(d.hpLossBFSetOff)}</td>
+                  <td style={{ textAlign: "right" }}>{fmt(Math.max(num(bf.hpLoss) - d.hpLossBFSetOff, 0))}</td>
+                </tr>
+                <tr>
+                  <td>Business Loss (Sec 72)</td>
+                  <td style={{ textAlign: "right" }}>{fmt(num(bf.bizLoss))}</td>
+                  <td style={{ textAlign: "right", color: G.green }}>{fmt(d.bizLossBFSetOff)}</td>
+                  <td style={{ textAlign: "right" }}>{fmt(Math.max(num(bf.bizLoss) - d.bizLossBFSetOff, 0))}</td>
+                </tr>
+                <tr>
+                  <td>Speculative Business Loss (Sec 73)</td>
+                  <td style={{ textAlign: "right" }}>{fmt(num(bf.speculativeLoss))}</td>
+                  <td style={{ textAlign: "right", color: G.green }}>{fmt(d.speculativeLossBFSetOff)}</td>
+                  <td style={{ textAlign: "right" }}>{fmt(Math.max(num(bf.speculativeLoss) - d.speculativeLossBFSetOff, 0))}</td>
+                </tr>
+                <tr>
+                  <td>Short-Term Capital Loss (Sec 74)</td>
+                  <td style={{ textAlign: "right" }}>{fmt(num(bf.stcl))}</td>
+                  <td style={{ textAlign: "right", color: G.green }}>{fmt(d.stclBFSetOffSTCG + d.stclBFSetOffLTCG)}</td>
+                  <td style={{ textAlign: "right" }}>{fmt(Math.max(num(bf.stcl) - d.stclBFSetOffSTCG - d.stclBFSetOffLTCG, 0))}</td>
+                </tr>
+                <tr>
+                  <td>Long-Term Capital Loss (Sec 74)</td>
+                  <td style={{ textAlign: "right" }}>{fmt(num(bf.ltcl))}</td>
+                  <td style={{ textAlign: "right", color: G.green }}>{fmt(d.ltclBFSetOff)}</td>
+                  <td style={{ textAlign: "right" }}>{fmt(Math.max(num(bf.ltcl) - d.ltclBFSetOff, 0))}</td>
+                </tr>
+                <tr>
+                  <td>Race Horse Loss (Sec 74A)</td>
+                  <td style={{ textAlign: "right" }}>{fmt(num(bf.raceHorseLoss))}</td>
+                  <td style={{ textAlign: "right", color: G.green }}>{fmt(d.raceHorseLossBFSetOff)}</td>
+                  <td style={{ textAlign: "right" }}>{fmt(Math.max(num(bf.raceHorseLoss) - d.raceHorseLossBFSetOff, 0))}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div className="itc-card static" style={{ marginTop: "24px" }}>
+            <div style={{ fontWeight: 800, fontSize: "14px", color: G.wh, marginBottom: "16px", display: "flex", alignItems: "center", gap: "8px" }}>
+              ⏳ Statement of Losses Carried Forward to Next Year
+            </div>
+            <table className="itc-sub-table">
+              <thead>
+                <tr>
+                  <th style={{ textAlign: "left" }}>Loss Head & Section</th>
+                  <th style={{ textAlign: "right" }}>Current Year Loss</th>
+                  <th style={{ textAlign: "right" }}>BF Unabsorbed</th>
+                  <th style={{ textAlign: "right", fontWeight: "bold" }}>Total Carried Forward</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>House Property Loss (Sec 71B)</td>
+                  <td style={{ textAlign: "right" }}>{fmt(d.hpCarryForward - Math.max(num(bf.hpLoss) - d.hpLossBFSetOff, 0))}</td>
+                  <td style={{ textAlign: "right" }}>{fmt(Math.max(num(bf.hpLoss) - d.hpLossBFSetOff, 0))}</td>
+                  <td style={{ textAlign: "right", fontWeight: "bold", color: G.red }}>{fmt(d.hpCarryForward)}</td>
+                </tr>
+                <tr>
+                  <td>Business Loss (Sec 72)</td>
+                  <td style={{ textAlign: "right" }}>{fmt(d.bizCarryForward - Math.max(num(bf.bizLoss) - d.bizLossBFSetOff, 0))}</td>
+                  <td style={{ textAlign: "right" }}>{fmt(Math.max(num(bf.bizLoss) - d.bizLossBFSetOff, 0))}</td>
+                  <td style={{ textAlign: "right", fontWeight: "bold", color: G.red }}>{fmt(d.bizCarryForward)}</td>
+                </tr>
+                <tr>
+                  <td>Speculative Business Loss (Sec 73)</td>
+                  <td style={{ textAlign: "right" }}>{fmt(0)}</td>
+                  <td style={{ textAlign: "right" }}>{fmt(Math.max(num(bf.speculativeLoss) - d.speculativeLossBFSetOff, 0))}</td>
+                  <td style={{ textAlign: "right", fontWeight: "bold", color: G.red }}>{fmt(d.speculativeCarryForward)}</td>
+                </tr>
+                <tr>
+                  <td>Short-Term Capital Loss (Sec 74)</td>
+                  <td style={{ textAlign: "right" }}>{fmt(d.stclCarryForward - Math.max(num(bf.stcl) - d.stclBFSetOffSTCG - d.stclBFSetOffLTCG, 0))}</td>
+                  <td style={{ textAlign: "right" }}>{fmt(Math.max(num(bf.stcl) - d.stclBFSetOffSTCG - d.stclBFSetOffLTCG, 0))}</td>
+                  <td style={{ textAlign: "right", fontWeight: "bold", color: G.red }}>{fmt(d.stclCarryForward)}</td>
+                </tr>
+                <tr>
+                  <td>Long-Term Capital Loss (Sec 74)</td>
+                  <td style={{ textAlign: "right" }}>{fmt(d.ltclCarryForward - Math.max(num(bf.ltcl) - d.ltclBFSetOff, 0))}</td>
+                  <td style={{ textAlign: "right" }}>{fmt(Math.max(num(bf.ltcl) - d.ltclBFSetOff, 0))}</td>
+                  <td style={{ textAlign: "right", fontWeight: "bold", color: G.red }}>{fmt(d.ltclCarryForward)}</td>
+                </tr>
+                <tr>
+                  <td>Race Horse Loss (Sec 74A)</td>
+                  <td style={{ textAlign: "right" }}>{fmt(0)}</td>
+                  <td style={{ textAlign: "right" }}>{fmt(Math.max(num(bf.raceHorseLoss) - d.raceHorseLossBFSetOff, 0))}</td>
+                  <td style={{ textAlign: "right", fontWeight: "bold", color: G.red }}>{fmt(d.raceHorseCarryForward)}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ============================================================
    DEDUCTIONS VIEW
    ============================================================ */
 function DeductionsView({ deductions, setDeductions, manualDeductions, setManualDeductions, config, old }) {
@@ -6587,6 +6806,9 @@ function SheetView({ assessee, income, deductions, manualDeductions, config, cal
       lines.push({ label: "Less: Interest on Housing Loan U/s 24(b)", inner: -num(income.houseProperty.interest) });
     }
     (income.houseProperty.manual || []).forEach((m) => lines.push({ label: m.label || "Additional item", inner: num(m.amount) }));
+    if (d.hpLossBFSetOff > 0) {
+      lines.push({ label: "  Less: Set-off of BF House Property Loss U/s 71B", inner: -d.hpLossBFSetOff });
+    }
     incomeRows.push(...finalizeLines(lines, d.hpIncome));
   }
 
@@ -6609,6 +6831,12 @@ function SheetView({ assessee, income, deductions, manualDeductions, config, cal
       lines.push({ label: "Presumptive Income Computed", inner: calc.biz.income - calc.biz.manualTotal });
     }
     (income.business.manual || []).forEach((m) => lines.push({ label: m.label || "Additional item", inner: num(m.amount) }));
+    if (d.bizLossBFSetOff > 0) {
+      lines.push({ label: "  Less: Set-off of BF Business Loss U/s 72", inner: -d.bizLossBFSetOff });
+    }
+    if (d.speculativeLossBFSetOff > 0) {
+      lines.push({ label: "  Less: Set-off of BF Speculative Loss U/s 73", inner: -d.speculativeLossBFSetOff });
+    }
     incomeRows.push(...finalizeLines(lines, d.bizIncome));
   }
 
@@ -6640,11 +6868,24 @@ function SheetView({ assessee, income, deductions, manualDeductions, config, cal
     };
     buildBlock(income.capitalGains.st.rows, "Short Term Capital Gain", false);
     buildBlock(income.capitalGains.lt.rows, "Long Term Capital Gain", true);
+    
+    if (d.stclBFSetOffSTCG > 0) {
+      incomeRows.push({ kind: "line", label: "  Less: Set-off of BF STCL U/s 74 (against STCG)", inner: -d.stclBFSetOffSTCG });
+    }
+    if (d.stclBFSetOffLTCG > 0) {
+      incomeRows.push({ kind: "line", label: "  Less: Set-off of BF STCL U/s 74 (against LTCG)", inner: -d.stclBFSetOffLTCG });
+    }
+    if (d.ltclBFSetOff > 0) {
+      incomeRows.push({ kind: "line", label: "  Less: Set-off of BF LTCL U/s 74", inner: -d.ltclBFSetOff });
+    }
   }
 
   if (income.otherSources.enabled) {
     incomeRows.push({ kind: "head", label: "Income From Other Sources" });
     const lines = income.otherSources.rows.map((r) => ({ label: r.type === "Any Other" && r.customLabel ? r.customLabel : r.type, inner: num(r.amount) }));
+    if (d.raceHorseLossBFSetOff > 0) {
+      lines.push({ label: "  Less: Set-off of BF Race Horse Loss U/s 74A", inner: -d.raceHorseLossBFSetOff });
+    }
     if (lines.length) incomeRows.push(...finalizeLines(lines, d.otherIncome));
   }
 
@@ -6658,6 +6899,29 @@ function SheetView({ assessee, income, deductions, manualDeductions, config, cal
   } else {
     incomeRows.push({ kind: "line", label: "Less: Deduction", outer: 0 });
   }
+
+  if (d.hpCarryForward > 0 || d.bizCarryForward > 0 || d.speculativeCarryForward > 0 || d.stclCarryForward > 0 || d.ltclCarryForward > 0 || d.raceHorseCarryForward > 0) {
+    incomeRows.push({ kind: "head", label: "Statement of Losses Carried Forward to Next Year" });
+    if (d.hpCarryForward > 0) {
+      incomeRows.push({ kind: "line", label: "House Property Loss carried forward U/s 71B", inner: d.hpCarryForward });
+    }
+    if (d.bizCarryForward > 0) {
+      incomeRows.push({ kind: "line", label: "Business Loss carried forward U/s 72", inner: d.bizCarryForward });
+    }
+    if (d.speculativeCarryForward > 0) {
+      incomeRows.push({ kind: "line", label: "Speculative Loss carried forward U/s 73", inner: d.speculativeCarryForward });
+    }
+    if (d.stclCarryForward > 0) {
+      incomeRows.push({ kind: "line", label: "Short-Term Capital Loss carried forward U/s 74", inner: d.stclCarryForward });
+    }
+    if (d.ltclCarryForward > 0) {
+      incomeRows.push({ kind: "line", label: "Long-Term Capital Loss carried forward U/s 74", inner: d.ltclCarryForward });
+    }
+    if (d.raceHorseCarryForward > 0) {
+      incomeRows.push({ kind: "line", label: "Loss from Race Horses carried forward U/s 74A", inner: d.raceHorseCarryForward });
+    }
+  }
+
   if (income.exemptIncome?.enabled && income.exemptIncome?.rows?.length > 0) {
     incomeRows.push({ kind: "head", label: "Exempt Income (For Disclosure Only)" });
     income.exemptIncome.rows.forEach((r) => {
