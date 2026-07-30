@@ -1169,7 +1169,7 @@ function AssignWork({clients,works,setWorks,dd,toast}){
 }
 
 // ─── Client List ──────────────────────────────────────────────────────────────
-function ClientList({clients,setClients,dd,toast}){
+function ClientList({clients,setClients,dd,toast,onWhatsApp}){
   const[q,setQ]=useState(""),[view,setView]=useState("grid"),[opP,setOpP]=useState({}),[vpw,setVpw]=useState({}),[editC,setEditC]=useState(null);
   const[delC,setDelC]=useState(null);
   const[showImport,setShowImport]=useState(false),[importBusy,setImportBusy]=useState(false),[importResult,setImportResult]=useState(null);
@@ -1351,7 +1351,7 @@ function ClientList({clients,setClients,dd,toast}){
         <div style={{padding:"13px 15px",borderBottom:`1px solid ${G.bdr}`,display:"flex",gap:11,alignItems:"center"}}>
           <div style={{width:40,height:40,borderRadius:10,background:`linear-gradient(135deg,${G.g2},${G.green})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,fontWeight:800,color:"#fff",flexShrink:0}}>{c.name[0]}</div>
           <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700,fontSize:13,color:G.wh,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.name}</div>{c.biz&&<div style={{fontSize:11,color:G.mut,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.biz}</div>}</div>
-          <div style={{display:"flex",gap:5,alignItems:"center",flexShrink:0}}><Bdg label={c.status}/><button onClick={()=>setEditC(c)} style={{background:"transparent",border:`1px solid ${G.bdr}`,color:G.cyn,borderRadius:6,padding:"3px 7px",cursor:"pointer",fontSize:12}}>✏️</button><button onClick={()=>setClients(p=>p.map(x=>x.pan===c.pan?{...x,status:x.status==="Active"?"Inactive":"Active"}:x))} title="Toggle Status" style={{background:"transparent",border:`1px solid ${G.bdr}`,color:G.amb,borderRadius:6,padding:"3px 7px",cursor:"pointer",fontSize:11}}>{c.status==="Active"?"⏸":"▶"}</button><button onClick={()=>setDelC(c)} title="Delete Client" style={{background:"#450A0A",border:`1px solid ${G.red}44`,color:G.red,borderRadius:6,padding:"3px 7px",cursor:"pointer",fontSize:12}}>🗑</button></div>
+          <div style={{display:"flex",gap:5,alignItems:"center",flexShrink:0}}><Bdg label={c.status}/><button onClick={()=>{if(onWhatsApp)onWhatsApp(c);}} title="Send WhatsApp Message" style={{background:"transparent",border:`1px solid ${G.bdr}`,color:G.green,borderRadius:6,padding:"3px 7px",cursor:"pointer",fontSize:12}}>💬</button><button onClick={()=>setEditC(c)} style={{background:"transparent",border:`1px solid ${G.bdr}`,color:G.cyn,borderRadius:6,padding:"3px 7px",cursor:"pointer",fontSize:12}}>✏️</button><button onClick={()=>setClients(p=>p.map(x=>x.pan===c.pan?{...x,status:x.status==="Active"?"Inactive":"Active"}:x))} title="Toggle Status" style={{background:"transparent",border:`1px solid ${G.bdr}`,color:G.amb,borderRadius:6,padding:"3px 7px",cursor:"pointer",fontSize:11}}>{c.status==="Active"?"⏸":"▶"}</button><button onClick={()=>setDelC(c)} title="Delete Client" style={{background:"#450A0A",border:`1px solid ${G.red}44`,color:G.red,borderRadius:6,padding:"3px 7px",cursor:"pointer",fontSize:12}}>🗑</button></div>
         </div>
         <div style={{padding:"11px 15px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
           {[{l:"PAN",v:c.pan,mono:true,col:G.g3},{l:"Type",v:c.type},{l:"Mobile",v:c.mob},{l:"State",v:c.state},{l:"Source",v:c.src},{l:"Added",v:fd(c.added)}].map(f=><div key={f.l}><div style={{fontSize:10,color:G.mut,textTransform:"uppercase",letterSpacing:.5,fontWeight:600}}>{f.l}</div><div style={{fontSize:12,color:f.col||G.mut,marginTop:1,fontFamily:f.mono?"monospace":"inherit",fontWeight:f.mono?700:400}}>{f.v||"-"}</div></div>)}
@@ -1377,7 +1377,7 @@ function ClientList({clients,setClients,dd,toast}){
         <td style={{padding:"9px 12px"}}><div style={{display:"flex",gap:3}}>{PORTALS.filter(p=>c.portals[p.key]?.on).map(p=><span key={p.key} style={{fontSize:11,padding:"1px 6px",borderRadius:8,background:p.col+"18",color:p.col,fontWeight:600}}>{p.icon}</span>)}</div></td>
         <td style={{padding:"9px 12px"}}>
           <div style={{display:"flex",gap:5}}>
-            <button onClick={()=>setEditC(c)} style={{fontSize:11,padding:"3px 9px",borderRadius:7,border:`1px solid ${G.bdr}`,background:"transparent",color:G.cyn,cursor:"pointer",fontWeight:600}}>✏️ Edit</button><button onClick={()=>setClients(p=>p.map(x=>x.pan===c.pan?{...x,status:x.status==="Active"?"Inactive":"Active"}:x))} style={{fontSize:11,padding:"3px 9px",borderRadius:7,border:`1px solid ${G.bdr}`,background:"transparent",color:G.amb,cursor:"pointer"}}>{c.status==="Active"?"⏸ Deactivate":"▶ Activate"}</button>
+            <button onClick={()=>{if(onWhatsApp)onWhatsApp(c);}} style={{fontSize:11,padding:"3px 9px",borderRadius:7,border:`1px solid ${G.bdr}`,background:"transparent",color:G.green,cursor:"pointer",fontWeight:600}}>💬 WhatsApp</button><button onClick={()=>setEditC(c)} style={{fontSize:11,padding:"3px 9px",borderRadius:7,border:`1px solid ${G.bdr}`,background:"transparent",color:G.cyn,cursor:"pointer",fontWeight:600}}>✏️ Edit</button><button onClick={()=>setClients(p=>p.map(x=>x.pan===c.pan?{...x,status:x.status==="Active"?"Inactive":"Active"}:x))} style={{fontSize:11,padding:"3px 9px",borderRadius:7,border:`1px solid ${G.bdr}`,background:"transparent",color:G.amb,cursor:"pointer"}}>{c.status==="Active"?"⏸ Deactivate":"▶ Activate"}</button>
             <button onClick={()=>setOpP(s=>({...s,[c.pan]:!s[c.pan]}))} style={{fontSize:11,padding:"3px 9px",borderRadius:7,border:`1px solid ${G.bdr}`,background:"transparent",color:G.mut,cursor:"pointer"}}>🔑</button>
             <button onClick={()=>setDelC(c)} style={{fontSize:11,padding:"3px 9px",borderRadius:7,border:`1px solid ${G.red}44`,background:"#450A0A",color:G.red,cursor:"pointer",fontWeight:600}}>🗑 Delete</button>
           </div>
@@ -1418,7 +1418,7 @@ const SEED_RECEIPTS = [
 ];
 
 // ─── Invoice Module ───────────────────────────────────────────────────────────
-function InvoiceModule({invoices,setInvoices,receipts,setReceipts,clients,works,dd,toast,firmSettings,setFirmSettings,openInvoiceId,setOpenInvoiceId}){
+function InvoiceModule({invoices,setInvoices,receipts,setReceipts,clients,works,dd,toast,firmSettings,setFirmSettings,openInvoiceId,setOpenInvoiceId,onWhatsApp}){
   const[fy,setFy]=useState(getCurrentFY());
   const[status,setStatus]=useState("All");
   const[q,setQ]=useState("");
@@ -1557,6 +1557,21 @@ function InvoiceModule({invoices,setInvoices,receipts,setReceipts,clients,works,
               <td style={{padding:"10px 12px"}}>
                 <div style={{display:"flex",gap:5,flexWrap:"nowrap"}}>
                   <button onClick={()=>setShowPrint(inv)} title="Print Invoice" style={{background:"transparent",border:`1px solid ${G.bdr}`,color:G.cyn,borderRadius:6,padding:"3px 8px",cursor:"pointer",fontSize:12}}>🖨</button>
+                  <button onClick={()=>{
+                    if (onWhatsApp) {
+                      const cl = clients.find(c => c.pan === inv.pan) || { name: inv.clientName || "", mob: inv.clientPhone || "" };
+                      onWhatsApp(cl, {
+                        invoiceNo: inv.id,
+                        invoiceAmt: inv.total,
+                        fy: inv.fy
+                      }, () => {
+                        setShowPrint(inv);
+                        setTimeout(() => {
+                          window.print();
+                        }, 500);
+                      });
+                    }
+                  }} title="Send WhatsApp Message" style={{background:"transparent",border:`1px solid ${G.bdr}`,color:G.green,borderRadius:6,padding:"3px 8px",cursor:"pointer",fontSize:12}}>💬</button>
                   <button onClick={()=>{setEditInv(inv);setShowForm(true);}} title="Edit" style={{background:"transparent",border:`1px solid ${G.bdr}`,color:G.amb,borderRadius:6,padding:"3px 8px",cursor:"pointer",fontSize:12}}>✏️</button>
                   {inv.status!=="Paid"&&<button onClick={()=>markPaid(inv.id)} title="Mark Paid" style={{background:"transparent",border:`1px solid ${G.g3}44`,color:G.g3,borderRadius:6,padding:"3px 8px",cursor:"pointer",fontSize:11,fontWeight:700}}>✓ Paid</button>}
                   <button onClick={()=>deleteInv(inv.id)} title="Delete" style={{background:"#450A0A",border:`1px solid ${G.red}44`,color:G.red,borderRadius:6,padding:"3px 7px",cursor:"pointer",fontSize:11,fontWeight:700}}>🗑</button>
@@ -2447,7 +2462,7 @@ function PortalPw({pw,pid}){
   </div>;
 }
 
-function WorkTracker({works,setWorks,clients,ownerOn,dd,pws,toast,invoices,setInvoices,receipts,openWorkId,setOpenWorkId}){
+function WorkTracker({works,setWorks,clients,ownerOn,dd,pws,toast,invoices,setInvoices,receipts,openWorkId,setOpenWorkId,onWhatsApp}){
   const[flt,setFlt]=useState(() => localStorage.getItem("fmt_tracker_flt") || "All");
   const[fy,setFy]=useState(() => localStorage.getItem("fmt_tracker_fy") || getCurrentFY());
   const[q,setQ]=useState(() => localStorage.getItem("fmt_tracker_q") || "");
@@ -2717,7 +2732,16 @@ function WorkTracker({works,setWorks,clients,ownerOn,dd,pws,toast,invoices,setIn
               {aP.length===0&&<div style={{fontSize:12,color:G.mut}}>No portals</div>}
             </div>}
           </td>
-          <td style={{padding:"9px 11px"}}><div style={{display:"flex",gap:4}}><button onClick={()=>setEditW(w)} style={{background:"transparent",border:`1px solid ${G.bdr}`,color:G.cyn,borderRadius:6,padding:"3px 7px",cursor:"pointer",fontSize:12}}>✏️</button><button onClick={()=>setDelW(w)} title="Delete Work" style={{background:"#450A0A",border:`1px solid ${G.red}44`,color:G.red,borderRadius:6,padding:"3px 7px",cursor:"pointer",fontSize:12}}>🗑</button></div></td>
+          <td style={{padding:"9px 11px"}}><div style={{display:"flex",gap:4}}><button onClick={()=>{
+            if (onWhatsApp) {
+              const cl = clients.find(c => c.pan === w.pan) || { name: w.cn || "", mob: w.mob || "" };
+              onWhatsApp(cl, {
+                taskName: w.svc,
+                dueDate: w.dd ? new Date(w.dd).toLocaleDateString("en-IN", { dateStyle: "medium" }) : "",
+                fy: w.fy
+              });
+            }
+          }} title="Send WhatsApp Message" style={{background:"transparent",border:`1px solid ${G.bdr}`,color:G.green,borderRadius:6,padding:"3px 7px",cursor:"pointer",fontSize:12}}>💬</button><button onClick={()=>setEditW(w)} style={{background:"transparent",border:`1px solid ${G.bdr}`,color:G.cyn,borderRadius:6,padding:"3px 7px",cursor:"pointer",fontSize:12}}>✏️</button><button onClick={()=>setDelW(w)} title="Delete Work" style={{background:"#450A0A",border:`1px solid ${G.red}44`,color:G.red,borderRadius:6,padding:"3px 7px",cursor:"pointer",fontSize:12}}>🗑</button></div></td>
         </tr>;
       })}</tbody>
     </table></div></Crd>
@@ -4763,7 +4787,7 @@ function ManualEntries({ items, onChange, label = "Add manual entry", showRegime
 /* ============================================================
    MAIN APP
    ============================================================ */
-function TaxComputationEditor({ initialRecord, clients, allComputations, onSave, onExit, onOpenClientEdit, onOpenRecord }) {
+function TaxComputationEditor({ initialRecord, clients, allComputations, onSave, onExit, onOpenClientEdit, onOpenRecord, onWhatsApp }) {
   const [nav, setNav] = useState("assessee");
   const [assessee, setAssessee] = useState(() => {
     const rawAssessee = initialRecord.assessee || defaultAssessee;
@@ -5210,7 +5234,7 @@ function TaxComputationEditor({ initialRecord, clients, allComputations, onSave,
           <LiabilityView taxPaid={taxPaid} setTaxPaid={setTaxPaid} calc={calc} printRegime={printRegime} />
         )}
         {nav === "sheet" && (
-          <SheetView assessee={assessee} income={income} deductions={deductions} manualDeductions={manualDeductions} config={config} calc={calc} printRegime={printRegime} setPrintRegime={setPrintRegime} taxPaid={taxPaid} letterhead={letterhead} saveLetterhead={saveLetterhead} updateLetterheadLive={updateLetterheadLive} pageSetup={pageSetup} savePageSetup={savePageSetup} onOpenClientEdit={onOpenClientEdit} />
+          <SheetView assessee={assessee} income={income} deductions={deductions} manualDeductions={manualDeductions} config={config} calc={calc} printRegime={printRegime} setPrintRegime={setPrintRegime} taxPaid={taxPaid} letterhead={letterhead} saveLetterhead={saveLetterhead} updateLetterheadLive={updateLetterheadLive} pageSetup={pageSetup} savePageSetup={savePageSetup} onOpenClientEdit={onOpenClientEdit} onWhatsApp={onWhatsApp} clients={clients} />
         )}
         {nav === "letterhead" && (
           <LetterheadView letterhead={letterhead} saveLetterhead={saveLetterhead} updateLetterheadLive={updateLetterheadLive} />
@@ -6509,7 +6533,7 @@ function LedgerTable({ rows }) {
   );
 }
 
-function SheetView({ assessee, income, deductions, manualDeductions, config, calc, printRegime, setPrintRegime, taxPaid, letterhead, saveLetterhead, updateLetterheadLive, pageSetup, savePageSetup, onOpenClientEdit }) {
+function SheetView({ assessee, income, deductions, manualDeductions, config, calc, printRegime, setPrintRegime, taxPaid, letterhead, saveLetterhead, updateLetterheadLive, pageSetup, savePageSetup, onOpenClientEdit, onWhatsApp, clients }) {
   const d = calc[printRegime];
   const regimeLabel = printRegime === "old" ? "Old Tax Regime" : "New Tax Regime";
   const stdDed = config[printRegime === "old" ? "oldRegime" : "newRegime"].standardDeduction;
@@ -7121,6 +7145,16 @@ function SheetView({ assessee, income, deductions, manualDeductions, config, cal
             </div>
             <button className="itc-export-btn" onClick={exportExcel}><FileSpreadsheet size={14} /> Export Excel</button>
             <button className="itc-export-btn" onClick={exportPDF}><FileDown size={14} /> Export PDF</button>
+            <button className="itc-export-btn" onClick={() => {
+              if (onWhatsApp) {
+                const clientObj = (clients || []).find(c => c.pan === assessee.pan) || { name: assessee.name || assessee.fullName || "", mob: assessee.mob || "" };
+                onWhatsApp(clientObj, {
+                  ay: assessee.ay,
+                  fy: assessee.fy,
+                  itrType: assessee.itrType || "ITR-1"
+                }, exportPDF);
+              }
+            }} style={{ color: "#22C55E", borderColor: "rgba(34, 197, 94, 0.4)", background: "rgba(34, 197, 94, 0.08)" }}><Send size={14} /> Send WhatsApp</button>
           </div>
         }
       />
@@ -7600,7 +7634,7 @@ function clientToAssessee(client, fy){
 const genCompId = () => "c_"+Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 
 // ─── ITR Computation Tab ───────────────────────────────────────────────────────
-function ITRComputationTab({clients,setClients,computations,setComputations,dd,toast,openComputationId,setOpenComputationId}){
+function ITRComputationTab({clients,setClients,computations,setComputations,dd,toast,openComputationId,setOpenComputationId,onWhatsApp}){
   const configuredFYs = useMemo(()=>[...new Set(Object.values(TAX_CONFIG).map(c=>c.fy))],[]);
   const[fy,setFy]=useState(configuredFYs[0]||dd.fyOptions[0]);
   const[mode,setMode]=useState("list");
@@ -7679,6 +7713,7 @@ function ITRComputationTab({clients,setClients,computations,setComputations,dd,t
         onExit={()=>{setMode("list");setDraft(null);if(setOpenComputationId)setOpenComputationId(null);}}
         onOpenClientEdit={(pan)=>setEditClientPan(pan)}
         onOpenRecord={(rec)=>{setFy(rec.fy);setDraft(rec);}}
+        onWhatsApp={onWhatsApp}
       />
       {editClientPan&&(()=>{const c=clients.find(x=>x.pan===editClientPan);return c?<EditClient c={c} dd={dd} onX={()=>setEditClientPan(null)} onSave={cf=>{setClients(p=>p.map(x=>x.pan===cf.pan?cf:x));setEditClientPan(null);toast("Client updated!");}}/>:null;})()}
     </>;
@@ -7718,6 +7753,10 @@ function ITRComputationTab({clients,setClients,computations,setComputations,dd,t
             <div style={{padding:"10px 15px",fontSize:11,color:G.mut}}>Saved: {rec.savedAt?new Date(rec.savedAt).toLocaleDateString("en-IN",{dateStyle:"medium"}):"Not saved yet"}</div>
             <div style={{padding:"9px 15px",borderTop:`1px solid ${G.bdr}`,display:"flex",gap:6,flexWrap:"wrap"}}>
               <button onClick={()=>openExisting(rec)} style={{...smallBtn,color:G.green}}>📂 Open</button>
+              <button onClick={()=>{
+                const clientObj = clients.find(c => c.pan === rec.pan) || { name: rec.assessee?.name || rec.name || "", mob: rec.assessee?.mob || "" };
+                if (onWhatsApp) onWhatsApp(clientObj, { ay: rec.assessee?.ay || rec.ay, fy: rec.fy });
+              }} style={{...smallBtn, color: G.green}} title="Send WhatsApp Message">💬 WhatsApp</button>
               <button onClick={()=>handleDuplicate(rec)} style={{...smallBtn,color:G.amb}}>⧉ Duplicate</button>
               <button onClick={()=>handleDelete(rec.id)} style={{...smallBtn,color:G.red}}>🗑 Delete</button>
             </div>
@@ -7917,6 +7956,354 @@ const compressImage = (base64Str, maxDim = 600) => {
   });
 };
 
+// ─── WhatsApp Modal Component ────────────────────────────────────────────────
+function WhatsAppModal({ state, onClose, firmSettings, setFirmSettings, toast }) {
+  const [activeTab, setActiveTab] = useState("compose");
+  const [phone, setPhone] = useState(state.phone || "");
+  const [selectedTemplateId, setSelectedTemplateId] = useState(firmSettings.whatsappTemplates?.[0]?.id || "custom");
+  const [autoDownload, setAutoDownload] = useState(!!state.downloadPdfFn);
+
+  const [params, setParams] = useState({
+    name: state.client?.name || "",
+    firmName: firmSettings.name || "",
+    firmPhone: firmSettings.phone || "",
+    firmEmail: firmSettings.email || "",
+    invoiceNo: state.defaults?.invoiceNo || "",
+    invoiceAmt: state.defaults?.invoiceAmt ? String(state.defaults?.invoiceAmt) : "",
+    taskName: state.defaults?.taskName || "",
+    dueDate: state.defaults?.dueDate || "",
+    ay: state.defaults?.ay || "",
+    fy: state.defaults?.fy || "",
+  });
+
+  const [customMessageText, setCustomMessageText] = useState("");
+
+  const getPlaceholders = (text) => {
+    const matches = text.match(/\{[a-zA-Z0-9_]+\}/g) || [];
+    return [...new Set(matches.map(m => m.slice(1, -1)))];
+  };
+
+  const getProcessedText = (templateText, currentParams) => {
+    let result = templateText || "";
+    Object.keys(currentParams).forEach(key => {
+      const val = currentParams[key] || "";
+      result = result.replaceAll(`{${key}}`, val);
+    });
+    return result;
+  };
+
+  // Re-run replacement when selected template, params or template definitions update
+  useEffect(() => {
+    if (selectedTemplateId === "custom") {
+      return;
+    }
+    const t = firmSettings.whatsappTemplates?.find(x => x.id === selectedTemplateId);
+    if (t) {
+      setCustomMessageText(getProcessedText(t.text, params));
+    }
+  }, [selectedTemplateId, params, firmSettings.whatsappTemplates]);
+
+  // Manage template states
+  const [editingTemplateId, setEditingTemplateId] = useState(null);
+  const [newTempName, setNewTempName] = useState("");
+  const [newTempText, setNewTempText] = useState("");
+
+  const handleSaveTemplate = () => {
+    if (!newTempName.trim() || !newTempText.trim()) {
+      toast("Name and text are required", "err");
+      return;
+    }
+    setFirmSettings(prev => {
+      let list = [...(prev.whatsappTemplates || [])];
+      if (editingTemplateId) {
+        list = list.map(t => t.id === editingTemplateId ? { ...t, name: newTempName, text: newTempText } : t);
+      } else {
+        list.push({ id: "t_" + Date.now().toString(36), name: newTempName, text: newTempText });
+      }
+      return { ...prev, whatsappTemplates: list };
+    });
+    toast(editingTemplateId ? "Template updated!" : "Template added!");
+    setEditingTemplateId(null);
+    setNewTempName("");
+    setNewTempText("");
+  };
+
+  const handleDeleteTemplate = (id) => {
+    if (!confirm("Are you sure you want to delete this template?")) return;
+    setFirmSettings(prev => {
+      const list = (prev.whatsappTemplates || []).filter(t => t.id !== id);
+      return { ...prev, whatsappTemplates: list };
+    });
+    toast("Template deleted!");
+    if (selectedTemplateId === id) {
+      setSelectedTemplateId("custom");
+    }
+  };
+
+  const startEditTemplate = (t) => {
+    setEditingTemplateId(t.id);
+    setNewTempName(t.name);
+    setNewTempText(t.text);
+  };
+
+  const handleSend = (targetType) => {
+    if (!phone.trim()) {
+      toast("Please enter a valid mobile number", "err");
+      return;
+    }
+    
+    let cleanPhone = phone.replace(/\D/g, "");
+    if (cleanPhone.length === 10) {
+      cleanPhone = "91" + cleanPhone;
+    }
+
+    if (autoDownload && state.downloadPdfFn) {
+      try {
+        state.downloadPdfFn();
+      } catch (e) {
+        console.error("Error downloading attachment:", e);
+        toast("Failed to auto-download PDF: " + e.message, "err");
+      }
+    }
+
+    navigator.clipboard.writeText(customMessageText);
+    toast("Message copied to clipboard!", "success");
+
+    const textEncoded = encodeURIComponent(customMessageText);
+    const url = targetType === "web"
+      ? `https://web.whatsapp.com/send?phone=${cleanPhone}&text=${textEncoded}`
+      : `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${textEncoded}`;
+    
+    window.open(url, "_blank");
+  };
+
+  const activeTemplate = firmSettings.whatsappTemplates?.find(x => x.id === selectedTemplateId);
+  const activePlaceholders = activeTemplate ? getPlaceholders(activeTemplate.text) : [];
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0, 0, 0, 0.75)", zIndex: 6000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, backdropFilter: "blur(4px)" }}>
+      <div style={{ background: G.surf, border: `1px solid ${G.bdr}`, borderRadius: 18, width: "min(680px, 95%)", boxShadow: "0 20px 60px rgba(0,0,0,0.8)", display: "flex", flexDirection: "column", maxHeight: "90vh" }}>
+        
+        {/* Header */}
+        <div style={{ padding: "16px 20px", borderBottom: `1px solid ${G.bdr}`, display: "flex", justifyContent: "space-between", alignItems: "center", background: G.card, borderTopLeftRadius: 18, borderTopRightRadius: 18 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 18 }}>💬</span>
+            <span style={{ fontWeight: 800, fontSize: 16, color: G.wh }}>Send WhatsApp Message</span>
+          </div>
+          <button onClick={onClose} style={{ background: "transparent", border: "none", color: G.mut, cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, borderRadius: "50%" }} onMouseEnter={e => e.currentTarget.style.background = G.bdr} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>✕</button>
+        </div>
+
+        {/* Tabs */}
+        <div style={{ display: "flex", background: G.card, borderBottom: `1px solid ${G.bdr}`, padding: "0 20px" }}>
+          <button onClick={() => setActiveTab("compose")} style={{ padding: "12px 16px", border: "none", background: "transparent", borderBottom: `2px solid ${activeTab === "compose" ? G.green : "transparent"}`, color: activeTab === "compose" ? G.green : G.mut, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>✏️ Compose Message</button>
+          <button onClick={() => setActiveTab("templates")} style={{ padding: "12px 16px", border: "none", background: "transparent", borderBottom: `2px solid ${activeTab === "templates" ? G.green : "transparent"}`, color: activeTab === "templates" ? G.green : G.mut, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>⚙️ Manage Templates</button>
+        </div>
+
+        {/* Body Container */}
+        <div style={{ padding: 20, overflowY: "auto", flex: 1 }}>
+          {activeTab === "compose" ? (
+            <div>
+              {/* Info Tips */}
+              <div style={{ background: `${G.green}10`, border: `1.5px dashed ${G.green}44`, borderRadius: 12, padding: "10px 14px", marginBottom: 16, fontSize: 12 }}>
+                <div style={{ fontWeight: 700, color: G.green, marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
+                  💡 Free WhatsApp Message Workflow
+                </div>
+                <ol style={{ margin: 0, paddingLeft: 18, color: G.mut, lineHeight: "1.5" }}>
+                  <li>Clicking a "Send" button copies the customized message text to your clipboard.</li>
+                  {state.downloadPdfFn && <li>The associated PDF document will download automatically to your system.</li>}
+                  <li>WhatsApp chat will open. Paste the text with <b>Ctrl + V</b> and attach the PDF from your downloads!</li>
+                </ol>
+              </div>
+
+              {/* Client & Phone */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1.2fr", gap: 12, marginBottom: 14 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <label style={{ fontSize: 11, color: G.mut, fontWeight: 700 }}>Client Name</label>
+                  <input
+                    value={params.name}
+                    onChange={e => setParams(prev => ({ ...prev, name: e.target.value }))}
+                    style={{ background: G.card, border: `1.5px solid ${G.bdr}`, borderRadius: 8, color: G.wh, padding: "9px 12px", fontSize: 13, outline: "none" }}
+                  />
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <label style={{ fontSize: 11, color: G.mut, fontWeight: 700 }}>Mobile Number</label>
+                  <input
+                    value={phone}
+                    onChange={e => setPhone(e.target.value)}
+                    placeholder="e.g. 9876543210"
+                    style={{ background: G.card, border: `1.5px solid ${G.bdr}`, borderRadius: 8, color: G.wh, padding: "9px 12px", fontSize: 13, outline: "none" }}
+                  />
+                </div>
+              </div>
+
+              {/* Template Picker */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 14 }}>
+                <label style={{ fontSize: 11, color: G.mut, fontWeight: 700 }}>Select Message Template</label>
+                <select
+                  value={selectedTemplateId}
+                  onChange={e => setSelectedTemplateId(e.target.value)}
+                  style={{ background: G.card, border: `1.5px solid ${G.bdr}`, borderRadius: 8, color: G.wh, padding: "9px 12px", fontSize: 13, outline: "none" }}
+                >
+                  {(firmSettings.whatsappTemplates || []).map(t => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                  <option value="custom">Custom Message (Blank / Manual)</option>
+                </select>
+              </div>
+
+              {/* Context Variables Inputs */}
+              {activePlaceholders.length > 0 && (
+                <div style={{ border: `1px solid ${G.bdr}`, borderRadius: 10, padding: 12, marginBottom: 14, background: G.card }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: G.mut, marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>Fill Template Placeholders</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                    {activePlaceholders.map(ph => {
+                      const label = ph.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                      return (
+                        <div key={ph} style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                          <label style={{ fontSize: 10, color: G.mut, fontWeight: 700 }}>{label}</label>
+                          <input
+                            value={params[ph] || ""}
+                            onChange={e => setParams(prev => ({ ...prev, [ph]: e.target.value }))}
+                            style={{ background: G.surf, border: `1px solid ${G.bdr}`, borderRadius: 6, color: G.wh, padding: "6px 10px", fontSize: 12, outline: "none" }}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Message Box */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 14 }}>
+                <label style={{ fontSize: 11, color: G.mut, fontWeight: 700 }}>Customized Message Body (Editable)</label>
+                <textarea
+                  value={customMessageText}
+                  onChange={e => setCustomMessageText(e.target.value)}
+                  placeholder="Type your custom WhatsApp message here..."
+                  style={{ background: G.card, border: `1.5px solid ${G.bdr}`, borderRadius: 8, color: G.wh, padding: "10px 14px", fontSize: 13, minHeight: 120, resize: "vertical", outline: "none", fontFamily: "inherit" }}
+                />
+              </div>
+
+              {/* Download PDF Option */}
+              {state.downloadPdfFn && (
+                <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: G.wh, cursor: "pointer", userSelect: "none" }}>
+                  <input
+                    type="checkbox"
+                    checked={autoDownload}
+                    onChange={e => setAutoDownload(e.target.checked)}
+                  />
+                  <span>Download associated PDF document automatically</span>
+                </label>
+              )}
+            </div>
+          ) : (
+            <div>
+              {/* Template List */}
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: G.wh, marginBottom: 8 }}>Configured Templates</div>
+                {(firmSettings.whatsappTemplates || []).length === 0 ? (
+                  <div style={{ fontSize: 12, color: G.mut, fontStyle: "italic" }}>No custom templates configured. Add one below.</div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {(firmSettings.whatsappTemplates || []).map(t => (
+                      <div key={t.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", background: G.card, border: `1px solid ${G.bdr}`, borderRadius: 10, padding: 10 }}>
+                        <div style={{ flex: 1, minWidth: 0, marginRight: 10 }}>
+                          <div style={{ fontWeight: 700, fontSize: 12, color: G.wh }}>{t.name}</div>
+                          <div style={{ fontSize: 11, color: G.mut, marginTop: 3, whiteSpace: "normal", wordBreak: "break-all", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{t.text}</div>
+                        </div>
+                        <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+                          <button onClick={() => startEditTemplate(t)} style={{ background: "transparent", border: `1px solid ${G.bdr}`, color: G.cyn, borderRadius: 6, padding: "3px 8px", fontSize: 11, cursor: "pointer" }}>Edit</button>
+                          <button onClick={() => handleDeleteTemplate(t.id)} style={{ background: "transparent", border: `1px solid ${G.red}44`, color: G.red, borderRadius: 6, padding: "3px 8px", fontSize: 11, cursor: "pointer" }}>Delete</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Add / Edit Template Form */}
+              <div style={{ borderTop: `1px solid ${G.bdr}`, paddingTop: 16 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: G.wh, marginBottom: 12 }}>{editingTemplateId ? "✏️ Edit Template" : "➕ Create New Template"}</div>
+                
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    <label style={{ fontSize: 10, color: G.mut, fontWeight: 700 }}>Template Name</label>
+                    <input
+                      value={newTempName}
+                      onChange={e => setNewTempName(e.target.value)}
+                      placeholder="e.g. Work Update Notification"
+                      style={{ background: G.card, border: `1.5px solid ${G.bdr}`, borderRadius: 8, color: G.wh, padding: "8px 12px", fontSize: 12, outline: "none" }}
+                    />
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    <label style={{ fontSize: 10, color: G.mut, fontWeight: 700 }}>Template Body Text</label>
+                    <textarea
+                      value={newTempText}
+                      onChange={e => setNewTempText(e.target.value)}
+                      placeholder="e.g. Dear {name}, your computation is ready. Regards, {firmName}"
+                      style={{ background: G.card, border: `1.5px solid ${G.bdr}`, borderRadius: 8, color: G.wh, padding: "10px 12px", fontSize: 12, minHeight: 80, resize: "vertical", outline: "none", fontFamily: "inherit" }}
+                    />
+                  </div>
+
+                  {/* Variables Reference Box */}
+                  <div style={{ background: G.card, border: `1px solid ${G.bdr}`, borderRadius: 8, padding: 10 }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: G.mut, marginBottom: 4 }}>Supported Variables (copied/replaced when sending)</div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 8px", fontSize: 11, fontFamily: "monospace", color: G.green }}>
+                      <span>{"{name}"}</span>
+                      <span>{"{taskName}"}</span>
+                      <span>{"{dueDate}"}</span>
+                      <span>{"{invoiceNo}"}</span>
+                      <span>{"{invoiceAmt}"}</span>
+                      <span>{"{ay}"}</span>
+                      <span>{"{fy}"}</span>
+                      <span>{"{firmName}"}</span>
+                      <span>{"{firmPhone}"}</span>
+                    </div>
+                  </div>
+
+                  <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                    <button onClick={handleSaveTemplate} style={{ flex: 1, padding: "9px", borderRadius: 8, border: "none", background: `linear-gradient(135deg, ${G.g2}, ${G.green})`, color: "#fff", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>Save Template</button>
+                    {editingTemplateId && (
+                      <button onClick={() => {
+                        setEditingTemplateId(null);
+                        setNewTempName("");
+                        setNewTempText("");
+                      }} style={{ padding: "9px 16px", borderRadius: 8, border: `1px solid ${G.bdr}`, background: "transparent", color: G.mut, fontWeight: 700, fontSize: 12, cursor: "pointer" }}>Cancel</button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div style={{ padding: "14px 20px", borderTop: `1px solid ${G.bdr}`, background: G.card, borderBottomLeftRadius: 18, borderBottomRightRadius: 18, display: "flex", justifyContent: "space-between", gap: 10 }}>
+          <button onClick={onClose} style={{ padding: "10px 18px", borderRadius: 9, border: `1px solid ${G.bdr}`, background: "transparent", color: G.mut, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>Close</button>
+          
+          {activeTab === "compose" && (
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                onClick={() => handleSend("web")}
+                style={{ padding: "10px 16px", borderRadius: 9, border: "none", background: "linear-gradient(135deg, #059669, #10B981)", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
+              >
+                💻 Send Web
+              </button>
+              <button
+                onClick={() => handleSend("mobile")}
+                style={{ padding: "10px 16px", borderRadius: 9, border: "none", background: `linear-gradient(135deg, ${G.g2}, ${G.green})`, color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
+              >
+                📱 Send Mobile
+              </button>
+            </div>
+          )}
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
 export default function App(){
   const [session, setSession] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -7928,6 +8315,11 @@ export default function App(){
   const [openInvoiceId, setOpenInvoiceId] = useState(null);
   const [openReceiptId, setOpenReceiptId] = useState(null);
   const [openWorkId, setOpenWorkId] = useState(null);
+  const [whatsappState, setWhatsappState] = useState(null);
+
+  const handleWhatsApp = (client, defaults = {}, downloadPdfFn = null) => {
+    setWhatsappState({ phone: client?.mob || "", client, defaults, downloadPdfFn });
+  };
 
   const[clients, _setClients]=useState([]);
   const[works, _setWorks]=useState([]);
@@ -7949,8 +8341,13 @@ export default function App(){
     googleClientId:"738596578042-qd24uv0mkqe5j9bvjm8d4blpntg3vm7b.apps.googleusercontent.com",
     googleClientSecret:"",
     googleBackupEmail:"",
-
     googleDriveEnabled:false,
+    whatsappTemplates: [
+      { id: "t1", name: "Due Date Reminder", text: "Dear {name}, this is a friendly reminder that your filing for {taskName} is due on {dueDate}. Please share the necessary documents at the earliest. Regards, {firmName}" },
+      { id: "t2", name: "ITR Computation Ready", text: "Dear {name}, your ITR computation for AY {ay} has been prepared. Please review the attached summary. Regards, {firmName}" },
+      { id: "t3", name: "Invoice Notification", text: "Dear {name}, we have raised Invoice {invoiceNo} for ₹{invoiceAmt}. Please find the invoice details attached. Regards, {firmName}" },
+      { id: "t4", name: "Bulk Promotion / Greeting", text: "Dear {name}, Fin-Tax Mitra is now accepting tax planning documents for FY {fy}. Avoid last-minute rushes and schedule your consultation today! Contact: {firmPhone}" },
+    ],
   });
   const[dd, _setDd]=useState(DEF_DD);
   const[pws, _setPws]=useState(DEF_PW);
@@ -8256,6 +8653,12 @@ export default function App(){
             autoBackup:true,
             googleClientId:"738596578042-qd24uv0mkqe5j9bvjm8d4blpntg3vm7b.apps.googleusercontent.com",
             googleDriveEnabled:false,
+            whatsappTemplates: [
+              { id: "t1", name: "Due Date Reminder", text: "Dear {name}, this is a friendly reminder that your filing for {taskName} is due on {dueDate}. Please share the necessary documents at the earliest. Regards, {firmName}" },
+              { id: "t2", name: "ITR Computation Ready", text: "Dear {name}, your ITR computation for AY {ay} has been prepared. Please review the attached summary. Regards, {firmName}" },
+              { id: "t3", name: "Invoice Notification", text: "Dear {name}, we have raised Invoice {invoiceNo} for ₹{invoiceAmt}. Please find the invoice details attached. Regards, {firmName}" },
+              { id: "t4", name: "Bulk Promotion / Greeting", text: "Dear {name}, Fin-Tax Mitra is now accepting tax planning documents for FY {fy}. Avoid last-minute rushes and schedule your consultation today! Contact: {firmPhone}" },
+            ],
           }};
           const { error } = await supabase.from('firm_settings').insert(defaultFirm);
           if (error) throw new Error("Seeding firm settings failed: " + error.message);
@@ -8280,7 +8683,12 @@ export default function App(){
         } catch (e) {
           console.error("Error loading local images:", e);
         }
-        _setFirmSettings({ ...dbFirm.settings, ...localImages });
+        _setFirmSettings(prev => ({
+          ...prev,
+          ...dbFirm.settings,
+          ...localImages,
+          whatsappTemplates: dbFirm.settings?.whatsappTemplates || prev.whatsappTemplates
+        }));
         _setDd(dbDev.dropdown_defaults);
         _setPws(dbDev.passwords);
         setSyncEnabled(true);
@@ -9143,10 +9551,10 @@ export default function App(){
           </div>)}
         {tab==="add"&&sub==="client"&&<AddClient clients={clients} setClients={setClients} dd={dd} toast={toast}/>}
         {tab==="add"&&sub==="work"&&<AssignWork clients={clients} works={works} setWorks={setWorks} dd={dd} toast={toast}/>}
-        {tab==="clients"&&<ClientList clients={clients} setClients={setClients} dd={dd} toast={toast}/>}
-        {tab==="itr"&&<ITRComputationTab clients={clients} setClients={setClients} computations={computations} setComputations={setComputations} dd={dd} toast={toast} openComputationId={openComputationId} setOpenComputationId={setOpenComputationId}/>}
-        {tab==="tracker"&&<WorkTracker works={works} setWorks={setWorks} clients={clients} ownerOn={ownerOn} dd={dd} pws={pws} toast={toast} invoices={invoices} setInvoices={setInvoices} receipts={receipts} openWorkId={openWorkId} setOpenWorkId={setOpenWorkId}/>}
-        {tab==="invoice"&&(ownerOn?<InvoiceModule invoices={invoices} setInvoices={setInvoices} receipts={receipts} setReceipts={setReceipts} clients={clients} works={works} dd={dd} toast={toast} firmSettings={firmSettings} setFirmSettings={setFirmSettings} openInvoiceId={openInvoiceId} setOpenInvoiceId={setOpenInvoiceId}/>
+        {tab==="clients"&&<ClientList clients={clients} setClients={setClients} dd={dd} toast={toast} onWhatsApp={handleWhatsApp}/>}
+        {tab==="itr"&&<ITRComputationTab clients={clients} setClients={setClients} computations={computations} setComputations={setComputations} dd={dd} toast={toast} openComputationId={openComputationId} setOpenComputationId={setOpenComputationId} onWhatsApp={handleWhatsApp}/>}
+        {tab==="tracker"&&<WorkTracker works={works} setWorks={setWorks} clients={clients} ownerOn={ownerOn} dd={dd} pws={pws} toast={toast} invoices={invoices} setInvoices={setInvoices} receipts={receipts} openWorkId={openWorkId} setOpenWorkId={setOpenWorkId} onWhatsApp={handleWhatsApp}/>}
+        {tab==="invoice"&&(ownerOn?<InvoiceModule invoices={invoices} setInvoices={setInvoices} receipts={receipts} setReceipts={setReceipts} clients={clients} works={works} dd={dd} toast={toast} firmSettings={firmSettings} setFirmSettings={setFirmSettings} openInvoiceId={openInvoiceId} setOpenInvoiceId={setOpenInvoiceId} onWhatsApp={handleWhatsApp}/>
           :<div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"60vh",flexDirection:"column",gap:14}}>
             <Logo sz={64}/><div style={{fontWeight:700,fontSize:17,marginTop:8}}>Owner Access Required</div>
             <button onClick={()=>{setPendingProt("invoice");setShowOA(true);}} style={{padding:"11px 26px",borderRadius:11,border:"none",cursor:"pointer",background:`linear-gradient(135deg,${G.g2},${G.green})`,color:"#fff",fontWeight:700,fontSize:14}}>🔐 Unlock</button>
@@ -9174,6 +9582,15 @@ export default function App(){
         />
       ) : null;
     })()}
+    {whatsappState && (
+      <WhatsAppModal
+        state={whatsappState}
+        onClose={() => setWhatsappState(null)}
+        firmSettings={firmSettings}
+        setFirmSettings={setFirmSettings}
+        toast={toast}
+      />
+    )}
     <Toasts list={toasts}/>
   </div>;
 }
