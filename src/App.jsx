@@ -6658,15 +6658,6 @@ function SheetView({ assessee, income, deductions, manualDeductions, config, cal
   } else {
     incomeRows.push({ kind: "line", label: "Less: Deduction", outer: 0 });
   }
-  incomeRows.push({
-    kind: "line",
-    label: <>Total Income <span style={{ fontSize: "11px", fontWeight: "normal", color: "#666", marginLeft: "6px" }}>[after Rounded off as per U/s 288A]</span></>,
-    excelLabel: "Total Income [after Rounded off as per U/s 288A]",
-    outer: d.totalTaxableIncome,
-    bold: true,
-    red: true
-  });
-
   if (income.exemptIncome?.enabled && income.exemptIncome?.rows?.length > 0) {
     incomeRows.push({ kind: "head", label: "Exempt Income (For Disclosure Only)" });
     income.exemptIncome.rows.forEach((r) => {
@@ -6676,6 +6667,15 @@ function SheetView({ assessee, income, deductions, manualDeductions, config, cal
     const totalExempt = income.exemptIncome.rows.reduce((sum, r) => sum + (num(r.amount) || 0), 0);
     incomeRows.push({ kind: "line", label: "Total Exempt Income", outer: totalExempt, bold: true });
   }
+
+  incomeRows.push({
+    kind: "line",
+    label: <>Total Income <span style={{ fontSize: "11px", fontWeight: "normal", color: "#666", marginLeft: "6px" }}>[after Rounded off as per U/s 288A]</span></>,
+    excelLabel: "Total Income [after Rounded off as per U/s 288A]",
+    outer: d.totalTaxableIncome,
+    bold: true,
+    red: true
+  });
 
   /* -------- tax liability table (page 2) — liability + taxes paid in one table -------- */
   const liabilityRowsRaw = [
