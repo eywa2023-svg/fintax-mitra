@@ -1380,14 +1380,15 @@ function ClientList({clients,setClients,dd,toast,onWhatsApp}){
         <td style={{padding:"9px 12px",color:G.mut,whiteSpace:"nowrap"}}>{c.state}</td>
         <td style={{padding:"9px 12px",color:G.mut}}>{c.src}</td>
         <td style={{padding:"9px 12px"}}><Bdg label={c.status}/></td>
-        <td style={{padding:"9px 12px"}}><div style={{display:"flex",gap:3}}>{PORTALS.filter(p=>c.portals[p.key]?.on).map(p=><span key={p.key} style={{fontSize:11,padding:"1px 6px",borderRadius:8,background:p.col+"18",color:p.col,fontWeight:600}}>🔑</span>)}</div></td>
+        <td style={{padding:"9px 12px"}}>
+          <button onClick={()=>setOpP(s=>({...s,[c.pan]:!s[c.pan]}))} style={{fontSize:11,padding:"4px 10px",borderRadius:8,border:`1px solid ${opP[c.pan]?G.green:G.bdr}`,background:opP[c.pan]?G.green+"12":"transparent",color:opP[c.pan]?G.green:G.mut,cursor:"pointer",fontWeight:600}} title="View/Copy Credentials">🔑 Credentials</button>
+          {opP[c.pan]&&<div style={{marginTop:7,maxWidth:240}}><PortBlock c={c}/></div>}
+        </td>
         <td style={{padding:"9px 12px"}}>
           <div style={{display:"flex",gap:5}}>
             <button onClick={()=>{if(onWhatsApp)onWhatsApp(c);}} style={{fontSize:11,padding:"3px 9px",borderRadius:7,border:`1px solid ${G.bdr}`,background:"transparent",color:G.green,cursor:"pointer",fontWeight:600}}>💬 WhatsApp</button><button onClick={()=>setEditC(c)} style={{fontSize:11,padding:"3px 9px",borderRadius:7,border:`1px solid ${G.bdr}`,background:"transparent",color:G.cyn,cursor:"pointer",fontWeight:600}}>✏️ Edit</button><button onClick={()=>setClients(p=>p.map(x=>x.pan===c.pan?{...x,status:x.status==="Active"?"Inactive":"Active"}:x))} style={{fontSize:11,padding:"3px 9px",borderRadius:7,border:`1px solid ${G.bdr}`,background:"transparent",color:G.amb,cursor:"pointer"}}>{c.status==="Active"?"⏸ Deactivate":"▶ Activate"}</button>
-            <button onClick={()=>setOpP(s=>({...s,[c.pan]:!s[c.pan]}))} style={{fontSize:11,padding:"3px 9px",borderRadius:7,border:`1px solid ${G.bdr}`,background:"transparent",color:G.mut,cursor:"pointer"}}>🔑</button>
             <button onClick={()=>setDelC(c)} style={{fontSize:11,padding:"3px 9px",borderRadius:7,border:`1px solid ${G.red}44`,background:"#450A0A",color:G.red,cursor:"pointer",fontWeight:600}}>🗑 Delete</button>
           </div>
-          {opP[c.pan]&&<div style={{marginTop:7}}><PortBlock c={c}/></div>}
         </td>
       </tr>)}</tbody>
     </table></div></Crd>}
