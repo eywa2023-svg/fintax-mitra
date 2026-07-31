@@ -1169,8 +1169,8 @@ function AssignWork({clients,works,setWorks,dd,toast}){
 }
 
 // ─── Client List ──────────────────────────────────────────────────────────────
-function ClientList({clients,setClients,dd,toast,onWhatsApp,works,invoices,setTab,setOpenWorkId}){
-  const[q,setQ]=useState(""),[view,setView]=useState("list"),[opP,setOpP]=useState({}),[vpw,setVpw]=useState({}),[editC,setEditC]=useState(null),[selClient,setSelClient]=useState(null);
+function ClientList({clients,setClients,dd,toast,onWhatsApp,works,invoices,setTab,setOpenWorkId,onViewProfile}){
+  const[q,setQ]=useState(""),[view,setView]=useState("list"),[opP,setOpP]=useState({}),[vpw,setVpw]=useState({}),[editC,setEditC]=useState(null);
   const[delC,setDelC]=useState(null);
   const[showImport,setShowImport]=useState(false),[importBusy,setImportBusy]=useState(false),[importResult,setImportResult]=useState(null);
   const list=useMemo(()=>{if(!q)return clients;const lq=q.toLowerCase();return clients.filter(c=>c.pan.toLowerCase().includes(lq)||c.name.toLowerCase().includes(lq)||(c.biz&&c.biz.toLowerCase().includes(lq))||c.mob.includes(q));},[q,clients]);
@@ -1357,7 +1357,7 @@ function ClientList({clients,setClients,dd,toast,onWhatsApp,works,invoices,setTa
         <div style={{padding:"13px 15px",borderBottom:`1px solid ${G.bdr}`,display:"flex",gap:11,alignItems:"center"}}>
           <div style={{width:40,height:40,borderRadius:10,background:`linear-gradient(135deg,${G.g2},${G.green})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,fontWeight:800,color:"#fff",flexShrink:0}}>{c.name[0]}</div>
           <div style={{flex:1,minWidth:0}}>
-            <button onClick={()=>setSelClient(c)} style={{background:"none",border:"none",textAlign:"left",cursor:"pointer",padding:0,fontFamily:"inherit",display:"block",width:"100%"}} title="View Client Details">
+            <button onClick={()=>onViewProfile(c.pan)} style={{background:"none",border:"none",textAlign:"left",cursor:"pointer",padding:0,fontFamily:"inherit",display:"block",width:"100%"}} title="View Client Details">
               <div style={{fontWeight:700,fontSize:13,color:G.green,textDecoration:"underline",textUnderlineOffset:3,textDecorationColor:G.green+"55",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.name}</div>
             </button>
             {c.biz&&<div style={{fontSize:11,color:G.mut,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.biz}</div>}
@@ -1381,7 +1381,7 @@ function ClientList({clients,setClients,dd,toast,onWhatsApp,works,invoices,setTa
         const hasCreds = PORTALS.some(p => c.portals?.[p.key]?.on) || (c.extraPw && c.extraPw.length > 0);
         return <tr key={c.pan} style={{borderTop:`1px solid ${G.bdr}`,background:i%2?"#0F1D1408":"transparent"}}>
         <td style={{padding:"9px 12px"}}>
-          <button onClick={()=>setSelClient(c)} style={{background:"none",border:"none",textAlign:"left",cursor:"pointer",padding:0,fontFamily:"inherit"}} title="View Client Details">
+          <button onClick={()=>onViewProfile(c.pan)} style={{background:"none",border:"none",textAlign:"left",cursor:"pointer",padding:0,fontFamily:"inherit"}} title="View Client Details">
             <div style={{fontWeight:700,color:G.green,textDecoration:"underline",textUnderlineOffset:3,textDecorationColor:G.green+"55",whiteSpace:"nowrap"}}>{c.name}</div>
           </button>
           {c.biz&&<div style={{fontSize:11,color:G.mut}}>{c.biz}</div>}
@@ -1421,141 +1421,7 @@ function ClientList({clients,setClients,dd,toast,onWhatsApp,works,invoices,setTa
       </tr>;
       })}</tbody>
     </table></div></Crd>}
-    {selClient&&<div style={{position:"fixed",inset:0,zIndex:4000,display:"flex"}} onClick={()=>setSelClient(null)}>
-      <div style={{flex:1,background:"#000A"}}/>
-      <div style={{width:"min(520px,95vw)",background:G.surf,borderLeft:`1px solid ${G.green}44`,height:"100%",overflow:"auto",boxShadow:"-20px 0 60px #000C",animation:"slidePanel .25s ease"}} onClick={e=>e.stopPropagation()}>
-        {/* Panel Header */}
-        <div style={{background:`linear-gradient(135deg,${G.gd},${G.g2})`,padding:"18px 20px",display:"flex",gap:14,alignItems:"center",position:"sticky",top:0,zIndex:1}}>
-          <div style={{width:50,height:50,borderRadius:13,background:`linear-gradient(135deg,${G.g2},${G.green})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,fontWeight:800,color:"#fff",flexShrink:0,border:"2px solid #4ADE8055"}}>{selClient.name[0]}</div>
-          <div style={{flex:1,minWidth:0}}>
-            <div style={{fontWeight:800,fontSize:16,color:G.wh,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{selClient.name}</div>
-            {selClient.biz&&<div style={{fontSize:12,color:G.g3,marginTop:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{selClient.biz}</div>}
-            <div style={{display:"flex",gap:6,marginTop:5,flexWrap:"wrap"}}>
-              <span style={{fontSize:11,color:G.green,fontWeight:700,fontFamily:"monospace",background:G.green+"18",padding:"2px 9px",borderRadius:8}}>🆔 {selClient.pan}</span>
-              <span style={{fontSize:11,fontWeight:700,padding:"2px 9px",borderRadius:8,background:selClient.status==="Active"?"#14532D":"#450A0A",color:selClient.status==="Active"?"#4ADE80":"#FCA5A5"}}>{selClient.status}</span>
-              <span style={{fontSize:11,color:G.mut,background:G.bdr,padding:"2px 9px",borderRadius:8}}>{selClient.type}</span>
-            </div>
-          </div>
-          <button onClick={()=>{setEditC(selClient);setSelClient(null);}} title="Edit Client Details" style={{background:"#ffffff15",border:"none",color:G.cyn,borderRadius:8,width:32,height:32,cursor:"pointer",fontSize:15,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>✏️</button>
-          <button onClick={()=>setSelClient(null)} style={{background:"#ffffff15",border:"none",color:G.wh,borderRadius:8,width:32,height:32,cursor:"pointer",fontSize:16,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
-        </div>
-        <div style={{padding:"18px 20px",display:"flex",flexDirection:"column",gap:16}}>
-          {/* Contact & Info */}
-          <div style={{background:G.card,border:`1px solid ${G.bdr}`,borderRadius:12,padding:"14px 16px"}}>
-            <div style={{fontSize:11,color:G.mut,fontWeight:700,letterSpacing:.7,textTransform:"uppercase",marginBottom:10}}>Contact & Information</div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-              {[{l:"📱 Mobile",v:selClient.mob},{l:"📍 State",v:selClient.state},{l:"📣 Source",v:selClient.src},{l:"📅 Since",v:selClient.added?new Date(selClient.added).toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}):"-"}].map(d=><div key={d.l}>
-                <div style={{fontSize:10,color:G.mut,fontWeight:600,marginBottom:2}}>{d.l}</div>
-                <div style={{fontSize:13,color:G.txt,fontWeight:600}}>{d.v||"-"}</div>
-              </div>)}
-              {selClient.email&&<div style={{gridColumn:"1 / -1"}}>
-                <div style={{fontSize:10,color:G.mut,fontWeight:600,marginBottom:2}}>✉ Email</div>
-                <div style={{fontSize:13,color:G.txt}}>{selClient.email}</div>
-              </div>}
-              <div style={{gridColumn:"1 / -1"}}>
-                <div style={{fontSize:10,color:G.mut,fontWeight:600,marginBottom:2}}>📍 Address</div>
-                <div style={{fontSize:13,color:G.txt}}>{selClient.addr||"-"}</div>
-              </div>
-            </div>
-          </div>
-          
-          {/* Tax Identifiers & Personal Details */}
-          <div style={{background:G.card,border:`1px solid ${G.bdr}`,borderRadius:12,padding:"14px 16px"}}>
-            <div style={{fontSize:11,color:G.mut,fontWeight:700,letterSpacing:.7,textTransform:"uppercase",marginBottom:10}}>Tax & Personal Details</div>
-            {[
-              {l:"PAN",v:selClient.pan,col:G.green,mono:true},
-              {l:"GSTIN",v:selClient.gstin||"Not Registered",col:selClient.gstin?G.cyn:G.bdr,mono:true},
-              {l:"Aadhaar Number",v:selClient.aadhaar||"-",mono:true},
-              {l:"Date of Birth",v:selClient.dob?new Date(selClient.dob).toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}):"-"},
-              {l:"Father's Name",v:selClient.fatherName||"-"},
-              {l:"Gender",v:selClient.gender||"-"},
-              {l:"Residential Status",v:selClient.residentialStatus||"-"},
-              {l:"Pin Code",v:selClient.pin||"-",mono:true}
-            ].map(d=><div key={d.l} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0",borderBottom:`1px solid ${G.bdr}`}}>
-              <span style={{fontSize:12,color:G.mut,fontWeight:600}}>{d.l}</span>
-              <span style={{fontSize:12,color:d.col||G.txt,fontFamily:d.mono?"monospace":"inherit",fontWeight:700}}>{d.v}</span>
-            </div>)}
-          </div>
 
-          {/* Bank & Financial Details */}
-          <div style={{background:G.card,border:`1px solid ${G.bdr}`,borderRadius:12,padding:"14px 16px"}}>
-            <div style={{fontSize:11,color:G.mut,fontWeight:700,letterSpacing:.7,textTransform:"uppercase",marginBottom:10}}>Bank & Financial Details</div>
-            {[
-              {l:"Bank Name",v:selClient.bankName||"-"},
-              {l:"IFSC Code",v:selClient.ifsc||"-",mono:true},
-              {l:"Account Number",v:selClient.accountNumber||"-",mono:true},
-              {l:"ITR Filing Type",v:selClient.itrType||"-",col:G.amb}
-            ].map(d=><div key={d.l} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0",borderBottom:`1px solid ${G.bdr}`}}>
-              <span style={{fontSize:12,color:G.mut,fontWeight:600}}>{d.l}</span>
-              <span style={{fontSize:12,color:d.col||G.txt,fontFamily:d.mono?"monospace":"inherit",fontWeight:700}}>{d.v}</span>
-            </div>)}
-          </div>
-
-          {/* Remarks */}
-          {selClient.note&&<div style={{background:G.card,border:`1px solid ${G.bdr}`,borderRadius:12,padding:"14px 16px"}}>
-            <div style={{fontSize:11,color:G.mut,fontWeight:700,letterSpacing:.7,textTransform:"uppercase",marginBottom:8}}>📝 Remarks</div>
-            <div style={{fontSize:13,color:G.txt,lineHeight:1.6}}>{selClient.note}</div>
-          </div>}
-
-          {/* All Assignments Activity */}
-          {works && <div style={{background:G.card,border:`1px solid ${G.bdr}`,borderRadius:12,padding:"14px 16px"}}>
-            <div style={{fontSize:11,color:G.mut,fontWeight:700,letterSpacing:.7,textTransform:"uppercase",marginBottom:10}}>
-              📋 All Assignments ({works.filter(w=>w.pan===selClient.pan).length})
-            </div>
-            {works.filter(w=>w.pan===selClient.pan).length===0
-            ?<div style={{fontSize:12,color:G.bdr}}>No assignments yet</div>
-            :works.filter(w=>w.pan===selClient.pan).map(w=><div 
-                key={w.id} 
-                onClick={()=>{
-                  if (setTab && setOpenWorkId) {
-                    setTab("tracker");
-                    setOpenWorkId(w.id);
-                    setSelClient(null);
-                  }
-                }}
-                style={{padding:"10px 12px",background:G.surf,borderRadius:9,border:`1px solid ${G.bdr}`,marginBottom:7,cursor:"pointer",transition:"all 0.15s"}}
-                onMouseEnter={e=>e.currentTarget.style.borderColor=G.green}
-                onMouseLeave={e=>e.currentTarget.style.borderColor=G.bdr}
-                title="Click to view assignment in Work Tracker"
-              >
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
-                <span style={{fontWeight:700,fontSize:13,color:G.green,textDecoration:"underline"}}>{w.svc}</span>
-                <span style={{fontSize:11,padding:"2px 8px",borderRadius:10,fontWeight:700,background:w.status==="Completed"?"#14532D":w.status==="In Progress"?"#1E1B4B":"#431407",color:w.status==="Completed"?"#4ADE80":w.status==="In Progress"?"#A5B4FC":"#FCD34D"}}>{w.status}</span>
-              </div>
-              <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
-                <span style={{fontSize:11,color:G.mut}}>📅 {w.fy}</span>
-                <span style={{fontSize:11,color:G.mut}}>👤 {w.staff}</span>
-                <span style={{fontSize:11,color:w.status==="Completed"?G.g3:(new Date(w.due)<new Date()?G.red:G.mut)}}>Due: {w.due?new Date(w.due).toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}):"-"}</span>
-              </div>
-            </div>)}
-          </div>}
-
-          {/* Portal Credentials */}
-          <div style={{background:G.card,border:`1px solid ${G.bdr}`,borderRadius:12,padding:"14px 16px"}}>
-            <div style={{fontSize:11,color:G.mut,fontWeight:700,letterSpacing:.7,textTransform:"uppercase",marginBottom:10}}>
-              🔐 Portal Credentials ({PORTALS.filter(p=>selClient.portals[p.key]?.on).length} Active)
-            </div>
-            {PORTALS.filter(p=>selClient.portals[p.key]?.on).length===0
-            ?<div style={{fontSize:12,color:G.bdr}}>No portals configured</div>
-            :PORTALS.filter(p=>selClient.portals[p.key]?.on).map(p=><div key={p.key} style={{display:"flex",gap:10,padding:"10px 12px",background:G.surf,border:`1px solid ${p.col}25`,borderRadius:9,marginBottom:7}}>
-              <div style={{width:34,height:34,borderRadius:9,background:p.col+"18",display:"flex",alignItems:"center",justifyContent:"center",fontSize:17,flexShrink:0}}>{p.icon}</div>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:11,color:p.col,fontWeight:700,marginBottom:4}}>{p.label}</div>
-                <div style={{display:"flex",gap:6,marginBottom:3,alignItems:"center"}}>
-                  <span style={{fontSize:10,color:G.mut,minWidth:22}}>ID</span>
-                  <span style={{fontSize:12,color:G.wh,fontFamily:"monospace",fontWeight:600,flex:1,overflow:"hidden",textOverflow:"ellipsis"}}>{selClient.portals[p.key].id||"-"}</span>
-                  {selClient.portals[p.key].id && <button onClick={()=>{navigator.clipboard.writeText(selClient.portals[p.key].id);toast("ID copied!");}} style={{background:"none",border:"none",cursor:"pointer",color:G.mut,fontSize:10,padding:"0 2px",display:"inline-flex",alignItems:"center"}} title="Copy ID">📋</button>}
-                </div>
-                <div style={{display:"flex",gap:6,alignItems:"center"}}>
-                  <span style={{fontSize:10,color:G.mut,minWidth:22}}>PW</span>
-                  <PortalPw pw={selClient.portals[p.key].pw} pid={selClient.pan+"_"+p.key} toast={toast}/>
-                </div>
-              </div>
-            </div>)}
-          </div>
-        </div>
-      </div>
-    </div>}
     {delC&&<div style={{position:"fixed",inset:0,background:"#000C",zIndex:6000,display:"flex",alignItems:"center",justifyContent:"center"}}>
       <div style={{background:G.surf,border:`1px solid ${G.bdr}`,borderRadius:16,padding:28,width:360,boxShadow:"0 20px 60px #000C",textAlign:"center"}}>
         <div style={{fontSize:36,marginBottom:12}}>🗑</div>
@@ -2654,7 +2520,161 @@ function PortalPw({pw,pid,toast}){
   </div>;
 }
 
-function WorkTracker({works,setWorks,clients,ownerOn,dd,pws,toast,invoices,setInvoices,receipts,openWorkId,setOpenWorkId,onWhatsApp}){
+function ClientProfilePanel({client,onClose,works,setTab,setOpenWorkId,setEditClient,toast}){
+  const[vpw,setVpw]=useState({});
+  return <div style={{position:"fixed",inset:0,zIndex:7000,display:"flex"}} onClick={onClose}>
+    <div style={{flex:1,background:"#000A"}}/>
+    <div style={{width:"min(520px,95vw)",background:G.surf,borderLeft:`1px solid ${G.green}44`,height:"100%",overflow:"auto",boxShadow:"-20px 0 60px #000C",animation:"slidePanel .25s ease"}} onClick={e=>e.stopPropagation()}>
+      {/* Panel Header */}
+      <div style={{background:`linear-gradient(135deg,${G.gd},${G.g2})`,padding:"18px 20px",display:"flex",gap:14,alignItems:"center",position:"sticky",top:0,zIndex:1}}>
+        <div style={{width:50,height:50,borderRadius:13,background:`linear-gradient(135deg,${G.g2},${G.green})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,fontWeight:800,color:"#fff",flexShrink:0,border:"2px solid #4ADE8055"}}>{client.name[0]}</div>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontWeight:800,fontSize:16,color:G.wh,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{client.name}</div>
+          {client.biz&&<div style={{fontSize:12,color:G.g3,marginTop:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{client.biz}</div>}
+          <div style={{display:"flex",gap:6,marginTop:5,flexWrap:"wrap"}}>
+            <span style={{fontSize:11,color:G.green,fontWeight:700,fontFamily:"monospace",background:G.green+"18",padding:"2px 9px",borderRadius:8}}>🆔 {client.pan}</span>
+            <span style={{fontSize:11,fontWeight:700,padding:"2px 9px",borderRadius:8,background:client.status==="Active"?"#14532D":"#450A0A",color:client.status==="Active"?"#4ADE80":"#FCA5A5"}}>{client.status}</span>
+            <span style={{fontSize:11,color:G.mut,background:G.bdr,padding:"2px 9px",borderRadius:8}}>{client.type}</span>
+          </div>
+        </div>
+        <button onClick={()=>{setEditClient(client.pan);onClose();}} title="Edit Client Details" style={{background:"#ffffff15",border:"none",color:G.cyn,borderRadius:8,width:32,height:32,cursor:"pointer",fontSize:15,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>✏️</button>
+        <button onClick={onClose} style={{background:"#ffffff15",border:"none",color:G.wh,borderRadius:8,width:32,height:32,cursor:"pointer",fontSize:16,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
+      </div>
+      <div style={{padding:"18px 20px",display:"flex",flexDirection:"column",gap:16}}>
+        {/* Contact & Info */}
+        <div style={{background:G.card,border:`1px solid ${G.bdr}`,borderRadius:12,padding:"14px 16px"}}>
+          <div style={{fontSize:11,color:G.mut,fontWeight:700,letterSpacing:.7,textTransform:"uppercase",marginBottom:10}}>Contact & Information</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            {[{l:"📱 Mobile",v:client.mob},{l:"📍 State",v:client.state},{l:"📣 Source",v:client.src},{l:"📅 Since",v:client.added?new Date(client.added).toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}):"-"}].map(d=><div key={d.l}>
+              <div style={{fontSize:10,color:G.mut,fontWeight:600,marginBottom:2}}>{d.l}</div>
+              <div style={{fontSize:13,color:G.txt,fontWeight:600}}>{d.v||"-"}</div>
+            </div>)}
+            {client.email&&<div style={{gridColumn:"1 / -1"}}>
+              <div style={{fontSize:10,color:G.mut,fontWeight:600,marginBottom:2}}>✉ Email</div>
+              <div style={{fontSize:13,color:G.txt}}>{client.email}</div>
+            </div>}
+            <div style={{gridColumn:"1 / -1"}}>
+              <div style={{fontSize:10,color:G.mut,fontWeight:600,marginBottom:2}}>📍 Address</div>
+              <div style={{fontSize:13,color:G.txt}}>{client.addr||"-"}</div>
+            </div>
+          </div>
+        </div>
+        
+        {/* Tax Identifiers & Personal Details */}
+        <div style={{background:G.card,border:`1px solid ${G.bdr}`,borderRadius:12,padding:"14px 16px"}}>
+          <div style={{fontSize:11,color:G.mut,fontWeight:700,letterSpacing:.7,textTransform:"uppercase",marginBottom:10}}>Tax & Personal Details</div>
+          {[
+            {l:"PAN",v:client.pan,col:G.green,mono:true},
+            {l:"GSTIN",v:client.gstin||"Not Registered",col:client.gstin?G.cyn:G.bdr,mono:true},
+            {l:"Aadhaar Number",v:client.aadhaar||"-",mono:true},
+            {l:"Date of Birth",v:client.dob?new Date(client.dob).toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}):"-"},
+            {l:"Father's Name",v:client.fatherName||"-"},
+            {l:"Gender",v:client.gender||"-"},
+            {l:"Residential Status",v:client.residentialStatus||"-"},
+            {l:"Pin Code",v:client.pin||"-",mono:true}
+          ].map(d=><div key={d.l} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0",borderBottom:`1px solid ${G.bdr}`}}>
+            <span style={{fontSize:12,color:G.mut,fontWeight:600}}>{d.l}</span>
+            <span style={{fontSize:12,color:d.col||G.txt,fontFamily:d.mono?"monospace":"inherit",fontWeight:700}}>{d.v}</span>
+          </div>)}
+        </div>
+
+        {/* Bank & Financial Details */}
+        <div style={{background:G.card,border:`1px solid ${G.bdr}`,borderRadius:12,padding:"14px 16px"}}>
+          <div style={{fontSize:11,color:G.mut,fontWeight:700,letterSpacing:.7,textTransform:"uppercase",marginBottom:10}}>Bank & Financial Details</div>
+          {[
+            {l:"Bank Name",v:client.bankName||"-"},
+            {l:"IFSC Code",v:client.ifsc||"-",mono:true},
+            {l:"Account Number",v:client.accountNumber||"-",mono:true},
+            {l:"ITR Filing Type",v:client.itrType||"-",col:G.amb}
+          ].map(d=><div key={d.l} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0",borderBottom:`1px solid ${G.bdr}`}}>
+            <span style={{fontSize:12,color:G.mut,fontWeight:600}}>{d.l}</span>
+            <span style={{fontSize:12,color:d.col||G.txt,fontFamily:d.mono?"monospace":"inherit",fontWeight:700}}>{d.v}</span>
+          </div>)}
+        </div>
+
+        {/* Remarks */}
+        {client.note&&<div style={{background:G.card,border:`1px solid ${G.bdr}`,borderRadius:12,padding:"14px 16px"}}>
+          <div style={{fontSize:11,color:G.mut,fontWeight:700,letterSpacing:.7,textTransform:"uppercase",marginBottom:8}}>📝 Remarks</div>
+          <div style={{fontSize:13,color:G.txt,lineHeight:1.6}}>{client.note}</div>
+        </div>}
+
+        {/* All Assignments Activity */}
+        {works && <div style={{background:G.card,border:`1px solid ${G.bdr}`,borderRadius:12,padding:"14px 16px"}}>
+          <div style={{fontSize:11,color:G.mut,fontWeight:700,letterSpacing:.7,textTransform:"uppercase",marginBottom:10}}>
+            📋 All Assignments ({works.filter(w=>w.pan===client.pan).length})
+          </div>
+          {works.filter(w=>w.pan===client.pan).length===0
+          ?<div style={{fontSize:12,color:G.bdr}}>No assignments yet</div>
+          :works.filter(w=>w.pan===client.pan).map(w=><div 
+              key={w.id} 
+              onClick={()=>{
+                if (setTab && setOpenWorkId) {
+                  setTab("tracker");
+                  setOpenWorkId(w.id);
+                  onClose();
+                }
+              }}
+              style={{padding:"10px 12px",background:G.surf,borderRadius:9,border:`1px solid ${G.bdr}`,marginBottom:7,cursor:"pointer",transition:"all 0.15s"}}
+              onMouseEnter={e=>e.currentTarget.style.borderColor=G.green}
+              onMouseLeave={e=>e.currentTarget.style.borderColor=G.bdr}
+              title="Click to view assignment in Work Tracker"
+            >
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+              <span style={{fontWeight:700,fontSize:13,color:G.green,textDecoration:"underline"}}>{w.svc}</span>
+              <span style={{fontSize:11,padding:"2px 8px",borderRadius:10,fontWeight:700,background:w.status==="Completed"?"#14532D":w.status==="In Progress"?"#1E1B4B":"#431407",color:w.status==="Completed"?"#4ADE80":w.status==="In Progress"?"#A5B4FC":"#FCD34D"}}>{w.status}</span>
+            </div>
+            <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
+              <span style={{fontSize:11,color:G.mut}}>📅 {w.fy}</span>
+              <span style={{fontSize:11,color:G.mut}}>👤 {w.staff}</span>
+              <span style={{fontSize:11,color:w.status==="Completed"?G.g3:(new Date(w.due)<new Date()?G.red:G.mut)}}>Due: {w.due?new Date(w.due).toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}):"-"}</span>
+            </div>
+          </div>)}
+        </div>}
+
+        {/* Portal Credentials */}
+        <div style={{background:G.card,border:`1px solid ${G.bdr}`,borderRadius:12,padding:"14px 16px"}}>
+          <div style={{fontSize:11,color:G.mut,fontWeight:700,letterSpacing:.7,textTransform:"uppercase",marginBottom:10}}>
+            🔐 Portal Credentials ({PORTALS.filter(p=>client.portals[p.key]?.on).length} Active)
+          </div>
+          {PORTALS.filter(p=>client.portals[p.key]?.on).length===0
+          ?<div style={{fontSize:12,color:G.bdr}}>No portals configured</div>
+          :PORTALS.filter(p=>client.portals[p.key]?.on).map(p=><div key={p.key} style={{display:"flex",gap:10,padding:"10px 12px",background:G.surf,border:`1px solid ${p.col}25`,borderRadius:9,marginBottom:7}}>
+            <div style={{width:34,height:34,borderRadius:9,background:p.col+"18",display:"flex",alignItems:"center",justifyContent:"center",fontSize:17,flexShrink:0}}>{p.icon}</div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:11,color:p.col,fontWeight:700,marginBottom:4}}>{p.label}</div>
+              <div style={{display:"flex",gap:6,marginBottom:3,alignItems:"center"}}>
+                <span style={{fontSize:10,color:G.mut,minWidth:22}}>ID</span>
+                <span style={{fontSize:12,color:G.wh,fontFamily:"monospace",fontWeight:600,flex:1,overflow:"hidden",textOverflow:"ellipsis"}}>{client.portals[p.key].id||"-"}</span>
+                {client.portals[p.key].id && <button onClick={()=>{navigator.clipboard.writeText(client.portals[p.key].id);toast("ID copied!");}} style={{background:"none",border:"none",cursor:"pointer",color:G.mut,fontSize:10,padding:"0 2px",display:"inline-flex",alignItems:"center"}} title="Copy ID">📋</button>}
+              </div>
+              <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                <span style={{fontSize:10,color:G.mut,minWidth:22}}>PW</span>
+                <PortalPw pw={client.portals[p.key].pw} pid={client.pan+"_"+p.key} toast={toast}/>
+              </div>
+            </div>
+          </div>)}
+
+          {/* Extra Passwords */}
+          {(client.extraPw||[]).map((pwItem,i)=><div key={"x"+i} style={{display:"flex",gap:8,padding:"6px 10px",background:G.cyn+"0A",border:`1px solid ${G.cyn}22`,borderRadius:8,marginTop:7}}>
+            <span style={{fontSize:14,flexShrink:0}}>🔑</span>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:10,color:G.cyn,fontWeight:700}}>{pwItem.type}{pwItem.label?" · "+pwItem.label:""}</div>
+              <div style={{fontSize:11,color:G.mut,display:"flex",alignItems:"center",gap:4}}>ID: <span style={{color:G.wh,fontFamily:"monospace"}}>{pwItem.id||"-"}</span>
+                {pwItem.id && <button onClick={()=>{navigator.clipboard.writeText(pwItem.id);toast("ID copied!");}} style={{background:"none",border:"none",cursor:"pointer",color:G.mut,fontSize:10,padding:"0 2px",display:"inline-flex",alignItems:"center"}} title="Copy ID">📋</button>}
+              </div>
+              <div style={{fontSize:11,color:G.mut,display:"flex",alignItems:"center",gap:4}}>PW: <span style={{color:G.wh,fontFamily:"monospace"}}>{vpw[`${client.pan}_x${i}`]?pwItem.pw||"-":"********"}</span>
+                <button onClick={()=>setVpw(s=>({...s,[`${client.pan}_x${i}`]:!s[`${client.pan}_x${i}`]}))} style={{background:"none",border:"none",cursor:"pointer",color:G.mut,fontSize:12,padding:0}}>{vpw[`${client.pan}_x${i}`]?"🙈":"👁"}</button>
+                {pwItem.pw && <button onClick={()=>{navigator.clipboard.writeText(pwItem.pw);toast("Password copied!");}} style={{background:"none",border:"none",cursor:"pointer",color:G.mut,fontSize:10,padding:"0 2px",display:"inline-flex",alignItems:"center"}} title="Copy Password">📋</button>}
+              </div>
+            </div>
+          </div>)}
+        </div>
+      </div>
+    </div>
+  </div>;
+}
+
+function WorkTracker({works,setWorks,clients,ownerOn,dd,pws,toast,invoices,setInvoices,receipts,openWorkId,setOpenWorkId,onWhatsApp,onViewProfile}){
   const[flt,setFlt]=useState(() => localStorage.getItem("fmt_tracker_flt") || "All");
   const[fy,setFy]=useState(() => localStorage.getItem("fmt_tracker_fy") || getCurrentFY());
   const[q,setQ]=useState(() => localStorage.getItem("fmt_tracker_q") || "");
@@ -2691,7 +2711,6 @@ function WorkTracker({works,setWorks,clients,ownerOn,dd,pws,toast,invoices,setIn
   };
   const[showAuth,setShowAuth]=useState(false),[feesOn,setFeesOn]=useState(ownerOn);
   const[editW,setEditW]=useState(null),[opP,setOpP]=useState({}),[vpw,setVpw]=useState({});
-  const[selClient,setSelClient]=useState(null);
   const[delW,setDelW]=useState(null);
   const[linkPop,setLinkPop]=useState(null),[linkSel,setLinkSel]=useState("");
   const doDeleteWork=()=>{setWorks(p=>p.filter(x=>x.id!==delW.id));setDelW(null);};
@@ -2714,101 +2733,7 @@ function WorkTracker({works,setWorks,clients,ownerOn,dd,pws,toast,invoices,setIn
   return <div style={{display:"flex",flexDirection:"column",gap:13}}>
     {showAuth&&<Auth title="Unlock Fee Data" hint="Finance: 456 | Developer: 123" pws={pws} onOk={()=>{setFeesOn(true);setShowAuth(false);}} onX={()=>setShowAuth(false)}/>}
     {editW&&<EditWork w={editW} rcvdDisplay={workReceived(editW,invoices,receipts)} linkedCount={linkedInvoices(editW,invoices).length} onSave={wf=>{setWorks(p=>p.map(w=>w.id===wf.id?wf:w));setEditW(null);if(setOpenWorkId)setOpenWorkId(null);}} onX={()=>{setEditW(null);if(setOpenWorkId)setOpenWorkId(null);}} dd={dd}/>}
-    {/* Client Detail Slide Panel */}
-    {selClient&&<div style={{position:"fixed",inset:0,zIndex:4000,display:"flex"}} onClick={()=>setSelClient(null)}>
-      <div style={{flex:1,background:"#000A"}}/>
-      <div style={{width:"min(480px,95vw)",background:G.surf,borderLeft:`1px solid ${G.green}44`,height:"100%",overflow:"auto",boxShadow:"-20px 0 60px #000C",animation:"slidePanel .25s ease"}} onClick={e=>e.stopPropagation()}>
-        {/* Panel Header */}
-        <div style={{background:`linear-gradient(135deg,${G.gd},${G.g2})`,padding:"18px 20px",display:"flex",gap:14,alignItems:"center",position:"sticky",top:0,zIndex:1}}>
-          <div style={{width:50,height:50,borderRadius:13,background:`linear-gradient(135deg,${G.g2},${G.green})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,fontWeight:800,color:"#fff",flexShrink:0,border:"2px solid #4ADE8055"}}>{selClient.name[0]}</div>
-          <div style={{flex:1,minWidth:0}}>
-            <div style={{fontWeight:800,fontSize:16,color:G.wh,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{selClient.name}</div>
-            {selClient.biz&&<div style={{fontSize:12,color:G.g3,marginTop:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{selClient.biz}</div>}
-            <div style={{display:"flex",gap:6,marginTop:5,flexWrap:"wrap"}}>
-              <span style={{fontSize:11,color:G.green,fontWeight:700,fontFamily:"monospace",background:G.green+"18",padding:"2px 9px",borderRadius:8}}>🆔 {selClient.pan}</span>
-              <span style={{fontSize:11,fontWeight:700,padding:"2px 9px",borderRadius:8,background:selClient.status==="Active"?"#14532D":"#450A0A",color:selClient.status==="Active"?"#4ADE80":"#FCA5A5"}}>{selClient.status}</span>
-              <span style={{fontSize:11,color:G.mut,background:G.bdr,padding:"2px 9px",borderRadius:8}}>{selClient.type}</span>
-            </div>
-          </div>
-          <button onClick={()=>setSelClient(null)} style={{background:"#ffffff15",border:"none",color:G.wh,borderRadius:8,width:32,height:32,cursor:"pointer",fontSize:16,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
-        </div>
-        <div style={{padding:"18px 20px",display:"flex",flexDirection:"column",gap:16}}>
-          {/* Contact & Info */}
-          <div style={{background:G.card,border:`1px solid ${G.bdr}`,borderRadius:12,padding:"14px 16px"}}>
-            <div style={{fontSize:11,color:G.mut,fontWeight:700,letterSpacing:.7,textTransform:"uppercase",marginBottom:10}}>Contact & Information</div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-              {[{l:"📱 Mobile",v:selClient.mob},{l:"📍 State",v:selClient.state},{l:"📣 Source",v:selClient.src},{l:"📅 Since",v:selClient.added?new Date(selClient.added).toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}):"-"}].map(d=><div key={d.l}>
-                <div style={{fontSize:10,color:G.mut,fontWeight:600,marginBottom:2}}>{d.l}</div>
-                <div style={{fontSize:13,color:G.txt,fontWeight:600}}>{d.v||"-"}</div>
-              </div>)}
-              {selClient.email&&<div style={{gridColumn:"1 / -1"}}>
-                <div style={{fontSize:10,color:G.mut,fontWeight:600,marginBottom:2}}>✉ Email</div>
-                <div style={{fontSize:13,color:G.txt}}>{selClient.email}</div>
-              </div>}
-              <div style={{gridColumn:"1 / -1"}}>
-                <div style={{fontSize:10,color:G.mut,fontWeight:600,marginBottom:2}}>📍 Address</div>
-                <div style={{fontSize:13,color:G.txt}}>{selClient.addr||"-"}</div>
-              </div>
-            </div>
-          </div>
-          {/* Tax IDs */}
-          <div style={{background:G.card,border:`1px solid ${G.bdr}`,borderRadius:12,padding:"14px 16px"}}>
-            <div style={{fontSize:11,color:G.mut,fontWeight:700,letterSpacing:.7,textTransform:"uppercase",marginBottom:10}}>Tax Identifiers</div>
-            {[{l:"PAN",v:selClient.pan,col:G.green},{l:"GSTIN",v:selClient.gstin||"Not Registered",col:selClient.gstin?G.cyn:G.bdr}].map(d=><div key={d.l} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0",borderBottom:`1px solid ${G.bdr}`}}>
-              <span style={{fontSize:12,color:G.mut,fontWeight:600}}>{d.l}</span>
-              <span style={{fontSize:12,color:d.col,fontFamily:"monospace",fontWeight:700}}>{d.v}</span>
-            </div>)}
-          </div>
-          {/* Remarks */}
-          {selClient.note&&<div style={{background:G.card,border:`1px solid ${G.bdr}`,borderRadius:12,padding:"14px 16px"}}>
-            <div style={{fontSize:11,color:G.mut,fontWeight:700,letterSpacing:.7,textTransform:"uppercase",marginBottom:8}}>📝 Remarks</div>
-            <div style={{fontSize:13,color:G.txt,lineHeight:1.6}}>{selClient.note}</div>
-          </div>}
-          {/* All Assignments */}
-          <div style={{background:G.card,border:`1px solid ${G.bdr}`,borderRadius:12,padding:"14px 16px"}}>
-            <div style={{fontSize:11,color:G.mut,fontWeight:700,letterSpacing:.7,textTransform:"uppercase",marginBottom:10}}>
-              📋 All Assignments ({works.filter(w=>w.pan===selClient.pan).length})
-            </div>
-            {works.filter(w=>w.pan===selClient.pan).length===0
-            ?<div style={{fontSize:12,color:G.bdr}}>No assignments yet</div>
-            :works.filter(w=>w.pan===selClient.pan).map(w=><div key={w.id} style={{padding:"9px 12px",background:G.surf,borderRadius:9,border:`1px solid ${G.bdr}`,marginBottom:7}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
-                <span style={{fontWeight:700,fontSize:13,color:G.txt}}>{w.svc}</span>
-                <span style={{fontSize:11,padding:"2px 8px",borderRadius:10,fontWeight:700,background:w.status==="Completed"?"#14532D":w.status==="In Progress"?"#1E1B4B":"#431407",color:w.status==="Completed"?"#4ADE80":w.status==="In Progress"?"#A5B4FC":"#FCD34D"}}>{w.status}</span>
-              </div>
-              <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
-                <span style={{fontSize:11,color:G.mut}}>📅 {w.fy}</span>
-                <span style={{fontSize:11,color:G.mut}}>👤 {w.staff}</span>
-                <span style={{fontSize:11,color:w.status==="Completed"?G.g3:(new Date(w.due)<new Date()?G.red:G.mut)}}>🗓 Due: {w.due?new Date(w.due).toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}):"-"}</span>
-              </div>
-            </div>)}
-          </div>
-          {/* Portal Credentials */}
-          <div style={{background:G.card,border:`1px solid ${G.bdr}`,borderRadius:12,padding:"14px 16px"}}>
-            <div style={{fontSize:11,color:G.mut,fontWeight:700,letterSpacing:.7,textTransform:"uppercase",marginBottom:10}}>
-              🔐 Portal Credentials ({PORTALS.filter(p=>selClient.portals[p.key]?.on).length} Active)
-            </div>
-            {PORTALS.filter(p=>selClient.portals[p.key]?.on).length===0
-            ?<div style={{fontSize:12,color:G.bdr}}>No portals configured</div>
-            :PORTALS.filter(p=>selClient.portals[p.key]?.on).map(p=><div key={p.key} style={{display:"flex",gap:10,padding:"10px 12px",background:G.surf,border:`1px solid ${p.col}25`,borderRadius:9,marginBottom:7}}>
-              <div style={{width:34,height:34,borderRadius:9,background:p.col+"18",display:"flex",alignItems:"center",justifyContent:"center",fontSize:17,flexShrink:0}}>{p.icon}</div>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:11,color:p.col,fontWeight:700,marginBottom:4}}>{p.label}</div>
-                <div style={{display:"flex",gap:6,marginBottom:3,alignItems:"center"}}>
-                  <span style={{fontSize:10,color:G.mut,minWidth:22}}>ID</span>
-                  <span style={{fontSize:12,color:G.wh,fontFamily:"monospace",fontWeight:600,flex:1,overflow:"hidden",textOverflow:"ellipsis"}}>{selClient.portals[p.key].id||"-"}</span>
-                  {selClient.portals[p.key].id && <button onClick={()=>{navigator.clipboard.writeText(selClient.portals[p.key].id);toast("ID copied!");}} style={{background:"none",border:"none",cursor:"pointer",color:G.mut,fontSize:10,padding:"0 2px",display:"inline-flex",alignItems:"center"}} title="Copy ID">📋</button>}
-                </div>
-                <div style={{display:"flex",gap:6,alignItems:"center"}}>
-                  <span style={{fontSize:10,color:G.mut,minWidth:22}}>PW</span>
-                  <PortalPw pw={selClient.portals[p.key].pw} pid={selClient.pan+"_"+p.key} toast={toast}/>
-                </div>
-              </div>
-            </div>)}
-          </div>
-        </div>
-      </div>
-    </div>}
+
     <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
       <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>{["All","Pending","In Progress","Completed","Overdue"].map(f=><button key={f} onClick={()=>setFlt(f)} style={{padding:"5px 12px",borderRadius:18,border:`1.5px solid ${flt===f?G.green:G.bdr}`,cursor:"pointer",fontSize:12,fontWeight:600,background:flt===f?G.green+"18":"transparent",color:flt===f?G.green:G.mut}}>{f} <span style={{opacity:.6}}>({cnt[f]})</span></button>)}</div>
       <div style={{display:"flex",gap:5,flexWrap:"wrap",padding:"3px 8px",background:G.card,border:`1px solid ${G.bdr}`,borderRadius:20,alignItems:"center"}}>
@@ -2858,7 +2783,7 @@ function WorkTracker({works,setWorks,clients,ownerOn,dd,pws,toast,invoices,setIn
         const linkableInvs=(invoices||[]).filter(inv=>inv.pan===w.pan&&(!inv.workId||inv.workId===""));
         return <tr key={w.id} style={{borderTop:`1px solid ${G.bdr}`,background:isOD(w)?"#450A0A08":i%2?"#0F1D1408":"transparent"}}>
           <td style={{padding:"9px 11px",whiteSpace:"nowrap"}}>
-                  <button onClick={()=>setSelClient(clients.find(c=>c.pan===w.pan)||null)} style={{background:"none",border:"none",cursor:"pointer",fontWeight:700,color:G.green,fontSize:12,padding:0,textDecoration:"underline",textUnderlineOffset:3,textDecorationColor:G.green+"55",whiteSpace:"nowrap"}} title="View client details">{w.cn}</button>
+                  <button onClick={()=>onViewProfile(w.pan)} style={{background:"none",border:"none",cursor:"pointer",fontWeight:700,color:G.green,fontSize:12,padding:0,textDecoration:"underline",textUnderlineOffset:3,textDecorationColor:G.green+"55",whiteSpace:"nowrap"}} title="View client details">{w.cn}</button>
                 </td>
           <td style={{padding:"9px 11px",color:G.g3,fontFamily:"monospace",fontSize:11}}>{w.pan}</td>
           <td style={{padding:"9px 11px",color:G.mut,whiteSpace:"nowrap",maxWidth:120,overflow:"hidden",textOverflow:"ellipsis"}}>{w.svc}</td>
@@ -8506,6 +8431,7 @@ export default function App(){
   const [dbLoading, setDbLoading] = useState(true);
   const [syncEnabled, setSyncEnabled] = useState(false);
   const [globalClientEditPan, setGlobalClientEditPan] = useState(null);
+  const [globalClientProfilePan, setGlobalClientProfilePan] = useState(null);
   const [globalSearchQ, setGlobalSearchQ] = useState("");
   const [openComputationId, setOpenComputationId] = useState(null);
   const [openInvoiceId, setOpenInvoiceId] = useState(null);
@@ -9624,7 +9550,7 @@ export default function App(){
                       <div>
                         <div style={{padding:"6px 12px",fontSize:10,fontWeight:800,color:G.green,background:`${G.green}0A`,borderBottom:`1.5px solid ${G.bdr}22`}}>📁 CLIENTS</div>
                         {clientMatches.map(c => (
-                          <div key={c.pan} onClick={() => { setGlobalClientEditPan(c.pan); setGlobalSearchQ(""); }}
+                          <div key={c.pan} onClick={() => { setGlobalClientProfilePan(c.pan); setGlobalSearchQ(""); }}
                             style={{padding:"8px 12px",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:`1px solid ${G.bdr}11` }}
                             onMouseEnter={e=>e.currentTarget.style.background=G.bdr} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                             <div style={{minWidth:0,flex:1,textAlign:"left"}}>
@@ -9749,9 +9675,9 @@ export default function App(){
           </div>)}
         {tab==="add"&&sub==="client"&&<AddClient clients={clients} setClients={setClients} dd={dd} toast={toast}/>}
         {tab==="add"&&sub==="work"&&<AssignWork clients={clients} works={works} setWorks={setWorks} dd={dd} toast={toast}/>}
-        {tab==="clients"&&<ClientList clients={clients} setClients={setClients} dd={dd} toast={toast} onWhatsApp={handleWhatsApp} works={works} invoices={invoices} setTab={setTab} setOpenWorkId={setOpenWorkId}/>}
+        {tab==="clients"&&<ClientList clients={clients} setClients={setClients} dd={dd} toast={toast} onWhatsApp={handleWhatsApp} works={works} invoices={invoices} setTab={setTab} setOpenWorkId={setOpenWorkId} onViewProfile={setGlobalClientProfilePan}/>}
         {tab==="itr"&&<ITRComputationTab clients={clients} setClients={setClients} computations={computations} setComputations={setComputations} dd={dd} toast={toast} openComputationId={openComputationId} setOpenComputationId={setOpenComputationId} onWhatsApp={handleWhatsApp}/>}
-        {tab==="tracker"&&<WorkTracker works={works} setWorks={setWorks} clients={clients} ownerOn={ownerOn} dd={dd} pws={pws} toast={toast} invoices={invoices} setInvoices={setInvoices} receipts={receipts} openWorkId={openWorkId} setOpenWorkId={setOpenWorkId} onWhatsApp={handleWhatsApp}/>}
+        {tab==="tracker"&&<WorkTracker works={works} setWorks={setWorks} clients={clients} ownerOn={ownerOn} dd={dd} pws={pws} toast={toast} invoices={invoices} setInvoices={setInvoices} receipts={receipts} openWorkId={openWorkId} setOpenWorkId={setOpenWorkId} onWhatsApp={handleWhatsApp} onViewProfile={setGlobalClientProfilePan}/>}
         {tab==="invoice"&&(ownerOn?<InvoiceModule invoices={invoices} setInvoices={setInvoices} receipts={receipts} setReceipts={setReceipts} clients={clients} works={works} dd={dd} toast={toast} firmSettings={firmSettings} setFirmSettings={setFirmSettings} openInvoiceId={openInvoiceId} setOpenInvoiceId={setOpenInvoiceId} onWhatsApp={handleWhatsApp}/>
           :<div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"60vh",flexDirection:"column",gap:14}}>
             <Logo sz={64}/><div style={{fontWeight:700,fontSize:17,marginTop:8}}>Owner Access Required</div>
@@ -9777,6 +9703,20 @@ export default function App(){
             setGlobalClientEditPan(null);
             toast("Client updated!");
           }}
+        />
+      ) : null;
+    })()}
+    {globalClientProfilePan && (() => {
+      const c = clients.find(x => x.pan === globalClientProfilePan);
+      return c ? (
+        <ClientProfilePanel
+          client={c}
+          onClose={() => setGlobalClientProfilePan(null)}
+          works={works}
+          setTab={setTab}
+          setOpenWorkId={setOpenWorkId}
+          setEditClient={setGlobalClientEditPan}
+          toast={toast}
         />
       ) : null;
     })()}
