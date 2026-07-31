@@ -1170,7 +1170,7 @@ function AssignWork({clients,works,setWorks,dd,toast}){
 
 // ─── Client List ──────────────────────────────────────────────────────────────
 function ClientList({clients,setClients,dd,toast,onWhatsApp}){
-  const[q,setQ]=useState(""),[view,setView]=useState("grid"),[opP,setOpP]=useState({}),[vpw,setVpw]=useState({}),[editC,setEditC]=useState(null);
+  const[q,setQ]=useState(""),[view,setView]=useState("list"),[opP,setOpP]=useState({}),[vpw,setVpw]=useState({}),[editC,setEditC]=useState(null);
   const[delC,setDelC]=useState(null);
   const[showImport,setShowImport]=useState(false),[importBusy,setImportBusy]=useState(false),[importResult,setImportResult]=useState(null);
   const list=useMemo(()=>{if(!q)return clients;const lq=q.toLowerCase();return clients.filter(c=>c.pan.toLowerCase().includes(lq)||c.name.toLowerCase().includes(lq)||c.mob.includes(q));},[q,clients]);
@@ -1859,7 +1859,7 @@ function InvoiceForm({invoices,setInvoices,clients,works,dd,toast,onClose,genId,
 
 // ─── Invoice Print View ───────────────────────────────────────────────────────
 function InvoicePrint({inv,clients,firmSettings,onClose,toast}){
-  const [printStatus, setPrintStatus] = useState(true);
+  const [printStatus, setPrintStatus] = useState(false);
   const cl=clients.find(c=>c.pan===inv.pan);
   const F=firmSettings||{};
   const isGST=(inv.gst||0)>0;
