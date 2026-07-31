@@ -1546,7 +1546,7 @@ function InvoiceModule({invoices,setInvoices,receipts,setReceipts,clients,works,
                 <div style={{fontWeight:600,color:G.txt,whiteSpace:"nowrap"}}>{inv.clientName}</div>
                 <div style={{fontSize:10,color:G.mut,fontFamily:"monospace"}}>{inv.pan}</div>
               </td>
-              <td style={{padding:"10px 12px",color:G.mut,maxWidth:140,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{inv.service}</td>
+              <td style={{padding:"10px 12px",color:G.mut,maxWidth:140,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{inv.service ? inv.service.split(", ").map(s => s.split("|")[0]).join(", ") : "-"}</td>
               <td style={{padding:"10px 12px",color:G.mut}}>{inv.fy}</td>
               <td style={{padding:"10px 12px",color:G.txt,fontWeight:600}}>{inr(inv.amount)}</td>
               <td style={{padding:"10px 12px",color:G.mut}}>{inv.gst}%</td>
@@ -1650,8 +1650,8 @@ function InvoiceForm({invoices,setInvoices,clients,works,dd,toast,onClose,genId,
       id:finalInvId,
       date:f.date, pan:f.pan, clientName:selClient?.name||f.clientName,
       workId:f.workId,
-      items:items.map(it=>({service:it.service.trim(),desc:(it.desc||"").trim(),qty:Number(it.qty)||1,rate:Number(it.rate)||0,amount:(Number(it.qty)||1)*(Number(it.rate)||0)})),
-      service:items.map(it=>it.service.trim()).join(", "), fy:f.fy,
+      items:items.map(it=>({service:it.service.split("|")[0].trim(),desc:(it.desc||"").trim(),qty:Number(it.qty)||1,rate:Number(it.rate)||0,amount:(Number(it.qty)||1)*(Number(it.rate)||0)})),
+      service:items.map(it=>it.service.split("|")[0].trim()).join(", "), fy:f.fy,
       subTotal, discount, amount:taxable, gst:Number(f.gst),
       gstAmt, total, status:computedStatus, note:f.note,
     };
@@ -1725,7 +1725,27 @@ function InvoiceForm({invoices,setInvoices,clients,works,dd,toast,onClose,genId,
         {clientWorks.length>0&&<F label="Link to Work Assignment (optional)">
           <select value={f.workId} onChange={e=>{
             const w=works.find(x=>x.id===Number(e.target.value));
-            setF(p=>{const its=[...(p.items||[])];if(w?.svc){if(!its.length)its.push({service:w.svc,desc:"",qty:"1",rate:""});else its[0]={...its[0],service:w.svc};}return {...p,workId:e.target.value?Number(e.target.value):"",service:w?.svc||p.service,fy:w?.fy||p.fy,items:its};});
+            setF(p=>{
+              const its=[...(p.items||[])];
+              if(w?.svc){
+                let sName = w.svc;
+                let sRate = "";
+                if (w.svc.includes("|")) {
+                  const [name, price] = w.svc.split("|");
+                  sName = name;
+                  sRate = price;
+                } else if (dd.billingItems) {
+                  const match = dd.billingItems.find(bi => bi.split("|")[0] === w.svc);
+                  if (match) {
+                    sRate = match.split("|")[1] || "";
+                  }
+                }
+                if(!its.length) its.push({service:sName,desc:"",qty:"1",rate:sRate});
+                else its[0]={...its[0],service:sName,rate:sRate||its[0].rate};
+              }
+              const finalSvc = its.map(it=>it.service).join(", ");
+              return {...p,workId:e.target.value?Number(e.target.value):"",service:finalSvc||w?.svc||p.service,fy:w?.fy||p.fy,items:its};
+            });
           }} style={{...IS,cursor:"pointer"}}>
             <option value="">- Select work (auto-fills service & FY) -</option>
             {clientWorks.map(w=><option key={w.id} value={w.id} style={{background:"#0B1610"}}>{w.svc} - {w.fy} - {w.status}</option>)}
@@ -2101,7 +2121,7 @@ function InvoicePrint({inv,clients,firmSettings,onClose,toast}){
               <td style={{...cs,padding:"10px",fontStyle:"italic",borderRight:BDR,verticalAlign:"top"}}>
                 {it.type==="reimbursement"
                   ?<span>{it.desc||"Reimbursement"} <em style={{fontSize:cs.fontSize-1,color:"#666"}}>(Reimbursement)</em></span>
-                  :<span>{it.service}{it.desc?` ( ${it.desc} )`:""}</span>}
+                  :<span>{(it.service || "").split("|")[0]}{it.desc?` ( ${it.desc} )`:""}</span>}
               </td>
               <td style={{...cs,padding:"10px",textAlign:"center",borderRight:BDR,verticalAlign:"top"}}>{it.type==="reimbursement"?"1":it.qty||1}</td>
               <td style={{...cs,padding:"10px",textAlign:"right",borderRight:BDR,verticalAlign:"top",fontVariantNumeric:"tabular-nums"}}>{it.type==="reimbursement"?"-":fmt(it.rate)}</td>
@@ -2423,7 +2443,7 @@ function ReceiptForm({receipts,setReceipts,invoices,setInvoices,clients,dd,toast
             <span style={{color:G.mut}}>Total: <strong style={{color:G.green}}>{inr(selInv.total)}</strong></span>
             <span style={{color:G.mut}}>Status: <strong style={{color:selInv.status==="Paid"?G.g3:G.red}}>{selInv.status}</strong></span>
           </div>
-          <div style={{marginTop:4,color:G.mut}}>Client: <strong style={{color:G.txt}}>{selInv.clientName}</strong> · {selInv.service}</div>
+          <div style={{marginTop:4,color:G.mut}}>Client: <strong style={{color:G.txt}}>{selInv.clientName}</strong> · {selInv.service ? selInv.service.split(", ").map(s => s.split("|")[0]).join(", ") : ""}</div>
         </div>}
         <div style={{display:"flex",gap:12}}>
           <F label="Payment Date" req w="calc(50% - 6px)">
