@@ -9565,6 +9565,7 @@ export default function App(){
             const clientMatches = clients.filter(c => 
               (c.name||"").toLowerCase().includes(lq) || 
               (c.pan||"").toLowerCase().includes(lq) || 
+              (c.biz||"").toLowerCase().includes(lq) || 
               (c.mob||"").toLowerCase().includes(lq) || 
               (c.email||"").toLowerCase().includes(lq)
             ).slice(0, 4);
@@ -9628,6 +9629,7 @@ export default function App(){
                             onMouseEnter={e=>e.currentTarget.style.background=G.bdr} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                             <div style={{minWidth:0,flex:1,textAlign:"left"}}>
                               <div style={{fontWeight:600,fontSize:11,color:G.wh,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.name}</div>
+                              {c.biz && <div style={{fontSize:10,color:G.mut,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",marginTop:1}}>🏢 {c.biz}</div>}
                               <div style={{fontSize:9,color:G.cyn,fontFamily:"monospace",fontWeight:700,marginTop:2}}>{c.pan}</div>
                             </div>
                             <div style={{fontSize:9,color:G.mut,textAlign:"right",marginLeft:8}}>
