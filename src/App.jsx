@@ -1270,9 +1270,12 @@ function ClientList({clients,setClients,dd,toast,onWhatsApp}){
     <span style={{fontSize:14,flexShrink:0}}>{p.icon}</span>
     <div style={{flex:1,minWidth:0}}>
       <div style={{fontSize:10,color:p.col,fontWeight:700}}>{p.label}</div>
-      <div style={{fontSize:11,color:G.mut}}>ID: <span style={{color:G.wh,fontFamily:"monospace"}}>{c.portals[p.key].id||"-"}</span></div>
+      <div style={{fontSize:11,color:G.mut,display:"flex",alignItems:"center",gap:4}}>ID: <span style={{color:G.wh,fontFamily:"monospace"}}>{c.portals[p.key].id||"-"}</span>
+        {c.portals[p.key].id && <button onClick={()=>{navigator.clipboard.writeText(c.portals[p.key].id);toast("ID copied!");}} style={{background:"none",border:"none",cursor:"pointer",color:G.mut,fontSize:10,padding:"0 2px",display:"inline-flex",alignItems:"center"}} title="Copy ID">📋</button>}
+      </div>
       <div style={{fontSize:11,color:G.mut,display:"flex",alignItems:"center",gap:4}}>PW: <span style={{color:G.wh,fontFamily:"monospace"}}>{vpw[`${c.pan}_${p.key}`]?c.portals[p.key].pw||"-":"********"}</span>
         <button onClick={()=>setVpw(s=>({...s,[`${c.pan}_${p.key}`]:!s[`${c.pan}_${p.key}`]}))} style={{background:"none",border:"none",cursor:"pointer",color:G.mut,fontSize:12,padding:0}}>{vpw[`${c.pan}_${p.key}`]?"🙈":"👁"}</button>
+        {c.portals[p.key].pw && <button onClick={()=>{navigator.clipboard.writeText(c.portals[p.key].pw);toast("Password copied!");}} style={{background:"none",border:"none",cursor:"pointer",color:G.mut,fontSize:10,padding:"0 2px",display:"inline-flex",alignItems:"center"}} title="Copy Password">📋</button>}
       </div>
     </div>
   </div>)}
@@ -1281,9 +1284,12 @@ function ClientList({clients,setClients,dd,toast,onWhatsApp}){
     <span style={{fontSize:14,flexShrink:0}}>🔑</span>
     <div style={{flex:1,minWidth:0}}>
       <div style={{fontSize:10,color:G.cyn,fontWeight:700}}>{pwItem.type}{pwItem.label?" · "+pwItem.label:""}</div>
-      <div style={{fontSize:11,color:G.mut}}>ID: <span style={{color:G.wh,fontFamily:"monospace"}}>{pwItem.id||"-"}</span></div>
+      <div style={{fontSize:11,color:G.mut,display:"flex",alignItems:"center",gap:4}}>ID: <span style={{color:G.wh,fontFamily:"monospace"}}>{pwItem.id||"-"}</span>
+        {pwItem.id && <button onClick={()=>{navigator.clipboard.writeText(pwItem.id);toast("ID copied!");}} style={{background:"none",border:"none",cursor:"pointer",color:G.mut,fontSize:10,padding:"0 2px",display:"inline-flex",alignItems:"center"}} title="Copy ID">📋</button>}
+      </div>
       <div style={{fontSize:11,color:G.mut,display:"flex",alignItems:"center",gap:4}}>PW: <span style={{color:G.wh,fontFamily:"monospace"}}>{vpw[`${c.pan}_x${i}`]?pwItem.pw||"-":"********"}</span>
         <button onClick={()=>setVpw(s=>({...s,[`${c.pan}_x${i}`]:!s[`${c.pan}_x${i}`]}))} style={{background:"none",border:"none",cursor:"pointer",color:G.mut,fontSize:12,padding:0}}>{vpw[`${c.pan}_x${i}`]?"🙈":"👁"}</button>
+        {pwItem.pw && <button onClick={()=>{navigator.clipboard.writeText(pwItem.pw);toast("Password copied!");}} style={{background:"none",border:"none",cursor:"pointer",color:G.mut,fontSize:10,padding:"0 2px",display:"inline-flex",alignItems:"center"}} title="Copy Password">📋</button>}
       </div>
     </div>
   </div>)}
@@ -1358,7 +1364,7 @@ function ClientList({clients,setClients,dd,toast,onWhatsApp}){
         </div>
         {c.email&&<div style={{padding:"0 15px 9px",fontSize:11,color:G.mut,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>✉ {c.email}</div>}
         <div style={{padding:"9px 15px",borderTop:`1px solid ${G.bdr}`,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-          <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>{PORTALS.filter(p=>c.portals[p.key]?.on).map(p=><span key={p.key} style={{fontSize:10,padding:"2px 7px",borderRadius:10,background:p.col+"18",color:p.col,fontWeight:600}}>{p.icon}</span>)}{!PORTALS.some(p=>c.portals[p.key]?.on)&&<span style={{fontSize:11,color:G.bdr}}>No portals</span>}</div>
+          <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>{PORTALS.filter(p=>c.portals[p.key]?.on).map(p=><span key={p.key} style={{fontSize:10,padding:"2px 7px",borderRadius:10,background:p.col+"18",color:p.col,fontWeight:600}}>🔑</span>)}{!PORTALS.some(p=>c.portals[p.key]?.on)&&<span style={{fontSize:11,color:G.bdr}}>No portals</span>}</div>
           <button onClick={()=>setOpP(s=>({...s,[c.pan]:!s[c.pan]}))} style={{fontSize:11,padding:"3px 9px",borderRadius:7,border:`1px solid ${G.bdr}`,background:"transparent",color:G.mut,cursor:"pointer",fontWeight:600,whiteSpace:"nowrap"}}>{opP[c.pan]?"🙈 Hide":"🔑 View"}</button>
         </div>
         {opP[c.pan]&&<div style={{padding:"9px 15px",borderTop:`1px solid ${G.bdr}`,background:G.bg}}><PortBlock c={c}/></div>}
@@ -1374,7 +1380,7 @@ function ClientList({clients,setClients,dd,toast,onWhatsApp}){
         <td style={{padding:"9px 12px",color:G.mut,whiteSpace:"nowrap"}}>{c.state}</td>
         <td style={{padding:"9px 12px",color:G.mut}}>{c.src}</td>
         <td style={{padding:"9px 12px"}}><Bdg label={c.status}/></td>
-        <td style={{padding:"9px 12px"}}><div style={{display:"flex",gap:3}}>{PORTALS.filter(p=>c.portals[p.key]?.on).map(p=><span key={p.key} style={{fontSize:11,padding:"1px 6px",borderRadius:8,background:p.col+"18",color:p.col,fontWeight:600}}>{p.icon}</span>)}</div></td>
+        <td style={{padding:"9px 12px"}}><div style={{display:"flex",gap:3}}>{PORTALS.filter(p=>c.portals[p.key]?.on).map(p=><span key={p.key} style={{fontSize:11,padding:"1px 6px",borderRadius:8,background:p.col+"18",color:p.col,fontWeight:600}}>🔑</span>)}</div></td>
         <td style={{padding:"9px 12px"}}>
           <div style={{display:"flex",gap:5}}>
             <button onClick={()=>{if(onWhatsApp)onWhatsApp(c);}} style={{fontSize:11,padding:"3px 9px",borderRadius:7,border:`1px solid ${G.bdr}`,background:"transparent",color:G.green,cursor:"pointer",fontWeight:600}}>💬 WhatsApp</button><button onClick={()=>setEditC(c)} style={{fontSize:11,padding:"3px 9px",borderRadius:7,border:`1px solid ${G.bdr}`,background:"transparent",color:G.cyn,cursor:"pointer",fontWeight:600}}>✏️ Edit</button><button onClick={()=>setClients(p=>p.map(x=>x.pan===c.pan?{...x,status:x.status==="Active"?"Inactive":"Active"}:x))} style={{fontSize:11,padding:"3px 9px",borderRadius:7,border:`1px solid ${G.bdr}`,background:"transparent",color:G.amb,cursor:"pointer"}}>{c.status==="Active"?"⏸ Deactivate":"▶ Activate"}</button>
@@ -2474,11 +2480,12 @@ function ReceiptForm({receipts,setReceipts,invoices,setInvoices,clients,dd,toast
   </div>;
 }
 
-function PortalPw({pw,pid}){
+function PortalPw({pw,pid,toast}){
   const[show,setShow]=useState(false);
   return <div style={{display:"flex",alignItems:"center",gap:5,flex:1}}>
     <span style={{fontSize:12,color:"#F0FDF4",fontFamily:"monospace",fontWeight:600,flex:1}}>{show?pw||"-":"********"}</span>
     <button onClick={()=>setShow(s=>!s)} style={{background:"none",border:"none",cursor:"pointer",color:"#86EFAC",fontSize:13,padding:"0 2px",flexShrink:0}}>{show?"🙈":"👁"}</button>
+    {pw && <button onClick={()=>{navigator.clipboard.writeText(pw); if(toast) toast("Password copied!");}} style={{background:"none",border:"none",cursor:"pointer",color:"#86EFAC",fontSize:11,padding:"0 2px",flexShrink:0}} title="Copy Password">📋</button>}
   </div>;
 }
 
@@ -2622,13 +2629,14 @@ function WorkTracker({works,setWorks,clients,ownerOn,dd,pws,toast,invoices,setIn
               <div style={{width:34,height:34,borderRadius:9,background:p.col+"18",display:"flex",alignItems:"center",justifyContent:"center",fontSize:17,flexShrink:0}}>{p.icon}</div>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontSize:11,color:p.col,fontWeight:700,marginBottom:4}}>{p.label}</div>
-                <div style={{display:"flex",gap:6,marginBottom:3}}>
+                <div style={{display:"flex",gap:6,marginBottom:3,alignItems:"center"}}>
                   <span style={{fontSize:10,color:G.mut,minWidth:22}}>ID</span>
                   <span style={{fontSize:12,color:G.wh,fontFamily:"monospace",fontWeight:600,flex:1,overflow:"hidden",textOverflow:"ellipsis"}}>{selClient.portals[p.key].id||"-"}</span>
+                  {selClient.portals[p.key].id && <button onClick={()=>{navigator.clipboard.writeText(selClient.portals[p.key].id);toast("ID copied!");}} style={{background:"none",border:"none",cursor:"pointer",color:G.mut,fontSize:10,padding:"0 2px",display:"inline-flex",alignItems:"center"}} title="Copy ID">📋</button>}
                 </div>
                 <div style={{display:"flex",gap:6,alignItems:"center"}}>
                   <span style={{fontSize:10,color:G.mut,minWidth:22}}>PW</span>
-                  <PortalPw pw={selClient.portals[p.key].pw} pid={selClient.pan+"_"+p.key}/>
+                  <PortalPw pw={selClient.portals[p.key].pw} pid={selClient.pan+"_"+p.key} toast={toast}/>
                 </div>
               </div>
             </div>)}
@@ -2738,15 +2746,18 @@ function WorkTracker({works,setWorks,clients,ownerOn,dd,pws,toast,invoices,setIn
           </>:<td style={{padding:"9px 11px",color:G.bdr,fontSize:12}}>🔒 Locked</td>}
           <td style={{padding:"9px 11px"}}>{od>0?<span style={{background:"#450A0A",color:G.red,padding:"2px 7px",borderRadius:8,fontWeight:700}}>{od}d</span>:<span style={{color:G.bdr}}>-</span>}</td>
           <td style={{padding:"9px 11px"}}>
-            <div style={{display:"flex",gap:3,flexWrap:"wrap"}}>{aP.slice(0,3).map(p=><span key={p.key} title={p.label} onClick={()=>setOpP(s=>({...s,[w.id]:!s[w.id]}))} style={{fontSize:13,cursor:"pointer"}}>{p.icon}</span>)}
+            <div style={{display:"flex",gap:3,flexWrap:"wrap"}}>{aP.slice(0,3).map(p=><span key={p.key} title={p.label} onClick={()=>setOpP(s=>({...s,[w.id]:!s[w.id]}))} style={{fontSize:13,cursor:"pointer"}}>🔑</span>)}
               {aP.length>0&&<button onClick={()=>setOpP(s=>({...s,[w.id]:!s[w.id]}))} style={{background:"none",border:"none",cursor:"pointer",color:G.mut,fontSize:11,padding:"0 2px"}}>🔑</button>}
             </div>
             {opP[w.id]&&cl&&<div style={{marginTop:5,background:G.surf,border:`1px solid ${G.bdr}`,borderRadius:8,padding:"8px 10px",minWidth:180,position:"relative",zIndex:10}}>
-              {aP.map(p=><div key={p.key} style={{marginBottom:4}}>
+              {aP.map(p=><div key={p.key} style={{marginBottom:6}}>
                 <div style={{fontSize:10,color:p.col,fontWeight:700}}>{p.icon} {p.label}</div>
-                <div style={{fontSize:11,color:G.mut}}>ID: <span style={{color:G.wh,fontFamily:"monospace"}}>{cl.portals[p.key].id||"-"}</span></div>
+                <div style={{fontSize:11,color:G.mut,display:"flex",alignItems:"center",gap:4}}>ID: <span style={{color:G.wh,fontFamily:"monospace"}}>{cl.portals[p.key].id||"-"}</span>
+                  {cl.portals[p.key].id && <button onClick={()=>{navigator.clipboard.writeText(cl.portals[p.key].id);toast("ID copied!");}} style={{background:"none",border:"none",cursor:"pointer",color:G.mut,fontSize:10,padding:"0 2px",display:"inline-flex",alignItems:"center"}} title="Copy ID">📋</button>}
+                </div>
                 <div style={{fontSize:11,color:G.mut,display:"flex",alignItems:"center",gap:4}}>PW: <span style={{color:G.wh,fontFamily:"monospace"}}>{vpw[`${w.id}_${p.key}`]?cl.portals[p.key].pw||"-":"******"}</span>
                   <button onClick={()=>setVpw(s=>({...s,[`${w.id}_${p.key}`]:!s[`${w.id}_${p.key}`]}))} style={{background:"none",border:"none",cursor:"pointer",color:G.mut,fontSize:11,padding:0}}>{vpw[`${w.id}_${p.key}`]?"🙈":"👁"}</button>
+                  {cl.portals[p.key].pw && <button onClick={()=>{navigator.clipboard.writeText(cl.portals[p.key].pw);toast("Password copied!");}} style={{background:"none",border:"none",cursor:"pointer",color:G.mut,fontSize:10,padding:"0 2px",display:"inline-flex",alignItems:"center"}} title="Copy Password">📋</button>}
                 </div>
               </div>)}
               {aP.length===0&&<div style={{fontSize:12,color:G.mut}}>No portals</div>}
