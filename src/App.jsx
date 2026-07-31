@@ -1371,18 +1371,36 @@ function ClientList({clients,setClients,dd,toast,onWhatsApp}){
       </div>)}
     </div>
     :<Crd sty={{padding:0,overflow:"hidden"}}><div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
-      <thead><tr style={{background:G.bg}}>{["Name","PAN","Type","Mobile","State","Source","Status","Portals",""].map(h=><th key={h} style={{padding:"9px 12px",textAlign:"left",color:G.mut,fontWeight:600,fontSize:11,whiteSpace:"nowrap",borderBottom:`1px solid ${G.bdr}`}}>{h}</th>)}</tr></thead>
-      <tbody>{list.map((c,i)=><tr key={c.pan} style={{borderTop:`1px solid ${G.bdr}`,background:i%2?"#0F1D1408":"transparent"}}>
+      <thead><tr style={{background:G.bg}}>{["Name","PAN","Type","Mobile","Source","Status","Portals",""].map(h=><th key={h} style={{padding:"9px 12px",textAlign:"left",color:G.mut,fontWeight:600,fontSize:11,whiteSpace:"nowrap",borderBottom:`1px solid ${G.bdr}`}}>{h}</th>)}</tr></thead>
+      <tbody>{list.map((c,i)=>{
+        const hasCreds = PORTALS.some(p => c.portals?.[p.key]?.on) || (c.extraPw && c.extraPw.length > 0);
+        return <tr key={c.pan} style={{borderTop:`1px solid ${G.bdr}`,background:i%2?"#0F1D1408":"transparent"}}>
         <td style={{padding:"9px 12px"}}><div style={{fontWeight:700,color:G.txt,whiteSpace:"nowrap"}}>{c.name}</div>{c.biz&&<div style={{fontSize:11,color:G.mut}}>{c.biz}</div>}</td>
         <td style={{padding:"9px 12px",color:G.g3,fontFamily:"monospace",fontSize:11,fontWeight:700}}>{c.pan}</td>
         <td style={{padding:"9px 12px",color:G.mut,whiteSpace:"nowrap"}}>{c.type}</td>
         <td style={{padding:"9px 12px",color:G.mut}}>{c.mob}</td>
-        <td style={{padding:"9px 12px",color:G.mut,whiteSpace:"nowrap"}}>{c.state}</td>
         <td style={{padding:"9px 12px",color:G.mut}}>{c.src}</td>
         <td style={{padding:"9px 12px"}}><Bdg label={c.status}/></td>
         <td style={{padding:"9px 12px"}}>
-          <button onClick={()=>setOpP(s=>({...s,[c.pan]:!s[c.pan]}))} style={{fontSize:11,padding:"4px 10px",borderRadius:8,border:`1px solid ${opP[c.pan]?G.green:G.bdr}`,background:opP[c.pan]?G.green+"12":"transparent",color:opP[c.pan]?G.green:G.mut,cursor:"pointer",fontWeight:600}} title="View/Copy Credentials">🔑 Credentials</button>
-          {opP[c.pan]&&<div style={{marginTop:7,maxWidth:240}}><PortBlock c={c}/></div>}
+          <button 
+            onClick={()=>setOpP(s=>({...s,[c.pan]:!s[c.pan]}))} 
+            disabled={!hasCreds}
+            style={{
+              fontSize:11,
+              padding:"4px 10px",
+              borderRadius:8,
+              border:`1px solid ${!hasCreds ? G.bdr : opP[c.pan] ? G.green : G.bdr}`,
+              background: !hasCreds ? "transparent" : opP[c.pan] ? G.green+"12" : "transparent",
+              color: !hasCreds ? G.bdr : opP[c.pan] ? G.green : G.mut,
+              cursor: !hasCreds ? "not-allowed" : "pointer",
+              opacity: !hasCreds ? 0.4 : 1,
+              fontWeight:600
+            }} 
+            title={hasCreds ? "View/Copy Credentials" : "No credentials configured"}
+          >
+            🔑 Credentials
+          </button>
+          {hasCreds && opP[c.pan]&&<div style={{marginTop:7,maxWidth:240}}><PortBlock c={c}/></div>}
         </td>
         <td style={{padding:"9px 12px"}}>
           <div style={{display:"flex",gap:5}}>
@@ -1390,7 +1408,8 @@ function ClientList({clients,setClients,dd,toast,onWhatsApp}){
             <button onClick={()=>setDelC(c)} style={{fontSize:11,padding:"3px 9px",borderRadius:7,border:`1px solid ${G.red}44`,background:"#450A0A",color:G.red,cursor:"pointer",fontWeight:600}}>🗑 Delete</button>
           </div>
         </td>
-      </tr>)}</tbody>
+      </tr>;
+      })}</tbody>
     </table></div></Crd>}
     {delC&&<div style={{position:"fixed",inset:0,background:"#000C",zIndex:6000,display:"flex",alignItems:"center",justifyContent:"center"}}>
       <div style={{background:G.surf,border:`1px solid ${G.bdr}`,borderRadius:16,padding:28,width:360,boxShadow:"0 20px 60px #000C",textAlign:"center"}}>
