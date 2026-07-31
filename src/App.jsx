@@ -1169,11 +1169,11 @@ function AssignWork({clients,works,setWorks,dd,toast}){
 }
 
 // ─── Client List ──────────────────────────────────────────────────────────────
-function ClientList({clients,setClients,dd,toast,onWhatsApp}){
-  const[q,setQ]=useState(""),[view,setView]=useState("list"),[opP,setOpP]=useState({}),[vpw,setVpw]=useState({}),[editC,setEditC]=useState(null);
+function ClientList({clients,setClients,dd,toast,onWhatsApp,works,invoices,setTab,setOpenWorkId}){
+  const[q,setQ]=useState(""),[view,setView]=useState("list"),[opP,setOpP]=useState({}),[vpw,setVpw]=useState({}),[editC,setEditC]=useState(null),[selClient,setSelClient]=useState(null);
   const[delC,setDelC]=useState(null);
   const[showImport,setShowImport]=useState(false),[importBusy,setImportBusy]=useState(false),[importResult,setImportResult]=useState(null);
-  const list=useMemo(()=>{if(!q)return clients;const lq=q.toLowerCase();return clients.filter(c=>c.pan.toLowerCase().includes(lq)||c.name.toLowerCase().includes(lq)||c.mob.includes(q));},[q,clients]);
+  const list=useMemo(()=>{if(!q)return clients;const lq=q.toLowerCase();return clients.filter(c=>c.pan.toLowerCase().includes(lq)||c.name.toLowerCase().includes(lq)||(c.biz&&c.biz.toLowerCase().includes(lq))||c.mob.includes(q));},[q,clients]);
   const doDeleteClient=()=>{setClients(p=>p.filter(x=>x.pan!==delC.pan));toast(`${delC.name} deleted`,"err");setDelC(null);};
 
   // ─── Bulk CSV Import ────────────────────────────────────────────────────
@@ -1356,7 +1356,12 @@ function ClientList({clients,setClients,dd,toast,onWhatsApp}){
       {list.map(c=><div key={c.pan} style={{background:G.surf,border:`1px solid ${G.bdr}`,borderRadius:15,overflow:"hidden",transition:"border .2s"}} onMouseEnter={e=>e.currentTarget.style.borderColor=G.green+"55"} onMouseLeave={e=>e.currentTarget.style.borderColor=G.bdr}>
         <div style={{padding:"13px 15px",borderBottom:`1px solid ${G.bdr}`,display:"flex",gap:11,alignItems:"center"}}>
           <div style={{width:40,height:40,borderRadius:10,background:`linear-gradient(135deg,${G.g2},${G.green})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,fontWeight:800,color:"#fff",flexShrink:0}}>{c.name[0]}</div>
-          <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700,fontSize:13,color:G.wh,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.name}</div>{c.biz&&<div style={{fontSize:11,color:G.mut,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.biz}</div>}</div>
+          <div style={{flex:1,minWidth:0}}>
+            <button onClick={()=>setSelClient(c)} style={{background:"none",border:"none",textAlign:"left",cursor:"pointer",padding:0,fontFamily:"inherit",display:"block",width:"100%"}} title="View Client Details">
+              <div style={{fontWeight:700,fontSize:13,color:G.green,textDecoration:"underline",textUnderlineOffset:3,textDecorationColor:G.green+"55",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.name}</div>
+            </button>
+            {c.biz&&<div style={{fontSize:11,color:G.mut,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.biz}</div>}
+          </div>
           <div style={{display:"flex",gap:5,alignItems:"center",flexShrink:0}}><Bdg label={c.status}/><button onClick={()=>{if(onWhatsApp)onWhatsApp(c);}} title="Send WhatsApp Message" style={{background:"transparent",border:`1px solid ${G.bdr}`,color:G.green,borderRadius:6,padding:"3px 7px",cursor:"pointer",fontSize:12}}>💬</button><button onClick={()=>setEditC(c)} style={{background:"transparent",border:`1px solid ${G.bdr}`,color:G.cyn,borderRadius:6,padding:"3px 7px",cursor:"pointer",fontSize:12}}>✏️</button><button onClick={()=>setClients(p=>p.map(x=>x.pan===c.pan?{...x,status:x.status==="Active"?"Inactive":"Active"}:x))} title="Toggle Status" style={{background:"transparent",border:`1px solid ${G.bdr}`,color:G.amb,borderRadius:6,padding:"3px 7px",cursor:"pointer",fontSize:11}}>{c.status==="Active"?"⏸":"▶"}</button><button onClick={()=>setDelC(c)} title="Delete Client" style={{background:"#450A0A",border:`1px solid ${G.red}44`,color:G.red,borderRadius:6,padding:"3px 7px",cursor:"pointer",fontSize:12}}>🗑</button></div>
         </div>
         <div style={{padding:"11px 15px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
@@ -1375,7 +1380,12 @@ function ClientList({clients,setClients,dd,toast,onWhatsApp}){
       <tbody>{list.map((c,i)=>{
         const hasCreds = PORTALS.some(p => c.portals?.[p.key]?.on) || (c.extraPw && c.extraPw.length > 0);
         return <tr key={c.pan} style={{borderTop:`1px solid ${G.bdr}`,background:i%2?"#0F1D1408":"transparent"}}>
-        <td style={{padding:"9px 12px"}}><div style={{fontWeight:700,color:G.txt,whiteSpace:"nowrap"}}>{c.name}</div>{c.biz&&<div style={{fontSize:11,color:G.mut}}>{c.biz}</div>}</td>
+        <td style={{padding:"9px 12px"}}>
+          <button onClick={()=>setSelClient(c)} style={{background:"none",border:"none",textAlign:"left",cursor:"pointer",padding:0,fontFamily:"inherit"}} title="View Client Details">
+            <div style={{fontWeight:700,color:G.green,textDecoration:"underline",textUnderlineOffset:3,textDecorationColor:G.green+"55",whiteSpace:"nowrap"}}>{c.name}</div>
+          </button>
+          {c.biz&&<div style={{fontSize:11,color:G.mut}}>{c.biz}</div>}
+        </td>
         <td style={{padding:"9px 12px",color:G.g3,fontFamily:"monospace",fontSize:11,fontWeight:700}}>{c.pan}</td>
         <td style={{padding:"9px 12px",color:G.mut,whiteSpace:"nowrap"}}>{c.type}</td>
         <td style={{padding:"9px 12px",color:G.mut}}>{c.mob}</td>
@@ -1411,6 +1421,141 @@ function ClientList({clients,setClients,dd,toast,onWhatsApp}){
       </tr>;
       })}</tbody>
     </table></div></Crd>}
+    {selClient&&<div style={{position:"fixed",inset:0,zIndex:4000,display:"flex"}} onClick={()=>setSelClient(null)}>
+      <div style={{flex:1,background:"#000A"}}/>
+      <div style={{width:"min(520px,95vw)",background:G.surf,borderLeft:`1px solid ${G.green}44`,height:"100%",overflow:"auto",boxShadow:"-20px 0 60px #000C",animation:"slidePanel .25s ease"}} onClick={e=>e.stopPropagation()}>
+        {/* Panel Header */}
+        <div style={{background:`linear-gradient(135deg,${G.gd},${G.g2})`,padding:"18px 20px",display:"flex",gap:14,alignItems:"center",position:"sticky",top:0,zIndex:1}}>
+          <div style={{width:50,height:50,borderRadius:13,background:`linear-gradient(135deg,${G.g2},${G.green})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,fontWeight:800,color:"#fff",flexShrink:0,border:"2px solid #4ADE8055"}}>{selClient.name[0]}</div>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontWeight:800,fontSize:16,color:G.wh,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{selClient.name}</div>
+            {selClient.biz&&<div style={{fontSize:12,color:G.g3,marginTop:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{selClient.biz}</div>}
+            <div style={{display:"flex",gap:6,marginTop:5,flexWrap:"wrap"}}>
+              <span style={{fontSize:11,color:G.green,fontWeight:700,fontFamily:"monospace",background:G.green+"18",padding:"2px 9px",borderRadius:8}}>🆔 {selClient.pan}</span>
+              <span style={{fontSize:11,fontWeight:700,padding:"2px 9px",borderRadius:8,background:selClient.status==="Active"?"#14532D":"#450A0A",color:selClient.status==="Active"?"#4ADE80":"#FCA5A5"}}>{selClient.status}</span>
+              <span style={{fontSize:11,color:G.mut,background:G.bdr,padding:"2px 9px",borderRadius:8}}>{selClient.type}</span>
+            </div>
+          </div>
+          <button onClick={()=>{setEditC(selClient);setSelClient(null);}} title="Edit Client Details" style={{background:"#ffffff15",border:"none",color:G.cyn,borderRadius:8,width:32,height:32,cursor:"pointer",fontSize:15,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>✏️</button>
+          <button onClick={()=>setSelClient(null)} style={{background:"#ffffff15",border:"none",color:G.wh,borderRadius:8,width:32,height:32,cursor:"pointer",fontSize:16,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
+        </div>
+        <div style={{padding:"18px 20px",display:"flex",flexDirection:"column",gap:16}}>
+          {/* Contact & Info */}
+          <div style={{background:G.card,border:`1px solid ${G.bdr}`,borderRadius:12,padding:"14px 16px"}}>
+            <div style={{fontSize:11,color:G.mut,fontWeight:700,letterSpacing:.7,textTransform:"uppercase",marginBottom:10}}>Contact & Information</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+              {[{l:"📱 Mobile",v:selClient.mob},{l:"📍 State",v:selClient.state},{l:"📣 Source",v:selClient.src},{l:"📅 Since",v:selClient.added?new Date(selClient.added).toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}):"-"}].map(d=><div key={d.l}>
+                <div style={{fontSize:10,color:G.mut,fontWeight:600,marginBottom:2}}>{d.l}</div>
+                <div style={{fontSize:13,color:G.txt,fontWeight:600}}>{d.v||"-"}</div>
+              </div>)}
+              {selClient.email&&<div style={{gridColumn:"1 / -1"}}>
+                <div style={{fontSize:10,color:G.mut,fontWeight:600,marginBottom:2}}>✉ Email</div>
+                <div style={{fontSize:13,color:G.txt}}>{selClient.email}</div>
+              </div>}
+              <div style={{gridColumn:"1 / -1"}}>
+                <div style={{fontSize:10,color:G.mut,fontWeight:600,marginBottom:2}}>📍 Address</div>
+                <div style={{fontSize:13,color:G.txt}}>{selClient.addr||"-"}</div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Tax Identifiers & Personal Details */}
+          <div style={{background:G.card,border:`1px solid ${G.bdr}`,borderRadius:12,padding:"14px 16px"}}>
+            <div style={{fontSize:11,color:G.mut,fontWeight:700,letterSpacing:.7,textTransform:"uppercase",marginBottom:10}}>Tax & Personal Details</div>
+            {[
+              {l:"PAN",v:selClient.pan,col:G.green,mono:true},
+              {l:"GSTIN",v:selClient.gstin||"Not Registered",col:selClient.gstin?G.cyn:G.bdr,mono:true},
+              {l:"Aadhaar Number",v:selClient.aadhaar||"-",mono:true},
+              {l:"Date of Birth",v:selClient.dob?new Date(selClient.dob).toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}):"-"},
+              {l:"Father's Name",v:selClient.fatherName||"-"},
+              {l:"Gender",v:selClient.gender||"-"},
+              {l:"Residential Status",v:selClient.residentialStatus||"-"},
+              {l:"Pin Code",v:selClient.pin||"-",mono:true}
+            ].map(d=><div key={d.l} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0",borderBottom:`1px solid ${G.bdr}`}}>
+              <span style={{fontSize:12,color:G.mut,fontWeight:600}}>{d.l}</span>
+              <span style={{fontSize:12,color:d.col||G.txt,fontFamily:d.mono?"monospace":"inherit",fontWeight:700}}>{d.v}</span>
+            </div>)}
+          </div>
+
+          {/* Bank & Financial Details */}
+          <div style={{background:G.card,border:`1px solid ${G.bdr}`,borderRadius:12,padding:"14px 16px"}}>
+            <div style={{fontSize:11,color:G.mut,fontWeight:700,letterSpacing:.7,textTransform:"uppercase",marginBottom:10}}>Bank & Financial Details</div>
+            {[
+              {l:"Bank Name",v:selClient.bankName||"-"},
+              {l:"IFSC Code",v:selClient.ifsc||"-",mono:true},
+              {l:"Account Number",v:selClient.accountNumber||"-",mono:true},
+              {l:"ITR Filing Type",v:selClient.itrType||"-",col:G.amb}
+            ].map(d=><div key={d.l} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0",borderBottom:`1px solid ${G.bdr}`}}>
+              <span style={{fontSize:12,color:G.mut,fontWeight:600}}>{d.l}</span>
+              <span style={{fontSize:12,color:d.col||G.txt,fontFamily:d.mono?"monospace":"inherit",fontWeight:700}}>{d.v}</span>
+            </div>)}
+          </div>
+
+          {/* Remarks */}
+          {selClient.note&&<div style={{background:G.card,border:`1px solid ${G.bdr}`,borderRadius:12,padding:"14px 16px"}}>
+            <div style={{fontSize:11,color:G.mut,fontWeight:700,letterSpacing:.7,textTransform:"uppercase",marginBottom:8}}>📝 Remarks</div>
+            <div style={{fontSize:13,color:G.txt,lineHeight:1.6}}>{selClient.note}</div>
+          </div>}
+
+          {/* All Assignments Activity */}
+          {works && <div style={{background:G.card,border:`1px solid ${G.bdr}`,borderRadius:12,padding:"14px 16px"}}>
+            <div style={{fontSize:11,color:G.mut,fontWeight:700,letterSpacing:.7,textTransform:"uppercase",marginBottom:10}}>
+              📋 All Assignments ({works.filter(w=>w.pan===selClient.pan).length})
+            </div>
+            {works.filter(w=>w.pan===selClient.pan).length===0
+            ?<div style={{fontSize:12,color:G.bdr}}>No assignments yet</div>
+            :works.filter(w=>w.pan===selClient.pan).map(w=><div 
+                key={w.id} 
+                onClick={()=>{
+                  if (setTab && setOpenWorkId) {
+                    setTab("tracker");
+                    setOpenWorkId(w.id);
+                    setSelClient(null);
+                  }
+                }}
+                style={{padding:"10px 12px",background:G.surf,borderRadius:9,border:`1px solid ${G.bdr}`,marginBottom:7,cursor:"pointer",transition:"all 0.15s"}}
+                onMouseEnter={e=>e.currentTarget.style.borderColor=G.green}
+                onMouseLeave={e=>e.currentTarget.style.borderColor=G.bdr}
+                title="Click to view assignment in Work Tracker"
+              >
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+                <span style={{fontWeight:700,fontSize:13,color:G.green,textDecoration:"underline"}}>{w.svc}</span>
+                <span style={{fontSize:11,padding:"2px 8px",borderRadius:10,fontWeight:700,background:w.status==="Completed"?"#14532D":w.status==="In Progress"?"#1E1B4B":"#431407",color:w.status==="Completed"?"#4ADE80":w.status==="In Progress"?"#A5B4FC":"#FCD34D"}}>{w.status}</span>
+              </div>
+              <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
+                <span style={{fontSize:11,color:G.mut}}>📅 {w.fy}</span>
+                <span style={{fontSize:11,color:G.mut}}>👤 {w.staff}</span>
+                <span style={{fontSize:11,color:w.status==="Completed"?G.g3:(new Date(w.due)<new Date()?G.red:G.mut)}}>Due: {w.due?new Date(w.due).toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}):"-"}</span>
+              </div>
+            </div>)}
+          </div>}
+
+          {/* Portal Credentials */}
+          <div style={{background:G.card,border:`1px solid ${G.bdr}`,borderRadius:12,padding:"14px 16px"}}>
+            <div style={{fontSize:11,color:G.mut,fontWeight:700,letterSpacing:.7,textTransform:"uppercase",marginBottom:10}}>
+              🔐 Portal Credentials ({PORTALS.filter(p=>selClient.portals[p.key]?.on).length} Active)
+            </div>
+            {PORTALS.filter(p=>selClient.portals[p.key]?.on).length===0
+            ?<div style={{fontSize:12,color:G.bdr}}>No portals configured</div>
+            :PORTALS.filter(p=>selClient.portals[p.key]?.on).map(p=><div key={p.key} style={{display:"flex",gap:10,padding:"10px 12px",background:G.surf,border:`1px solid ${p.col}25`,borderRadius:9,marginBottom:7}}>
+              <div style={{width:34,height:34,borderRadius:9,background:p.col+"18",display:"flex",alignItems:"center",justifyContent:"center",fontSize:17,flexShrink:0}}>{p.icon}</div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:11,color:p.col,fontWeight:700,marginBottom:4}}>{p.label}</div>
+                <div style={{display:"flex",gap:6,marginBottom:3,alignItems:"center"}}>
+                  <span style={{fontSize:10,color:G.mut,minWidth:22}}>ID</span>
+                  <span style={{fontSize:12,color:G.wh,fontFamily:"monospace",fontWeight:600,flex:1,overflow:"hidden",textOverflow:"ellipsis"}}>{selClient.portals[p.key].id||"-"}</span>
+                  {selClient.portals[p.key].id && <button onClick={()=>{navigator.clipboard.writeText(selClient.portals[p.key].id);toast("ID copied!");}} style={{background:"none",border:"none",cursor:"pointer",color:G.mut,fontSize:10,padding:"0 2px",display:"inline-flex",alignItems:"center"}} title="Copy ID">📋</button>}
+                </div>
+                <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                  <span style={{fontSize:10,color:G.mut,minWidth:22}}>PW</span>
+                  <PortalPw pw={selClient.portals[p.key].pw} pid={selClient.pan+"_"+p.key} toast={toast}/>
+                </div>
+              </div>
+            </div>)}
+          </div>
+        </div>
+      </div>
+    </div>}
     {delC&&<div style={{position:"fixed",inset:0,background:"#000C",zIndex:6000,display:"flex",alignItems:"center",justifyContent:"center"}}>
       <div style={{background:G.surf,border:`1px solid ${G.bdr}`,borderRadius:16,padding:28,width:360,boxShadow:"0 20px 60px #000C",textAlign:"center"}}>
         <div style={{fontSize:36,marginBottom:12}}>🗑</div>
@@ -9602,7 +9747,7 @@ export default function App(){
           </div>)}
         {tab==="add"&&sub==="client"&&<AddClient clients={clients} setClients={setClients} dd={dd} toast={toast}/>}
         {tab==="add"&&sub==="work"&&<AssignWork clients={clients} works={works} setWorks={setWorks} dd={dd} toast={toast}/>}
-        {tab==="clients"&&<ClientList clients={clients} setClients={setClients} dd={dd} toast={toast} onWhatsApp={handleWhatsApp}/>}
+        {tab==="clients"&&<ClientList clients={clients} setClients={setClients} dd={dd} toast={toast} onWhatsApp={handleWhatsApp} works={works} invoices={invoices} setTab={setTab} setOpenWorkId={setOpenWorkId}/>}
         {tab==="itr"&&<ITRComputationTab clients={clients} setClients={setClients} computations={computations} setComputations={setComputations} dd={dd} toast={toast} openComputationId={openComputationId} setOpenComputationId={setOpenComputationId} onWhatsApp={handleWhatsApp}/>}
         {tab==="tracker"&&<WorkTracker works={works} setWorks={setWorks} clients={clients} ownerOn={ownerOn} dd={dd} pws={pws} toast={toast} invoices={invoices} setInvoices={setInvoices} receipts={receipts} openWorkId={openWorkId} setOpenWorkId={setOpenWorkId} onWhatsApp={handleWhatsApp}/>}
         {tab==="invoice"&&(ownerOn?<InvoiceModule invoices={invoices} setInvoices={setInvoices} receipts={receipts} setReceipts={setReceipts} clients={clients} works={works} dd={dd} toast={toast} firmSettings={firmSettings} setFirmSettings={setFirmSettings} openInvoiceId={openInvoiceId} setOpenInvoiceId={setOpenInvoiceId} onWhatsApp={handleWhatsApp}/>
