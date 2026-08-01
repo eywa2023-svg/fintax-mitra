@@ -9358,7 +9358,7 @@ export default function App(){
             }
           }
         });
-        codeClient.requestCode();
+        codeClient.requestCode({ prompt: "consent" });
         return;
       }
 
