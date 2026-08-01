@@ -8151,6 +8151,7 @@ function WhatsAppModal({ state, onClose, firmSettings, setFirmSettings, toast, c
 
   const [selectedTaskVal, setSelectedTaskVal] = useState("");
   const [showCreateTask, setShowCreateTask] = useState(false);
+  const [editingTaskId, setEditingTaskId] = useState(null);
   const [newTaskFields, setNewTaskFields] = useState({
     svc: "",
     fy: dd?.fyOptions?.[0] || "2025-26",
@@ -8214,6 +8215,7 @@ function WhatsAppModal({ state, onClose, firmSettings, setFirmSettings, toast, c
         staff: dd?.staffOptions?.[0] || "Unassigned",
         fees: "",
       });
+      setEditingTaskId(null);
       setShowCreateTask(true);
       return;
     }
@@ -8251,9 +8253,51 @@ function WhatsAppModal({ state, onClose, firmSettings, setFirmSettings, toast, c
     }
   };
 
+  const handleEditTaskTrigger = () => {
+    const task = clientWorks.find(w => String(w.id) === String(selectedTaskVal));
+    if (!task) return;
+
+    let derivedAy = "";
+    if (task.fy && task.fy.includes("-")) {
+      const parts = task.fy.split("-");
+      const startYr = parseInt(parts[0], 10);
+      if (!isNaN(startYr)) {
+        derivedAy = `${startYr + 1}-${String(startYr + 2).slice(-2)}`;
+      }
+    }
+
+    setNewTaskFields({
+      svc: task.svc || "",
+      fy: task.fy || dd?.fyOptions?.[0] || "2025-26",
+      ay: derivedAy,
+      due: task.due || "",
+      staff: task.staff || "Unassigned",
+      fees: task.fees || "",
+    });
+    setEditingTaskId(task.id);
+    setShowCreateTask(true);
+  };
+
+  const handleDeleteTaskTrigger = () => {
+    const task = clientWorks.find(w => String(w.id) === String(selectedTaskVal));
+    if (!task) return;
+    if (!confirm(`Are you sure you want to delete task "${task.svc}"?`)) return;
+
+    setWorks(prev => prev.filter(w => w.id !== task.id));
+    setSelectedTaskVal("");
+    setParams(prev => ({
+      ...prev,
+      taskName: "",
+      dueDate: "",
+      fy: "",
+      ay: ""
+    }));
+    toast("Task deleted!");
+  };
+
   const handleCreateTaskSubmit = () => {
     if (!newTaskFields.svc) {
-      toast("Please select/enter Task Name", "err");
+      toast("Please enter Task Name", "err");
       return;
     }
     if (!newTaskFields.due) {
@@ -8265,25 +8309,6 @@ function WhatsAppModal({ state, onClose, firmSettings, setFirmSettings, toast, c
       return;
     }
 
-    const newId = Date.now();
-    const newTask = {
-      id: newId,
-      pan: clientPan,
-      cn: client?.name || "",
-      svc: newTaskFields.svc,
-      fy: newTaskFields.fy,
-      due: newTaskFields.due,
-      staff: newTaskFields.staff || "Unassigned",
-      status: "Pending",
-      fees: Number(newTaskFields.fees) || 0,
-      comm: 0,
-      rcvd: 0,
-      src: client?.src || "",
-      note: "Created via WhatsApp modal compose message"
-    };
-
-    setWorks(prev => [newTask, ...prev]);
-
     let derivedAy = newTaskFields.ay;
     if (!derivedAy && newTaskFields.fy && newTaskFields.fy.includes("-")) {
       const parts = newTaskFields.fy.split("-");
@@ -8293,17 +8318,59 @@ function WhatsAppModal({ state, onClose, firmSettings, setFirmSettings, toast, c
       }
     }
 
-    setParams(prev => ({
-      ...prev,
-      taskName: newTask.svc,
-      fy: newTask.fy,
-      ay: derivedAy,
-      dueDate: newTask.due ? new Date(newTask.due).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "",
-    }));
+    if (editingTaskId) {
+      setWorks(prev => prev.map(w => w.id === editingTaskId ? {
+        ...w,
+        svc: newTaskFields.svc,
+        fy: newTaskFields.fy,
+        due: newTaskFields.due,
+        staff: newTaskFields.staff,
+        fees: Number(newTaskFields.fees) || 0,
+      } : w));
 
-    setSelectedTaskVal(String(newId));
-    setShowCreateTask(false);
-    toast(`Task "${newTask.svc}" created & loaded!`);
+      setParams(prev => ({
+        ...prev,
+        taskName: newTaskFields.svc,
+        fy: newTaskFields.fy,
+        ay: derivedAy,
+        dueDate: newTaskFields.due ? new Date(newTaskFields.due).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "",
+      }));
+
+      setShowCreateTask(false);
+      setEditingTaskId(null);
+      toast("Task updated & details loaded!");
+    } else {
+      const newId = Date.now();
+      const newTask = {
+        id: newId,
+        pan: clientPan,
+        cn: client?.name || "",
+        svc: newTaskFields.svc,
+        fy: newTaskFields.fy,
+        due: newTaskFields.due,
+        staff: newTaskFields.staff || "Unassigned",
+        status: "Pending",
+        fees: Number(newTaskFields.fees) || 0,
+        comm: 0,
+        rcvd: 0,
+        src: client?.src || "",
+        note: "Created via WhatsApp modal compose message"
+      };
+
+      setWorks(prev => [newTask, ...prev]);
+
+      setParams(prev => ({
+        ...prev,
+        taskName: newTask.svc,
+        fy: newTask.fy,
+        ay: derivedAy,
+        dueDate: newTask.due ? new Date(newTask.due).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "",
+      }));
+
+      setSelectedTaskVal(String(newId));
+      setShowCreateTask(false);
+      toast(`Task "${newTask.svc}" created & loaded!`);
+    }
   };
 
   // Manage template states
@@ -8459,6 +8526,22 @@ function WhatsAppModal({ state, onClose, firmSettings, setFirmSettings, toast, c
                     </option>
                   ))}
                 </select>
+                {selectedTaskVal && selectedTaskVal !== "create_new" && (
+                  <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                    <button
+                      onClick={handleEditTaskTrigger}
+                      style={{ background: "transparent", border: `1px solid ${G.bdr}`, color: G.amb, borderRadius: 6, padding: "4px 10px", fontSize: 11, cursor: "pointer", fontWeight: 600 }}
+                    >
+                      ✏️ Edit Task
+                    </button>
+                    <button
+                      onClick={handleDeleteTaskTrigger}
+                      style={{ background: "transparent", border: `1px solid ${G.red}44`, color: G.red, borderRadius: 6, padding: "4px 10px", fontSize: 11, cursor: "pointer", fontWeight: 600 }}
+                    >
+                      🗑️ Delete Task
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Template Picker */}
@@ -8630,29 +8713,19 @@ function WhatsAppModal({ state, onClose, firmSettings, setFirmSettings, toast, c
           <div style={{ background: G.surf, border: `1.5px solid ${G.green}44`, borderRadius: 16, width: "100%", maxWidth: 400, boxShadow: "0 15px 40px rgba(0,0,0,0.8)", overflow: "hidden" }}>
             {/* Header */}
             <div style={{ background: G.card, padding: "14px 18px", borderBottom: `1px solid ${G.bdr}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontWeight: 800, fontSize: 14, color: G.wh }}>➕ Create New Task for {client?.name || "Client"}</span>
-              <button onClick={() => { setShowCreateTask(false); setSelectedTaskVal(""); }} style={{ background: "transparent", border: "none", color: G.mut, cursor: "pointer", fontSize: 15 }}>✕</button>
+              <span style={{ fontWeight: 800, fontSize: 14, color: G.wh }}>{editingTaskId ? "✏️ Edit Task" : `➕ Create New Task for ${client?.name || "Client"}`}</span>
+              <button onClick={() => setShowCreateTask(false)} style={{ background: "transparent", border: "none", color: G.mut, cursor: "pointer", fontSize: 15 }}>✕</button>
             </div>
             {/* Form Fields */}
             <div style={{ padding: 18, display: "flex", flexDirection: "column", gap: 12 }}>
               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 <label style={{ fontSize: 10, color: G.mut, fontWeight: 700 }}>Task Name</label>
-                <select
-                  value={newTaskFields.svc}
-                  onChange={e => setNewTaskFields(prev => ({ ...prev, svc: e.target.value }))}
-                  style={{ background: G.card, border: `1.5px solid ${G.bdr}`, borderRadius: 8, color: G.wh, padding: "8px 12px", fontSize: 12, outline: "none" }}
-                >
-                  <option value="">Select Service...</option>
-                  {(dd?.services || []).map(s => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
                 <input
                   type="text"
                   value={newTaskFields.svc}
                   onChange={e => setNewTaskFields(prev => ({ ...prev, svc: e.target.value }))}
-                  placeholder="Or type custom service name..."
-                  style={{ background: G.card, border: `1.5px solid ${G.bdr}`, borderRadius: 8, color: G.wh, padding: "8px 12px", fontSize: 12, outline: "none", marginTop: 4 }}
+                  placeholder="e.g. GST GSTR-3B"
+                  style={{ background: G.card, border: `1.5px solid ${G.bdr}`, borderRadius: 8, color: G.wh, padding: "8px 12px", fontSize: 12, outline: "none" }}
                 />
               </div>
 
@@ -8721,10 +8794,10 @@ function WhatsAppModal({ state, onClose, firmSettings, setFirmSettings, toast, c
                   onClick={handleCreateTaskSubmit}
                   style={{ flex: 1, padding: "10px", borderRadius: 8, border: "none", background: `linear-gradient(135deg, ${G.g2}, ${G.green})`, color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" }}
                 >
-                  Create Task
+                  {editingTaskId ? "Save Changes" : "Create Task"}
                 </button>
                 <button
-                  onClick={() => { setShowCreateTask(false); setSelectedTaskVal(""); }}
+                  onClick={() => setShowCreateTask(false)}
                   style={{ padding: "10px 14px", borderRadius: 8, border: `1px solid ${G.bdr}`, background: "transparent", color: G.mut, cursor: "pointer", fontSize: 13 }}
                 >
                   Cancel
