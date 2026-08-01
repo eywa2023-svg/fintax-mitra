@@ -125,6 +125,14 @@ const getCurrentFY = () => {
   const yr = now.getFullYear();
   return now.getMonth() >= 3 ? `${yr}-${String(yr + 1).slice(-2)}` : `${yr - 1}-${String(yr).slice(-2)}`;
 };
+const getFYFromDate = (dateStr) => {
+  if (!dateStr) return getCurrentFY();
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return getCurrentFY();
+  const yr = d.getFullYear();
+  const month = d.getMonth();
+  return month >= 3 ? `${yr}-${String(yr + 1).slice(-2)}` : `${yr - 1}-${String(yr).slice(-2)}`;
+};
 // ─── Work ↔ Invoice ↔ Receipt linkage helpers ──────────────────────────────
 // A work can have one or more invoices raised against it (invoice.workId === work.id).
 // Each invoice can have one or more payment receipts (receipt.invId === invoice.id).
@@ -477,9 +485,21 @@ function EditWork({w,onSave,onX,dd,rcvdDisplay,linkedCount}){
         <button onClick={onX} style={{background:"transparent",border:`1px solid ${G.bdr}`,color:G.mut,borderRadius:8,padding:"4px 11px",cursor:"pointer"}}>✕</button>
       </div>
       <div style={{padding:20,display:"flex",flexDirection:"column",gap:11}}>
-        <R><F label="Service" w="calc(50% - 6px)"><S val={f.svc} set={v=>setF({...f,svc:v})} opts={dd.services}/></F><F label="FY" w="calc(50% - 6px)"><S val={f.fy} set={v=>setF({...f,fy:v})} opts={dd.fyOptions}/></F></R>
-        <R><F label="Staff" w="calc(50% - 6px)"><S val={f.staff} set={v=>setF({...f,staff:v})} opts={dd.staff}/></F><F label="Status" w="calc(50% - 6px)"><S val={f.status} set={v=>setF({...f,status:v})} opts={["Pending","In Progress","Completed"]}/></F></R>
-        <R><F label="Due Date" w="calc(50% - 6px)"><I val={f.due} set={v=>setF({...f,due:v})} type="date"/></F><F label="Source" w="calc(50% - 6px)"><S val={f.src||""} set={v=>setF({...f,src:v})} opts={dd.sources} ph="Select..."/></F></R>
+        <R>
+          <F label="Service" w="calc(50% - 6px)"><S val={f.svc} set={v=>setF({...f,svc:v})} opts={dd.services}/></F>
+          <F label="FY (Filing Year)" w="calc(50% - 6px)"><S val={f.fy} set={v=>setF({...f,fy:v})} opts={dd.fyOptions}/></F>
+        </R>
+        <R>
+          <F label="Assign Date" w="calc(50% - 6px)"><I val={f.date || ""} set={v=>setF({...f,date:v})} type="date"/></F>
+          <F label="Due Date" w="calc(50% - 6px)"><I val={f.due} set={v=>setF({...f,due:v})} type="date"/></F>
+        </R>
+        <R>
+          <F label="Staff" w="calc(50% - 6px)"><S val={f.staff} set={v=>setF({...f,staff:v})} opts={dd.staff}/></F>
+          <F label="Status" w="calc(50% - 6px)"><S val={f.status} set={v=>setF({...f,status:v})} opts={["Pending","In Progress","Completed"]}/></F>
+        </R>
+        <R>
+          <F label="Source" w="calc(100%)"><S val={f.src||""} set={v=>setF({...f,src:v})} opts={dd.sources} ph="Select..."/></F>
+        </R>
         <R>
           <F label="Fees (₹)" w="calc(33% - 8px)"><I val={String(f.fees||"")} set={v=>setF({...f,fees:Number(v.replace(/\D/g,""))||0})}/></F>
           <F label="Commission (₹)" w="calc(33% - 8px)"><I val={String(f.comm||"")} set={v=>setF({...f,comm:Number(v.replace(/\D/g,""))||0})}/></F>
@@ -505,7 +525,7 @@ function EditWork({w,onSave,onX,dd,rcvdDisplay,linkedCount}){
 // ─── Work Dashboard ───────────────────────────────────────────────────────────
 function WorkDash({works,clients,dd}){
   const[fy,setFy]=useState(getCurrentFY());
-  const fw=fy==="All"?works:works.filter(w=>w.fy===fy);
+  const fw=fy==="All"?works:works.filter(w=>getFYFromDate(w.date)===fy);
   const kpis=[
     {l:"Total",v:fw.length,icon:"📋",col:G.green},
     {l:"Pending",v:fw.filter(w=>w.status==="Pending").length,icon:"⏳",col:G.amb},
@@ -521,7 +541,7 @@ function WorkDash({works,clients,dd}){
     <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center"}}>
       <span style={{fontSize:12,color:G.mut,fontWeight:600}}>FY:</span>
       {["All",...dd.fyOptions].map(f=><button key={f} onClick={()=>setFy(f)} style={{padding:"5px 13px",borderRadius:20,border:`1.5px solid ${fy===f?G.green:G.bdr}`,cursor:"pointer",fontSize:12,fontWeight:600,background:fy===f?G.green+"18":"transparent",color:fy===f?G.green:G.mut}}>
-        {f}{f!=="All"&&<span style={{opacity:.6}}> ({works.filter(w=>w.fy===f).length})</span>}
+        {f}{f!=="All"&&<span style={{opacity:.6}}> ({works.filter(w=>getFYFromDate(w.date)===f).length})</span>}
       </button>)}
     </div>
     <div className="kpi-grid-3" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12}}>
@@ -1034,14 +1054,14 @@ function AddClient({clients,setClients,dd,toast}){
 
 // ─── Assign Work ──────────────────────────────────────────────────────────────
 function AssignWork({clients,works,setWorks,dd,toast}){
-  const bk={pan:"",svc:"",fy:dd.fyOptions[0]||"2025-26",due:"",staff:"",fees:"",comm:"",rcvd:"",src:"",note:""};
+  const bk={pan:"",svc:"",fy:dd.fyOptions[0]||"2025-26",due:"",date:new Date().toISOString().split("T")[0],staff:"",fees:"",comm:"",rcvd:"",src:"",note:""};
   const[f,setF]=useState(bk),[err,setErr]=useState({}),[showP,setShowP]=useState(false);
   const sel=clients.find(c=>c.pan===f.pan);
   const hFees=v=>{const n=Number(v.replace(/\D/g,""));setF(p=>({...p,fees:v.replace(/\D/g,""),comm:p.comm||String(Math.round(n*0.1))}));};
   const save=()=>{
     const e={};if(!f.pan)e.pan="Select";if(!f.svc)e.svc="Select";if(!f.due)e.due="Required";if(!f.staff)e.staff="Required";if(!f.fees)e.fees="Enter";
     setErr(e);if(Object.keys(e).length){toast("Fix errors","err");return;}
-    setWorks(p=>[{id:Date.now(),pan:f.pan,cn:sel?.name||"",svc:f.svc,fy:f.fy,due:f.due,staff:f.staff,status:"Pending",fees:Number(f.fees)||0,comm:Number(f.comm)||0,rcvd:Number(f.rcvd)||0,src:f.src||sel?.src||"",note:f.note},...p]);
+    setWorks(p=>[{id:Date.now(),pan:f.pan,cn:sel?.name||"",svc:f.svc,fy:f.fy,due:f.due,date:f.date||new Date().toISOString().split("T")[0],staff:f.staff,status:"Pending",fees:Number(f.fees)||0,comm:Number(f.comm)||0,rcvd:Number(f.rcvd)||0,src:f.src||sel?.src||"",note:f.note},...p]);
     setF(bk);setErr({});setShowP(false);toast(`Assigned - ${f.svc} for ${sel?.name}`);
   };
   return <div style={{display:"grid",gridTemplateColumns:"1fr 270px",gap:16}}>
@@ -1123,10 +1143,17 @@ function AssignWork({clients,works,setWorks,dd,toast}){
       <Crd><SH icon="📋" title="Work Details" acc={G.ind}/>
         <div style={{display:"flex",flexDirection:"column",gap:11}}>
           <F label="Service Type" req><S val={f.svc} set={v=>setF({...f,svc:v})} opts={dd.services} ph="Choose..."/>{err.svc&&<span style={{fontSize:11,color:G.red}}>{err.svc}</span>}</F>
-          <R><F label="Financial Year" w="calc(50% - 6px)"><S val={f.fy} set={v=>setF({...f,fy:v})} opts={dd.fyOptions}/></F>
-          <F label="Assign To" req w="calc(50% - 6px)"><S val={f.staff} set={v=>setF({...f,staff:v})} opts={dd.staff} ph="Staff..."/>{err.staff&&<span style={{fontSize:11,color:G.red}}>{err.staff}</span>}</F></R>
-          <R><F label="Due Date" req w="calc(50% - 6px)"><I val={f.due} set={v=>setF({...f,due:v})} type="date" sty={{borderColor:err.due?G.red:G.bdr}}/>{err.due&&<span style={{fontSize:11,color:G.red}}>{err.due}</span>}</F>
-          <F label="Source" w="calc(50% - 6px)"><S val={f.src} set={v=>setF({...f,src:v})} opts={dd.sources} ph="Select..."/></F></R>
+          <R>
+            <F label="Financial Year" w="calc(50% - 6px)"><S val={f.fy} set={v=>setF({...f,fy:v})} opts={dd.fyOptions}/></F>
+            <F label="Assign To" req w="calc(50% - 6px)"><S val={f.staff} set={v=>setF({...f,staff:v})} opts={dd.staff} ph="Staff..."/>{err.staff&&<span style={{fontSize:11,color:G.red}}>{err.staff}</span>}</F>
+          </R>
+          <R>
+            <F label="Assign Date" w="calc(50% - 6px)"><I val={f.date || ""} set={v=>setF({...f,date:v})} type="date"/></F>
+            <F label="Due Date" req w="calc(50% - 6px)"><I val={f.due} set={v=>setF({...f,due:v})} type="date" sty={{borderColor:err.due?G.red:G.bdr}}/>{err.due&&<span style={{fontSize:11,color:G.red}}>{err.due}</span>}</F>
+          </R>
+          <R>
+            <F label="Source" w="calc(100%)"><S val={f.src} set={v=>setF({...f,src:v})} opts={dd.sources} ph="Select..."/></F>
+          </R>
         </div>
       </Crd>
       <Crd><SH icon="💰" title="Fees & Commission" acc={G.amb}/>
@@ -2748,7 +2775,7 @@ function WorkTracker({works,setWorks,clients,ownerOn,dd,pws,toast,invoices,setIn
     if (openWorkId) {
       const w = works.find(x => x.id === openWorkId);
       if (w) {
-        setFy(w.fy);
+        setFy(getFYFromDate(w.date));
         setEditW(w);
       }
     }
@@ -2793,7 +2820,7 @@ function WorkTracker({works,setWorks,clients,ownerOn,dd,pws,toast,invoices,setIn
     setInvoices(p=>p.map(inv=>inv.id===invId?{...inv,workId:""}:inv));
     toast&&toast("Invoice unlinked");
   };
-  const fw=useMemo(()=>{let w=works;if(fy!=="All")w=w.filter(x=>x.fy===fy);if(flt==="Overdue")w=w.filter(isOD);else if(flt!=="All")w=w.filter(x=>x.status===flt);if(q){const lq=q.toLowerCase();w=w.filter(x=>x.cn.toLowerCase().includes(lq)||x.pan.toLowerCase().includes(lq)||x.svc.toLowerCase().includes(lq));}return w;},[works,flt,fy,q]);
+  const fw=useMemo(()=>{let w=works;if(fy!=="All")w=w.filter(x=>getFYFromDate(x.date)===fy);if(flt==="Overdue")w=w.filter(isOD);else if(flt!=="All")w=w.filter(x=>x.status===flt);if(q){const lq=q.toLowerCase();w=w.filter(x=>x.cn.toLowerCase().includes(lq)||x.pan.toLowerCase().includes(lq)||x.svc.toLowerCase().includes(lq));}return w;},[works,flt,fy,q]);
   const cnt={All:works.length,Pending:works.filter(w=>w.status==="Pending").length,"In Progress":works.filter(w=>w.status==="In Progress").length,Completed:works.filter(w=>w.status==="Completed").length,Overdue:works.filter(isOD).length};
   return <div style={{display:"flex",flexDirection:"column",gap:13}}>
     {showAuth&&<Auth title="Unlock Fee Data" hint="Finance: 456 | Developer: 123" pws={pws} onOk={()=>{setFeesOn(true);setShowAuth(false);}} onX={()=>setShowAuth(false)}/>}
@@ -2803,7 +2830,7 @@ function WorkTracker({works,setWorks,clients,ownerOn,dd,pws,toast,invoices,setIn
       <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>{["All","Pending","In Progress","Completed","Overdue"].map(f=><button key={f} onClick={()=>setFlt(f)} style={{padding:"5px 12px",borderRadius:18,border:`1.5px solid ${flt===f?G.green:G.bdr}`,cursor:"pointer",fontSize:12,fontWeight:600,background:flt===f?G.green+"18":"transparent",color:flt===f?G.green:G.mut}}>{f} <span style={{opacity:.6}}>({cnt[f]})</span></button>)}</div>
       <div style={{display:"flex",gap:5,flexWrap:"wrap",padding:"3px 8px",background:G.card,border:`1px solid ${G.bdr}`,borderRadius:20,alignItems:"center"}}>
         <span style={{fontSize:11,color:G.mut,fontWeight:600,whiteSpace:"nowrap"}}>📅 FY:</span>
-        {["All",...dd.fyOptions].map(f=><button key={f} onClick={()=>setFy(f)} style={{padding:"4px 11px",borderRadius:14,border:"none",cursor:"pointer",fontSize:12,fontWeight:fy===f?700:500,background:fy===f?`linear-gradient(135deg,${G.g2},${G.green})`:"transparent",color:fy===f?"#fff":G.mut,transition:"all .15s",whiteSpace:"nowrap"}}>{f}{f!=="All"&&<span style={{fontSize:10,opacity:.7}}> ({works.filter(w=>w.fy===f).length})</span>}</button>)}
+        {["All",...dd.fyOptions].map(f=><button key={f} onClick={()=>setFy(f)} style={{padding:"4px 11px",borderRadius:14,border:"none",cursor:"pointer",fontSize:12,fontWeight:fy===f?700:500,background:fy===f?`linear-gradient(135deg,${G.g2},${G.green})`:"transparent",color:fy===f?"#fff":G.mut,transition:"all .15s",whiteSpace:"nowrap"}}>{f}{f!=="All"&&<span style={{fontSize:10,opacity:.7}}> ({works.filter(w=>getFYFromDate(w.date)===f).length})</span>}</button>)}
       </div>
       <div style={{position:"relative",flex:1,minWidth:150}}><span style={{position:"absolute",left:9,top:"50%",transform:"translateY(-50%)",color:G.mut}}>🔍</span><input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search..." style={{...IS,paddingLeft:28,fontSize:12}}/></div>
       {(flt !== "All" || fy !== getCurrentFY() || q !== "") && (
@@ -8157,6 +8184,7 @@ function WhatsAppModal({ state, onClose, firmSettings, setFirmSettings, toast, c
     fy: dd?.fyOptions?.[0] || "2025-26",
     ay: "",
     due: "",
+    date: new Date().toISOString().split("T")[0],
     staff: dd?.staffOptions?.[0] || "Unassigned",
     fees: "",
   });
@@ -8212,6 +8240,7 @@ function WhatsAppModal({ state, onClose, firmSettings, setFirmSettings, toast, c
         fy: dd?.fyOptions?.[0] || "2025-26",
         ay: "",
         due: "",
+        date: new Date().toISOString().split("T")[0],
         staff: dd?.staffOptions?.[0] || "Unassigned",
         fees: "",
       });
@@ -8271,6 +8300,7 @@ function WhatsAppModal({ state, onClose, firmSettings, setFirmSettings, toast, c
       fy: task.fy || dd?.fyOptions?.[0] || "2025-26",
       ay: derivedAy,
       due: task.due || "",
+      date: task.date || (task.created_at ? task.created_at.split('T')[0] : new Date().toISOString().split("T")[0]),
       staff: task.staff || "Unassigned",
       fees: task.fees || "",
     });
@@ -8324,6 +8354,7 @@ function WhatsAppModal({ state, onClose, firmSettings, setFirmSettings, toast, c
         svc: newTaskFields.svc,
         fy: newTaskFields.fy,
         due: newTaskFields.due,
+        date: newTaskFields.date || w.date || new Date().toISOString().split("T")[0],
         staff: newTaskFields.staff,
         fees: Number(newTaskFields.fees) || 0,
       } : w));
@@ -8348,6 +8379,7 @@ function WhatsAppModal({ state, onClose, firmSettings, setFirmSettings, toast, c
         svc: newTaskFields.svc,
         fy: newTaskFields.fy,
         due: newTaskFields.due,
+        date: newTaskFields.date || new Date().toISOString().split("T")[0],
         staff: newTaskFields.staff || "Unassigned",
         status: "Pending",
         fees: Number(newTaskFields.fees) || 0,
@@ -8754,14 +8786,25 @@ function WhatsAppModal({ state, onClose, firmSettings, setFirmSettings, toast, c
                 </div>
               </div>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                <label style={{ fontSize: 10, color: G.mut, fontWeight: 700 }}>Due Date</label>
-                <input
-                  type="date"
-                  value={newTaskFields.due}
-                  onChange={e => setNewTaskFields(prev => ({ ...prev, due: e.target.value }))}
-                  style={{ background: G.card, border: `1.5px solid ${G.bdr}`, borderRadius: 8, color: G.wh, padding: "8px 12px", fontSize: 12, outline: "none" }}
-                />
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <label style={{ fontSize: 10, color: G.mut, fontWeight: 700 }}>Assign Date</label>
+                  <input
+                    type="date"
+                    value={newTaskFields.date || ""}
+                    onChange={e => setNewTaskFields(prev => ({ ...prev, date: e.target.value }))}
+                    style={{ background: G.card, border: `1.5px solid ${G.bdr}`, borderRadius: 8, color: G.wh, padding: "8px 12px", fontSize: 12, outline: "none" }}
+                  />
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <label style={{ fontSize: 10, color: G.mut, fontWeight: 700 }}>Due Date</label>
+                  <input
+                    type="date"
+                    value={newTaskFields.due}
+                    onChange={e => setNewTaskFields(prev => ({ ...prev, due: e.target.value }))}
+                    style={{ background: G.card, border: `1.5px solid ${G.bdr}`, borderRadius: 8, color: G.wh, padding: "8px 12px", fontSize: 12, outline: "none" }}
+                  />
+                </div>
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
@@ -9180,7 +9223,21 @@ export default function App(){
         }
 
         _setClients(dbClients);
-        _setWorks(dbWorks);
+        const formattedWorks = (dbWorks || []).map(w => {
+          let assignDate = w.date;
+          if (!assignDate) {
+            if (w.created_at) {
+              assignDate = w.created_at.split('T')[0];
+            } else {
+              assignDate = new Date().toISOString().split('T')[0];
+            }
+          }
+          return {
+            ...w,
+            date: assignDate
+          };
+        });
+        _setWorks(formattedWorks);
         _setInvoices(dbInvoices);
         _setReceipts(dbReceipts);
         _setComputations(dbComputations || []);
