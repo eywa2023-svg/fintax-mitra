@@ -1897,6 +1897,7 @@ function InvoiceForm({invoices,setInvoices,clients,works,dd,toast,onClose,genId,
 // ─── Invoice Print View ───────────────────────────────────────────────────────
 function InvoicePrint({inv,clients,firmSettings,onClose,toast}){
   const [printStatus, setPrintStatus] = useState(false);
+  const [hideAmount, setHideAmount] = useState(false);
   const cl=clients.find(c=>c.pan===inv.pan);
   const F=firmSettings||{};
   const isGST=(inv.gst||0)>0;
@@ -2042,7 +2043,7 @@ function InvoicePrint({inv,clients,firmSettings,onClose,toast}){
         <span style={{fontSize:11,padding:"2px 9px",borderRadius:20,fontWeight:600,background:G.ind+"20",color:G.ind,border:`1px solid ${G.ind}44`}}>{invType}</span>
       </div>
       <div style={{display:"flex",gap:8,alignItems:"center"}}>
-        <label style={{display:"flex",alignItems:"center",gap:6,color:G.wh,fontSize:12,cursor:"pointer",marginRight:12,userSelect:"none"}}>
+        <label style={{display:"flex",alignItems:"center",gap:6,color:G.wh,fontSize:12,cursor:"pointer",marginRight:6,userSelect:"none"}}>
           <input 
             type="checkbox" 
             checked={printStatus} 
@@ -2050,6 +2051,15 @@ function InvoicePrint({inv,clients,firmSettings,onClose,toast}){
             style={{cursor:"pointer",accentColor:G.green}}
           />
           Print Universal Stamp
+        </label>
+        <label style={{display:"flex",alignItems:"center",gap:6,color:G.wh,fontSize:12,cursor:"pointer",marginRight:12,userSelect:"none"}}>
+          <input 
+            type="checkbox" 
+            checked={hideAmount} 
+            onChange={e=>setHideAmount(e.target.checked)} 
+            style={{cursor:"pointer",accentColor:G.green}}
+          />
+          Hide Amount
         </label>
         {pdfMsg&&<span style={{fontSize:11,color:pdfMsg[0]==="✓"?G.green:G.red,fontWeight:600}}>{pdfMsg}</span>}
         <button onClick={downloadPDF} disabled={pdfBusy} style={{padding:"8px 20px",borderRadius:9,border:"none",cursor:pdfBusy?"default":"pointer",background:`linear-gradient(135deg,${G.g2},${G.green})`,color:"#fff",fontWeight:700,fontSize:13,opacity:pdfBusy?.7:1}}>{pdfBusy?"⏳ Opening...":"🖨 Print / Save as PDF"}</button>
@@ -2138,16 +2148,29 @@ function InvoicePrint({inv,clients,firmSettings,onClose,toast}){
         </div>
         <table style={{width:"100%",height:"100%",borderCollapse:"collapse",position:"relative",zIndex:1}}>
           <colgroup>
-            <col style={{width:"6%"}}/>
-            <col style={{width:"54%"}}/>
-            <col style={{width:"12%"}}/>
-            <col style={{width:"14%"}}/>
-            <col style={{width:"14%"}}/>
+            {hideAmount ? (
+              <>
+                <col style={{width:"10%"}}/>
+                <col style={{width:"70%"}}/>
+                <col style={{width:"20%"}}/>
+              </>
+            ) : (
+              <>
+                <col style={{width:"6%"}}/>
+                <col style={{width:"54%"}}/>
+                <col style={{width:"12%"}}/>
+                <col style={{width:"14%"}}/>
+                <col style={{width:"14%"}}/>
+              </>
+            )}
           </colgroup>
           <thead>
             <tr style={{background:clrA}}>
-              {[["Sr. No.","center"],["Name of Service","center"],["Period / Nos.","center"],["Rate (Rs.)","right"],["Amount (Rs.)","right"]].map(([h,align],i)=>(
-                <th key={i} style={{...cs,fontWeight:900,fontStyle:"italic",color:clrP,padding:"9px 10px",textAlign:align,borderBottom:BDR,borderRight:i<4?BDR:"none",whiteSpace:"pre-line",lineHeight:1.3}}>{h}</th>
+              {(hideAmount 
+                ? [["Sr. No.","center"],["Name of Service","center"],["Period / Nos.","center"]] 
+                : [["Sr. No.","center"],["Name of Service","center"],["Period / Nos.","center"],["Rate (Rs.)","right"],["Amount (Rs.)","right"]]
+              ).map(([h,align],i)=>(
+                <th key={i} style={{...cs,fontWeight:900,fontStyle:"italic",color:clrP,padding:"9px 10px",textAlign:align,borderBottom:BDR,borderRight:i<(hideAmount?2:4)?BDR:"none",whiteSpace:"pre-line",lineHeight:1.3}}>{h}</th>
               ))}
             </tr>
           </thead>
@@ -2160,26 +2183,38 @@ function InvoicePrint({inv,clients,firmSettings,onClose,toast}){
                   ?<span>{it.desc||"Reimbursement"} <em style={{fontSize:cs.fontSize-1,color:"#666"}}>(Reimbursement)</em></span>
                   :<span>{(it.service || "").split("|")[0]}{it.desc?` ( ${it.desc} )`:""}</span>}
               </td>
-              <td style={{...cs,padding:"10px",textAlign:"center",borderRight:BDR,verticalAlign:"top"}}>{it.type==="reimbursement"?"1":it.qty||1}</td>
-              <td style={{...cs,padding:"10px",textAlign:"right",borderRight:BDR,verticalAlign:"top",fontVariantNumeric:"tabular-nums"}}>{it.type==="reimbursement"?"-":fmt(it.rate)}</td>
-              <td style={{...cs,padding:"10px",textAlign:"right",verticalAlign:"top",fontVariantNumeric:"tabular-nums"}}>{fmt(it.type==="reimbursement"?(Number(it.rate)||0):(it.amount!==undefined?it.amount:(it.qty||1)*(it.rate||0)))}</td>
+              <td style={{...cs,padding:"10px",textAlign:"center",borderRight:hideAmount?"none":BDR,verticalAlign:"top"}}>{it.type==="reimbursement"?"1":it.qty||1}</td>
+              {!hideAmount && <>
+                <td style={{...cs,padding:"10px",textAlign:"right",borderRight:BDR,verticalAlign:"top",fontVariantNumeric:"tabular-nums"}}>{it.type==="reimbursement"?"-":fmt(it.rate)}</td>
+                <td style={{...cs,padding:"10px",textAlign:"right",verticalAlign:"top",fontVariantNumeric:"tabular-nums"}}>{fmt(it.type==="reimbursement"?(Number(it.rate)||0):(it.amount!==undefined?it.amount:(it.qty||1)*(it.rate||0)))}</td>
+              </>}
             </tr>
             ))}
             {Array.from({length:emptyRows}).map((_,i)=>(
               <tr key={i}>
                 <td style={{height:28,borderRight:BDR}}/>
                 <td style={{borderRight:BDR}}/>
-                <td style={{borderRight:BDR}}/>
-                <td style={{borderRight:BDR}}/>
-                <td/>
+                <td style={{borderRight:hideAmount?"none":BDR}}/>
+                {!hideAmount && <>
+                  <td style={{borderRight:BDR}}/>
+                  <td/>
+                </>}
               </tr>
             ))}
             {/* Guaranteed spacer row: always present (unlike the user-configurable
                 empty rows above, which may be set to 0) so this row alone ever
                 absorbs left-over page space. CGST/SGST/Total rows below all have
                 an explicit fixed height, so they can never be stretched. */}
-            <tr><td style={{borderRight:BDR}}/><td style={{borderRight:BDR}}/><td style={{borderRight:BDR}}/><td style={{borderRight:BDR}}/><td/></tr>
-            {discount>0&&<>
+            <tr>
+              <td style={{borderRight:BDR}}/>
+              <td style={{borderRight:BDR}}/>
+              <td style={{borderRight:hideAmount?"none":BDR}}/>
+              {!hideAmount && <>
+                <td style={{borderRight:BDR}}/>
+                <td/>
+              </>}
+            </tr>
+            {!hideAmount && discount>0&&<>
               <tr style={{height:Math.round(30*invScale)}}>
                 <td colSpan={3} style={{borderRight:BDR,borderTop:BDR}}/>
                 <td style={{...cs,padding:"6px 10px",textAlign:"right",fontStyle:"italic",fontSize:bFsz-1,borderRight:BDR,borderTop:BDR}}>Sub Total</td>
@@ -2191,7 +2226,7 @@ function InvoicePrint({inv,clients,firmSettings,onClose,toast}){
                 <td style={{...cs,padding:"6px 10px",textAlign:"right",fontSize:bFsz-1,fontVariantNumeric:"tabular-nums"}}>(-) {fmt(discount)}</td>
               </tr>
             </>}
-            {isGST&&<>
+            {!hideAmount && isGST&&<>
               <tr style={{height:Math.round(30*invScale)}}>
                 <td colSpan={3} style={{borderRight:BDR,borderTop:BDR}}/>
                 <td style={{...cs,padding:"6px 10px",textAlign:"right",fontStyle:"italic",fontSize:bFsz-1,borderRight:BDR,borderTop:BDR}}>CGST ({inv.gst/2}%)</td>
@@ -2203,10 +2238,12 @@ function InvoicePrint({inv,clients,firmSettings,onClose,toast}){
                 <td style={{...cs,padding:"6px 10px",textAlign:"right",fontSize:bFsz-1,fontVariantNumeric:"tabular-nums"}}>{fmt((inv.gstAmt||0)/2)}</td>
               </tr>
             </>}
-            <tr style={{background:clrT,height:Math.round(38*invScale)}}>
-              <td colSpan={4} style={{...cs,padding:"10px",fontWeight:900,fontStyle:"italic",fontSize:bFsz+1,textAlign:"center",borderTop:BDR,borderRight:BDR}}>Total</td>
-              <td style={{...cs,padding:"10px",fontWeight:900,fontSize:bFsz+1,textAlign:"right",borderTop:BDR,fontVariantNumeric:"tabular-nums"}}>{fmt(totalAmt)}</td>
-            </tr>
+            {!hideAmount && (
+              <tr style={{background:clrT,height:Math.round(38*invScale)}}>
+                <td colSpan={4} style={{...cs,padding:"10px",fontWeight:900,fontStyle:"italic",fontSize:bFsz+1,textAlign:"center",borderTop:BDR,borderRight:BDR}}>Total</td>
+                <td style={{...cs,padding:"10px",fontWeight:900,fontSize:bFsz+1,textAlign:"right",borderTop:BDR,fontVariantNumeric:"tabular-nums"}}>{fmt(totalAmt)}</td>
+              </tr>
+            )}
           </tbody>
         </table>
         </div>
@@ -2215,67 +2252,85 @@ function InvoicePrint({inv,clients,firmSettings,onClose,toast}){
         {/* ── 5. FOOTER: words + bank | cert + sig ── */}
         <table style={{width:"100%",borderCollapse:"collapse",borderBottom:BDR,flexShrink:0}}>
           <tbody>
-            <tr>
-              <td style={{width:"55%",verticalAlign:"top",borderRight:BDR}}>
-                {/* Total in words row */}
-                <table style={{width:"100%",borderCollapse:"collapse",borderBottom:BDR}}>
-                  <tbody>
-                    <tr>
-                      <td style={{padding:"13px 18px",verticalAlign:"top",width:"50%"}}>
-                        <div style={{...cs,fontWeight:900,fontStyle:"italic",marginBottom:6}}>Total in words</div>
-                        <div style={{...cs,fontStyle:"italic",fontSize:bFsz-1,lineHeight:1.7,color:"#333"}}>{totalWords}</div>
-                      </td>
-                      <td style={{padding:"13px 18px",verticalAlign:"top",textAlign:"right"}}>
-                        <div style={{...cs,fontWeight:900,fontStyle:"italic",marginBottom:6}}>Total Amount</div>
-                        <div style={{display:"inline-block",background:clrA,color:clrP,border:`1.5px solid ${clrB}`,fontWeight:900,fontSize:bFsz+3,fontFamily:"'Times New Roman',serif",padding:"5px 16px",borderRadius:8,fontVariantNumeric:"tabular-nums"}}>₹ {fmt(totalAmt)}</div>
-                        <div style={{fontSize:bFsz-2,color:"#777",fontStyle:"italic",marginTop:4}}>(E & O.E.)</div>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-                {/* Bank details */}
-                <div style={{padding:"13px 18px"}}>
-                  <div style={{...cs,fontWeight:900,fontStyle:"italic",color:clrP,marginBottom:8,borderBottom:`1px solid ${clrB}66`,paddingBottom:4}}>Bank Details</div>
-                  <div style={{display:"flex",gap:14,alignItems:"flex-start"}}>
-                    <div style={{flex:1,minWidth:0}}>
-                      <table style={{width:"100%",borderCollapse:"collapse"}}>
-                        <tbody>
-                          {[["Bank Name",bankName],["A/C Holder Name",bankHolder],["A/C Number",bankAcc],["IFSC",bankIFSC]].map(([l,v])=>(
-                            <tr key={l}>
-                              <td style={{...cs,fontWeight:700,paddingRight:6,paddingBottom:5,whiteSpace:"nowrap",verticalAlign:"top",width:110}}>{l} :</td>
-                              <td style={{...cs,paddingBottom:5}}>{v}</td>
+            {hideAmount ? (
+              <tr>
+                <td style={{width:"55%",verticalAlign:"top",borderRight:BDR,padding:"13px 18px"}}>
+                  <div style={{...cs,fontWeight:900,fontStyle:"italic",color:clrP,marginBottom:8}}>Information</div>
+                  <div style={{...cs,fontSize:bFsz-1,lineHeight:1.7,color:"#333"}}>
+                    This document serves as a service description summary. Rates and pricing details have been hidden on this invoice copy. For billing or payment options, please contact {firmPhone} or email {firmEmail}.
+                  </div>
+                </td>
+                <td style={{width:"45%",verticalAlign:"top",padding:"12px 14px"}}>
+                  <div style={{...cs,fontStyle:"italic",lineHeight:1.6,color:"#444"}}>Certified that the particulars given above are true and correct.</div>
+                  <div style={{...cs,fontWeight:900,fontStyle:"italic",fontSize:bFsz+1,color:clrP,marginTop:8}}>For {firmName}</div>
+                  <div style={{textAlign:"center",marginTop:16}}>
+                    <div style={{minHeight:80}}/>
+                    {!F.signature&&<div style={{width:140,borderBottom:"1px solid #888",margin:"36px auto 0"}}/>}
+                    <div style={{...cs,fontWeight:900,fontStyle:"italic",marginTop:10}}>Authorised Signatory</div>
+                  </div>
+                </td>
+              </tr>
+            ) : (
+              <tr>
+                <td style={{width:"55%",verticalAlign:"top",borderRight:BDR}}>
+                  {/* Total in words row */}
+                  <table style={{width:"100%",borderCollapse:"collapse",borderBottom:BDR}}>
+                    <tbody>
+                      <tr>
+                        <td style={{padding:"13px 18px",verticalAlign:"top",width:"50%"}}>
+                          <div style={{...cs,fontWeight:900,fontStyle:"italic",marginBottom:6}}>Total in words</div>
+                          <div style={{...cs,fontStyle:"italic",fontSize:bFsz-1,lineHeight:1.7,color:"#333"}}>{totalWords}</div>
+                        </td>
+                        <td style={{padding:"13px 18px",verticalAlign:"top",textAlign:"right"}}>
+                          <div style={{...cs,fontWeight:900,fontStyle:"italic",marginBottom:6}}>Total Amount</div>
+                          <div style={{display:"inline-block",background:clrA,color:clrP,border:`1.5px solid ${clrB}`,fontWeight:900,fontSize:bFsz+3,fontFamily:"'Times New Roman',serif",padding:"5px 16px",borderRadius:8,fontVariantNumeric:"tabular-nums"}}>₹ {fmt(totalAmt)}</div>
+                          <div style={{fontSize:bFsz-2,color:"#777",fontStyle:"italic",marginTop:4}}>(E & O.E.)</div>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  {/* Bank details */}
+                  <div style={{padding:"13px 18px"}}>
+                    <div style={{...cs,fontWeight:900,fontStyle:"italic",color:clrP,marginBottom:8,borderBottom:`1px solid ${clrB}66`,paddingBottom:4}}>Bank Details</div>
+                    <div style={{display:"flex",gap:14,alignItems:"flex-start"}}>
+                      <div style={{flex:1,minWidth:0}}>
+                        <table style={{width:"100%",borderCollapse:"collapse"}}>
+                          <tbody>
+                            {[["Bank Name",bankName],["A/C Holder Name",bankHolder],["A/C Number",bankAcc],["IFSC",bankIFSC]].map(([l,v])=>(
+                              <tr key={l}>
+                                <td style={{...cs,fontWeight:700,paddingRight:6,paddingBottom:5,whiteSpace:"nowrap",verticalAlign:"top",width:110}}>{l} :</td>
+                                <td style={{...cs,paddingBottom:5}}>{v}</td>
+                              </tr>
+                            ))}
+                            <tr>
+                              <td style={{...cs,fontWeight:700,paddingTop:3,whiteSpace:"nowrap",verticalAlign:"top"}}>UPI ID :</td>
+                              <td style={{...cs,paddingTop:3}}>{upiId} </td>
                             </tr>
-                          ))}
-                          <tr>
-                            <td style={{...cs,fontWeight:700,paddingTop:3,whiteSpace:"nowrap",verticalAlign:"top"}}>UPI ID :</td>
-                            <td style={{...cs,paddingTop:3}}>{upiId} </td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-                    {/* Fixed QR box - uploaded QR always renders here */}
-                    <div style={{flexShrink:0,textAlign:"center"}}>
-                      <div style={{width:88,height:88,border:`1.5px solid ${clrB}`,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",background:"#fff",overflow:"hidden"}}>
-                        {F.qrCode
-                          ?<img src={F.qrCode} alt="UPI QR" style={{width:80,height:80,objectFit:"contain",display:"block"}}/>
-                          :<span style={{fontSize:9,color:"#999",fontStyle:"italic",textAlign:"center",padding:4}}>QR Code</span>}
+                          </tbody>
+                        </table>
                       </div>
-                      <div style={{...cs,fontSize:Math.max(bFsz-5,9),fontWeight:700,fontStyle:"italic",marginTop:3,whiteSpace:"nowrap"}}>Scan to pay using UPI</div>
+                      <div style={{flexShrink:0,textAlign:"center"}}>
+                        <div style={{width:88,height:88,border:`1.5px solid ${clrB}`,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",background:"#fff",overflow:"hidden"}}>
+                          {F.qrCode
+                            ?<img src={F.qrCode} alt="UPI QR" style={{width:80,height:80,objectFit:"contain",display:"block"}}/>
+                            :<span style={{fontSize:9,color:"#999",fontStyle:"italic",textAlign:"center",padding:4}}>QR Code</span>}
+                        </div>
+                        <div style={{...cs,fontSize:Math.max(bFsz-5,9),fontWeight:700,fontStyle:"italic",marginTop:3,whiteSpace:"nowrap"}}>Scan to pay using UPI</div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </td>
-              <td style={{width:"45%",verticalAlign:"top",padding:"12px 14px"}}>
-                <div style={{...cs,fontStyle:"italic",lineHeight:1.6,color:"#444"}}>Certified that the particulars given above are true and correct.</div>
-                <div style={{...cs,fontWeight:900,fontStyle:"italic",fontSize:bFsz+1,color:clrP,marginTop:8}}>For {firmName}</div>
-                <div style={{textAlign:"center",marginTop:16}}>
-                  <div style={{minHeight:80}}/>
-                  {/* Stamp and signature rendered as absolute overlays */}
-                  {!F.signature&&<div style={{width:140,borderBottom:"1px solid #888",margin:"36px auto 0"}}/>}
-                  <div style={{...cs,fontWeight:900,fontStyle:"italic",marginTop:10}}>Authorised Signatory</div>
-                </div>
-              </td>
-            </tr>
+                </td>
+                <td style={{width:"45%",verticalAlign:"top",padding:"12px 14px"}}>
+                  <div style={{...cs,fontStyle:"italic",lineHeight:1.6,color:"#444"}}>Certified that the particulars given above are true and correct.</div>
+                  <div style={{...cs,fontWeight:900,fontStyle:"italic",fontSize:bFsz+1,color:clrP,marginTop:8}}>For {firmName}</div>
+                  <div style={{textAlign:"center",marginTop:16}}>
+                    <div style={{minHeight:80}}/>
+                    {!F.signature&&<div style={{width:140,borderBottom:"1px solid #888",margin:"36px auto 0"}}/>}
+                    <div style={{...cs,fontWeight:900,fontStyle:"italic",marginTop:10}}>Authorised Signatory</div>
+                  </div>
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
 
@@ -8078,14 +8133,29 @@ const compressImage = (base64Str, maxDim = 600) => {
 };
 
 // ─── WhatsApp Modal Component ────────────────────────────────────────────────
-function WhatsAppModal({ state, onClose, firmSettings, setFirmSettings, toast }) {
+function WhatsAppModal({ state, onClose, firmSettings, setFirmSettings, toast, clients, works, setWorks, dd }) {
   const [activeTab, setActiveTab] = useState("compose");
   const [phone, setPhone] = useState(state.phone || "");
   const [selectedTemplateId, setSelectedTemplateId] = useState(firmSettings.whatsappTemplates?.[0]?.id || "custom");
   const [autoDownload, setAutoDownload] = useState(!!state.downloadPdfFn);
 
+  const [selectedTaskVal, setSelectedTaskVal] = useState("");
+  const [showCreateTask, setShowCreateTask] = useState(false);
+  const [newTaskFields, setNewTaskFields] = useState({
+    svc: "",
+    fy: dd?.fyOptions?.[0] || "2025-26",
+    ay: "",
+    due: "",
+    staff: dd?.staffOptions?.[0] || "Unassigned",
+    fees: "",
+  });
+
+  const client = state.client || clients?.find(c => c.pan === state.pan) || clients?.find(c => c.mob === phone || c.mob?.replace(/\D/g, "").endsWith(phone.replace(/\D/g, "").slice(-10)));
+  const clientPan = client?.pan || "";
+  const clientWorks = works && clientPan ? works.filter(w => w.pan === clientPan) : [];
+
   const [params, setParams] = useState({
-    name: state.client?.name || "",
+    name: client?.name || state.client?.name || "",
     firmName: firmSettings.name || "",
     firmPhone: firmSettings.phone || "",
     firmEmail: firmSettings.email || "",
@@ -8123,6 +8193,108 @@ function WhatsAppModal({ state, onClose, firmSettings, setFirmSettings, toast })
       setCustomMessageText(getProcessedText(t.text, params));
     }
   }, [selectedTemplateId, params, firmSettings.whatsappTemplates]);
+
+  const handleTaskSelection = (val) => {
+    if (val === "create_new") {
+      setNewTaskFields({
+        svc: "",
+        fy: dd?.fyOptions?.[0] || "2025-26",
+        ay: "",
+        due: "",
+        staff: dd?.staffOptions?.[0] || "Unassigned",
+        fees: "",
+      });
+      setShowCreateTask(true);
+      return;
+    }
+    
+    if (!val) {
+      setParams(prev => ({
+        ...prev,
+        taskName: "",
+        dueDate: "",
+        fy: "",
+        ay: ""
+      }));
+      return;
+    }
+
+    const task = clientWorks.find(w => String(w.id) === String(val));
+    if (task) {
+      let derivedAy = "";
+      if (task.fy && task.fy.includes("-")) {
+        const parts = task.fy.split("-");
+        const startYr = parseInt(parts[0], 10);
+        if (!isNaN(startYr)) {
+          derivedAy = `${startYr + 1}-${String(startYr + 2).slice(-2)}`;
+        }
+      }
+
+      setParams(prev => ({
+        ...prev,
+        taskName: task.svc || "",
+        fy: task.fy || "",
+        ay: derivedAy,
+        dueDate: task.due ? new Date(task.due).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "",
+      }));
+      toast("Loaded details from task: " + task.svc);
+    }
+  };
+
+  const handleCreateTaskSubmit = () => {
+    if (!newTaskFields.svc) {
+      toast("Please select/enter Task Name", "err");
+      return;
+    }
+    if (!newTaskFields.due) {
+      toast("Due date is required", "err");
+      return;
+    }
+    if (!clientPan) {
+      toast("No client associated with this message", "err");
+      return;
+    }
+
+    const newId = Date.now();
+    const newTask = {
+      id: newId,
+      pan: clientPan,
+      cn: client?.name || "",
+      svc: newTaskFields.svc,
+      fy: newTaskFields.fy,
+      due: newTaskFields.due,
+      staff: newTaskFields.staff || "Unassigned",
+      status: "Pending",
+      fees: Number(newTaskFields.fees) || 0,
+      comm: 0,
+      rcvd: 0,
+      src: client?.src || "",
+      note: "Created via WhatsApp modal compose message"
+    };
+
+    setWorks(prev => [newTask, ...prev]);
+
+    let derivedAy = newTaskFields.ay;
+    if (!derivedAy && newTaskFields.fy && newTaskFields.fy.includes("-")) {
+      const parts = newTaskFields.fy.split("-");
+      const startYr = parseInt(parts[0], 10);
+      if (!isNaN(startYr)) {
+        derivedAy = `${startYr + 1}-${String(startYr + 2).slice(-2)}`;
+      }
+    }
+
+    setParams(prev => ({
+      ...prev,
+      taskName: newTask.svc,
+      fy: newTask.fy,
+      ay: derivedAy,
+      dueDate: newTask.due ? new Date(newTask.due).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "",
+    }));
+
+    setSelectedTaskVal(String(newId));
+    setShowCreateTask(false);
+    toast(`Task "${newTask.svc}" created & loaded!`);
+  };
 
   // Manage template states
   const [editingTemplateId, setEditingTemplateId] = useState(null);
@@ -8255,6 +8427,28 @@ function WhatsAppModal({ state, onClose, firmSettings, setFirmSettings, toast })
                     style={{ background: G.card, border: `1.5px solid ${G.bdr}`, borderRadius: 8, color: G.wh, padding: "9px 12px", fontSize: 13, outline: "none" }}
                   />
                 </div>
+              </div>
+
+              {/* Task Selector Dropdown */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 14 }}>
+                <label style={{ fontSize: 11, color: G.mut, fontWeight: 700 }}>Link / Create Task (Repetitive Tasks)</label>
+                <select
+                  value={selectedTaskVal}
+                  onChange={e => {
+                    const v = e.target.value;
+                    setSelectedTaskVal(v);
+                    handleTaskSelection(v);
+                  }}
+                  style={{ background: G.card, border: `1.5px solid ${G.bdr}`, borderRadius: 8, color: G.wh, padding: "9px 12px", fontSize: 13, outline: "none" }}
+                >
+                  <option value="">-- Select created task (or custom) --</option>
+                  <option value="create_new" style={{ color: G.green, fontWeight: "bold" }}>➕ Create New Task...</option>
+                  {clientWorks.map(w => (
+                    <option key={w.id} value={w.id}>
+                      {w.svc} · {w.fy} {w.due ? `(Due: ${new Date(w.due).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })})` : ""} [{w.status}]
+                    </option>
+                  ))}
+                </select>
               </div>
 
               {/* Template Picker */}
@@ -8421,6 +8615,115 @@ function WhatsAppModal({ state, onClose, firmSettings, setFirmSettings, toast })
         </div>
 
       </div>
+      {showCreateTask && (
+        <div style={{ position: "absolute", inset: 0, background: "rgba(6, 14, 10, 0.9)", zIndex: 7000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div style={{ background: G.surf, border: `1.5px solid ${G.green}44`, borderRadius: 16, width: "100%", maxWidth: 400, boxShadow: "0 15px 40px rgba(0,0,0,0.8)", overflow: "hidden" }}>
+            {/* Header */}
+            <div style={{ background: G.card, padding: "14px 18px", borderBottom: `1px solid ${G.bdr}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontWeight: 800, fontSize: 14, color: G.wh }}>➕ Create New Task for {client?.name || "Client"}</span>
+              <button onClick={() => { setShowCreateTask(false); setSelectedTaskVal(""); }} style={{ background: "transparent", border: "none", color: G.mut, cursor: "pointer", fontSize: 15 }}>✕</button>
+            </div>
+            {/* Form Fields */}
+            <div style={{ padding: 18, display: "flex", flexDirection: "column", gap: 12 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <label style={{ fontSize: 10, color: G.mut, fontWeight: 700 }}>Task Name</label>
+                <select
+                  value={newTaskFields.svc}
+                  onChange={e => setNewTaskFields(prev => ({ ...prev, svc: e.target.value }))}
+                  style={{ background: G.card, border: `1.5px solid ${G.bdr}`, borderRadius: 8, color: G.wh, padding: "8px 12px", fontSize: 12, outline: "none" }}
+                >
+                  <option value="">Select Service...</option>
+                  {(dd?.services || []).map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+                <input
+                  type="text"
+                  value={newTaskFields.svc}
+                  onChange={e => setNewTaskFields(prev => ({ ...prev, svc: e.target.value }))}
+                  placeholder="Or type custom service name..."
+                  style={{ background: G.card, border: `1.5px solid ${G.bdr}`, borderRadius: 8, color: G.wh, padding: "8px 12px", fontSize: 12, outline: "none", marginTop: 4 }}
+                />
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <label style={{ fontSize: 10, color: G.mut, fontWeight: 700 }}>FY (Financial Year)</label>
+                  <select
+                    value={newTaskFields.fy}
+                    onChange={e => setNewTaskFields(prev => ({ ...prev, fy: e.target.value }))}
+                    style={{ background: G.card, border: `1.5px solid ${G.bdr}`, borderRadius: 8, color: G.wh, padding: "8px 12px", fontSize: 12, outline: "none" }}
+                  >
+                    {(dd?.fyOptions || []).map(f => (
+                      <option key={f} value={f}>{f}</option>
+                    ))}
+                  </select>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <label style={{ fontSize: 10, color: G.mut, fontWeight: 700 }}>AY (Assessment Year)</label>
+                  <input
+                    type="text"
+                    value={newTaskFields.ay}
+                    onChange={e => setNewTaskFields(prev => ({ ...prev, ay: e.target.value }))}
+                    placeholder="e.g. 2026-27"
+                    style={{ background: G.card, border: `1.5px solid ${G.bdr}`, borderRadius: 8, color: G.wh, padding: "8px 12px", fontSize: 12, outline: "none" }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <label style={{ fontSize: 10, color: G.mut, fontWeight: 700 }}>Due Date</label>
+                <input
+                  type="date"
+                  value={newTaskFields.due}
+                  onChange={e => setNewTaskFields(prev => ({ ...prev, due: e.target.value }))}
+                  style={{ background: G.card, border: `1.5px solid ${G.bdr}`, borderRadius: 8, color: G.wh, padding: "8px 12px", fontSize: 12, outline: "none" }}
+                />
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <label style={{ fontSize: 10, color: G.mut, fontWeight: 700 }}>Staff Assigned</label>
+                  <select
+                    value={newTaskFields.staff}
+                    onChange={e => setNewTaskFields(prev => ({ ...prev, staff: e.target.value }))}
+                    style={{ background: G.card, border: `1.5px solid ${G.bdr}`, borderRadius: 8, color: G.wh, padding: "8px 12px", fontSize: 12, outline: "none" }}
+                  >
+                    {(dd?.staffOptions || []).map(st => (
+                      <option key={st} value={st}>{st}</option>
+                    ))}
+                  </select>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <label style={{ fontSize: 10, color: G.mut, fontWeight: 700 }}>Fees (₹)</label>
+                  <input
+                    type="number"
+                    value={newTaskFields.fees}
+                    onChange={e => setNewTaskFields(prev => ({ ...prev, fees: e.target.value }))}
+                    placeholder="0"
+                    style={{ background: G.card, border: `1.5px solid ${G.bdr}`, borderRadius: 8, color: G.wh, padding: "8px 12px", fontSize: 12, outline: "none" }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
+                <button
+                  onClick={handleCreateTaskSubmit}
+                  style={{ flex: 1, padding: "10px", borderRadius: 8, border: "none", background: `linear-gradient(135deg, ${G.g2}, ${G.green})`, color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" }}
+                >
+                  Create Task
+                </button>
+                <button
+                  onClick={() => { setShowCreateTask(false); setSelectedTaskVal(""); }}
+                  style={{ padding: "10px 14px", borderRadius: 8, border: `1px solid ${G.bdr}`, background: "transparent", color: G.mut, cursor: "pointer", fontSize: 13 }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -9727,6 +10030,10 @@ export default function App(){
         firmSettings={firmSettings}
         setFirmSettings={setFirmSettings}
         toast={toast}
+        clients={clients}
+        works={works}
+        setWorks={setWorks}
+        dd={dd}
       />
     )}
     <Toasts list={toasts}/>
