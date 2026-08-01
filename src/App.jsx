@@ -2868,8 +2868,8 @@ function WorkTracker({works,setWorks,clients,ownerOn,dd,pws,toast,invoices,setIn
       </div>)}
     </div>
     <Crd sty={{padding:0,overflow:"hidden"}}><div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
-      <thead><tr style={{background:G.bg}}>{["Client","PAN","Service","FY","Due","Staff","Status",...(feesOn?["Fees","Comm.","Received","O/S"]:["💰"]),"O/D","Portals",""].map(h=><th key={h} style={{padding:"9px 11px",textAlign:"left",color:feesOn&&["Fees","Comm.","Received","O/S"].includes(h)?G.amb:G.mut,fontWeight:600,fontSize:11,whiteSpace:"nowrap",borderBottom:`1px solid ${G.bdr}`}}>{h}</th>)}</tr></thead>
-      <tbody>{fw.length===0?<tr><td colSpan={15} style={{padding:28,textAlign:"center",color:G.bdr}}>No records</td></tr>
+      <thead><tr style={{background:G.bg}}>{["Client","PAN","Service","FY","Assigned","Due","Staff","Status",...(feesOn?["Fees","Comm.","Received","O/S"]:["💰"]),"O/D","Portals",""].map(h=><th key={h} style={{padding:"9px 11px",textAlign:"left",color:feesOn&&["Fees","Comm.","Received","O/S"].includes(h)?G.amb:G.mut,fontWeight:600,fontSize:11,whiteSpace:"nowrap",borderBottom:`1px solid ${G.bdr}`}}>{h}</th>)}</tr></thead>
+      <tbody>{fw.length===0?<tr><td colSpan={16} style={{padding:28,textAlign:"center",color:G.bdr}}>No records</td></tr>
       :fw.map((w,i)=>{
         const linked=linkedInvoices(w,invoices),wRcvd=workReceived(w,invoices,receipts),wBilled=workBilled(w,invoices),os=wBilled-wRcvd,pStat=workPayStatus(w,invoices,receipts),od=odDays(w),cl=clients.find(c=>c.pan===w.pan),aP=PORTALS.filter(p=>cl?.portals[p.key]?.on);
         const linkableInvs=(invoices||[]).filter(inv=>inv.pan===w.pan&&(!inv.workId||inv.workId===""));
@@ -2880,6 +2880,12 @@ function WorkTracker({works,setWorks,clients,ownerOn,dd,pws,toast,invoices,setIn
           <td style={{padding:"9px 11px",color:G.g3,fontFamily:"monospace",fontSize:11}}>{w.pan}</td>
           <td style={{padding:"9px 11px",color:G.mut,whiteSpace:"nowrap",maxWidth:120,overflow:"hidden",textOverflow:"ellipsis"}}>{w.svc}</td>
           <td style={{padding:"9px 11px",color:G.mut}}>{w.fy}</td>
+          <td style={{padding:"9px 11px",whiteSpace:"nowrap",color:G.mut}}>
+            <div style={{display:"flex",alignItems:"center",gap:4}}>
+              <span>{w.date ? fd(w.date) : "-"}</span>
+              <button onClick={()=>setEditW(w)} style={{background:"transparent",border:"none",color:G.cyn,cursor:"pointer",padding:0,fontSize:10,opacity:0.6}} title="Edit work details">✏️</button>
+            </div>
+          </td>
           <td style={{padding:"9px 11px",whiteSpace:"nowrap",color:isOD(w)?G.red:G.mut}}>{fd(w.due)}</td>
           <td style={{padding:"9px 11px",color:G.mut,whiteSpace:"nowrap"}}>{w.staff}</td>
           <td style={{padding:"9px 11px"}}><select value={w.status} onChange={e=>setWorks(p=>p.map(x=>x.id===w.id?{...x,status:e.target.value}:x))} style={{background:"transparent",border:"none",cursor:"pointer",fontSize:12,color:w.status==="Completed"?G.green:w.status==="In Progress"?G.cyn:G.amb}}>{["Pending","In Progress","Completed"].map(s=><option key={s} value={s} style={{background:"#0B1610"}}>{s}</option>)}</select></td>
