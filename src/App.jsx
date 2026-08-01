@@ -1462,6 +1462,7 @@ function InvoiceModule({invoices,setInvoices,receipts,setReceipts,clients,works,
   const[showForm,setShowForm]=useState(false);
   const[showPrint,setShowPrint]=useState(null);
   const[editInv,setEditInv]=useState(null);
+  const[hideAmountList,setHideAmountList]=useState(false);
 
   useEffect(() => {
     if (openInvoiceId) {
@@ -1535,9 +1536,9 @@ function InvoiceModule({invoices,setInvoices,receipts,setReceipts,clients,works,
     <div className="kpi-grid-4" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12}}>
       {[
         {l:"Total Invoices",v:filtered.length,icon:"🧾",col:G.green},
-        {l:"Total Billed",v:inr(totBilled),icon:"💳",col:G.cyn},
-        {l:"Collected",v:inr(totPaid),icon:"✅",col:G.g3},
-        {l:"Outstanding",v:inr(totUnpaid),icon:"⚠️",col:G.red},
+        {l:"Total Billed",v:hideAmountList ? "₹ ••••••" : inr(totBilled),icon:"💳",col:G.cyn},
+        {l:"Collected",v:hideAmountList ? "₹ ••••••" : inr(totPaid),icon:"✅",col:G.g3},
+        {l:"Outstanding",v:hideAmountList ? "₹ ••••••" : inr(totUnpaid),icon:"⚠️",col:G.red},
       ].map(k=><div key={k.l} style={{background:G.surf,border:`1px solid ${G.bdr}`,borderRadius:12,padding:"13px 16px",display:"flex",gap:10,alignItems:"center"}}>
         <div style={{width:38,height:38,borderRadius:10,background:k.col+"18",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>{k.icon}</div>
         <div><div style={{fontWeight:800,fontSize:16,color:k.col}}>{k.v}</div><div style={{fontSize:10,color:G.mut,marginTop:2}}>{k.l}</div></div>
@@ -1560,6 +1561,15 @@ function InvoiceModule({invoices,setInvoices,receipts,setReceipts,clients,works,
         <span style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:G.mut}}>🔍</span>
         <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search client, invoice no..." style={{...IS,paddingLeft:30,fontSize:12}}/>
       </div>
+      <label style={{display:"flex",alignItems:"center",gap:6,color:G.mut,fontSize:12,cursor:"pointer",userSelect:"none",marginLeft:4,marginRight:4}}>
+        <input 
+          type="checkbox" 
+          checked={hideAmountList} 
+          onChange={e=>setHideAmountList(e.target.checked)} 
+          style={{cursor:"pointer",accentColor:G.green}}
+        />
+        <span>Hide Amounts</span>
+      </label>
       <button onClick={()=>{setEditInv(null);setShowForm(true);}} style={{padding:"8px 18px",borderRadius:10,border:"none",cursor:"pointer",background:`linear-gradient(135deg,${G.g2},${G.green})`,color:"#fff",fontWeight:700,fontSize:13,whiteSpace:"nowrap"}}>➕ New Invoice</button>
     </div>
 
@@ -1585,9 +1595,9 @@ function InvoiceModule({invoices,setInvoices,receipts,setReceipts,clients,works,
               </td>
               <td style={{padding:"10px 12px",color:G.mut,maxWidth:140,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{inv.service ? inv.service.split(", ").map(s => s.split("|")[0]).join(", ") : "-"}</td>
               <td style={{padding:"10px 12px",color:G.mut}}>{inv.fy}</td>
-              <td style={{padding:"10px 12px",color:G.txt,fontWeight:600}}>{inr(inv.amount)}</td>
+              <td style={{padding:"10px 12px",color:G.txt,fontWeight:600}}>{hideAmountList ? "••••••" : inr(inv.amount)}</td>
               <td style={{padding:"10px 12px",color:G.mut}}>{inv.gst}%</td>
-              <td style={{padding:"10px 12px",color:G.green,fontWeight:700,whiteSpace:"nowrap"}}>{inr(inv.total)}</td>
+              <td style={{padding:"10px 12px",color:G.green,fontWeight:700,whiteSpace:"nowrap"}}>{hideAmountList ? "••••••" : inr(inv.total)}</td>
               <td style={{padding:"10px 12px"}}>
                 <span style={{background:s.bg,color:s.fg,padding:"2px 9px",borderRadius:20,fontSize:11,fontWeight:700,whiteSpace:"nowrap"}}>{inv.status}</span>
               </td>
@@ -1620,9 +1630,9 @@ function InvoiceModule({invoices,setInvoices,receipts,setReceipts,clients,works,
         {filtered.length>0&&<tfoot>
           <tr style={{background:G.bg,borderTop:`2px solid ${G.green}33`}}>
             <td colSpan={5} style={{padding:"9px 12px",fontWeight:800,color:G.wh,fontSize:12}}>TOTALS ({filtered.length} invoices)</td>
-            <td style={{padding:"9px 12px",color:G.txt,fontWeight:700}}>{inr(filtered.reduce((s,i)=>s+i.amount,0))}</td>
+            <td style={{padding:"9px 12px",color:G.txt,fontWeight:700}}>{hideAmountList ? "••••••" : inr(filtered.reduce((s,i)=>s+i.amount,0))}</td>
             <td/>
-            <td style={{padding:"9px 12px",color:G.green,fontWeight:800}}>{inr(totBilled)}</td>
+            <td style={{padding:"9px 12px",color:G.green,fontWeight:800}}>{hideAmountList ? "••••••" : inr(totBilled)}</td>
             <td colSpan={2}/>
           </tr>
         </tfoot>}
