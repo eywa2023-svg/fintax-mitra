@@ -9254,12 +9254,23 @@ export default function App(){
         } catch (e) {
           console.error("Error loading local images:", e);
         }
-        _setFirmSettings(prev => ({
-          ...prev,
-          ...dbFirm.settings,
-          ...localImages,
-          whatsappTemplates: dbFirm.settings?.whatsappTemplates || prev.whatsappTemplates
-        }));
+        const imageKeys = ['logo', 'stamp', 'signature', 'qrCode', 'statusStamp'];
+        const dbSettings = dbFirm.settings || {};
+        const needsMigration = imageKeys.some(k => localImages[k] && !dbSettings[k]);
+
+        _setFirmSettings(prev => {
+          const merged = {
+            ...prev,
+            ...dbSettings,
+            ...localImages,
+            whatsappTemplates: dbSettings.whatsappTemplates || prev.whatsappTemplates
+          };
+          if (needsMigration) {
+            console.log("Auto-migrating localStorage images to Supabase...");
+            setTimeout(() => syncFirmSettingsToSupabase(merged), 500);
+          }
+          return merged;
+        });
         _setDd(dbDev.dropdown_defaults);
         _setPws(dbDev.passwords);
         setSyncEnabled(true);
