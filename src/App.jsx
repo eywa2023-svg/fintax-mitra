@@ -8873,6 +8873,7 @@ export default function App(){
   const [openReceiptId, setOpenReceiptId] = useState(null);
   const [openWorkId, setOpenWorkId] = useState(null);
   const [whatsappState, setWhatsappState] = useState(null);
+  const syncFirmSettingsTimeoutRef = React.useRef(null);
 
   const handleWhatsApp = (client, defaults = {}, downloadPdfFn = null) => {
     setWhatsappState({ phone: client?.mob || "", client, defaults, downloadPdfFn });
@@ -9034,15 +9035,7 @@ export default function App(){
 
   const syncFirmSettingsToSupabase = async (settings) => {
     try {
-      // Strip heavy base64 images to avoid "Failed to fetch" payload size errors
-      const lightSettings = { ...settings };
-      const imageKeys = ['logo', 'stamp', 'signature', 'qrCode', 'statusStamp'];
-      imageKeys.forEach(k => {
-        if (lightSettings[k] && lightSettings[k].startsWith('data:image')) {
-          lightSettings[k] = null;
-        }
-      });
-      const { error } = await supabase.from('firm_settings').upsert({ id: 1, settings: lightSettings });
+      const { error } = await supabase.from('firm_settings').upsert({ id: 1, settings });
       if (error) throw error;
     } catch (err) {
       console.error("Error syncing firm settings:", err);
@@ -9104,7 +9097,14 @@ export default function App(){
   const setFirmSettings = (valOrFn) => {
     _setFirmSettings(prev => {
       const next = typeof valOrFn === 'function' ? valOrFn(prev) : valOrFn;
-      if (syncEnabled) setTimeout(() => syncFirmSettingsToSupabase(next), 0);
+      if (syncEnabled) {
+        if (syncFirmSettingsTimeoutRef.current) {
+          clearTimeout(syncFirmSettingsTimeoutRef.current);
+        }
+        syncFirmSettingsTimeoutRef.current = setTimeout(() => {
+          syncFirmSettingsToSupabase(next);
+        }, 1000);
+      }
       return next;
     });
   };
