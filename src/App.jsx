@@ -859,7 +859,7 @@ function FinDash({works,invoices,receipts,onLogout,dd,clients,setClients,toast})
 
 
 // ─── Add Client ───────────────────────────────────────────────────────────────
-function AddClient({clients,setClients,dd,toast}){
+function AddClient({clients,setClients,dd,toast,isMobile}){
   const bk={pan:"",name:"",biz:"",mob:"",email:"",gstin:"",addr:"",state:"",type:"",src:"",added:td(),status:"Active",note:"",aadhaar:"",dob:"",fatherName:"",gender:"",residentialStatus:"",pin:"",bankName:"",ifsc:"",accountNumber:"",itrType:"",extraPw:[],portals:mkP()};
   const[f,setF]=useState(bk),[err,setErr]=useState({}),[spw,setSpw]=useState({});
   const sp=(k,fld,v)=>setF(p=>({...p,portals:{...p.portals,[k]:{...p.portals[k],[fld]:v}}}));
@@ -953,7 +953,7 @@ function AddClient({clients,setClients,dd,toast}){
     setErr(e);if(Object.keys(e).length){toast("Fix errors","err");return;}
     setClients(p=>[{...f,pan:f.pan.toUpperCase()},...p]);setF(bk);setErr({});toast(`${f.name} added!`);
   };
-  return <div style={{display:"flex",gap:16}}>
+  return <div style={{display:isMobile?"block":"flex",gap:16}}>
     <div style={{flex:1,display:"flex",flexDirection:"column",gap:13}}>
       <Crd sty={{border:`1.5px dashed ${G.green}cc`,background:`${G.green}04`}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}>
@@ -1036,24 +1036,26 @@ function AddClient({clients,setClients,dd,toast}){
         <button onClick={()=>{setF(bk);setErr({});}} style={{padding:"13px 17px",borderRadius:11,border:`1.5px solid ${G.bdr}`,background:"transparent",color:G.mut,cursor:"pointer",fontWeight:600}}>Clear</button>
       </div>
     </div>
-    <div style={{width:230,flexShrink:0,display:"flex",flexDirection:"column",gap:12}}>
-      <Crd><SH icon="ℹ️" title="Tips" acc={G.cyn}/>
-        <div style={{marginTop:10,fontSize:12,color:G.mut,lineHeight:1.9}}>
-          <div>* PAN = 10 chars, auto-uppercase</div><div>* Tick only portals client uses</div>
-          <div>* Fees added when assigning work</div><div>* Credentials visible in Client list</div>
-        </div>
-      </Crd>
-      <Crd><SH icon="📊" title="By Type" acc={G.green}/>
-        <div style={{marginTop:10,display:"flex",flexDirection:"column",gap:6}}>
-          {dd.clientTypes.map(t=>{const n=clients.filter(c=>c.type===t).length;return n>0&&<div key={t} style={{display:"flex",justifyContent:"space-between",fontSize:12}}><span style={{color:G.mut}}>{t}</span><span style={{color:G.green,fontWeight:700}}>{n}</span></div>;})}
-        </div>
-      </Crd>
-    </div>
+    {!isMobile && (
+      <div style={{width:230,flexShrink:0,display:"flex",flexDirection:"column",gap:12}}>
+        <Crd><SH icon="ℹ️" title="Tips" acc={G.cyn}/>
+          <div style={{marginTop:10,fontSize:12,color:G.mut,lineHeight:1.9}}>
+            <div>* PAN = 10 chars, auto-uppercase</div><div>* Tick only portals client uses</div>
+            <div>* Fees added when assigning work</div><div>* Credentials visible in Client list</div>
+          </div>
+        </Crd>
+        <Crd><SH icon="📊" title="By Type" acc={G.green}/>
+          <div style={{marginTop:10,display:"flex",flexDirection:"column",gap:6}}>
+            {dd.clientTypes.map(t=>{const n=clients.filter(c=>c.type===t).length;return n>0&&<div key={t} style={{display:"flex",justifyContent:"space-between",fontSize:12}}><span style={{color:G.mut}}>{t}</span><span style={{color:G.green,fontWeight:700}}>{n}</span></div>;})}
+          </div>
+        </Crd>
+      </div>
+    )}
   </div>;
 }
 
 // ─── Assign Work ──────────────────────────────────────────────────────────────
-function AssignWork({clients,works,setWorks,dd,toast}){
+function AssignWork({clients,works,setWorks,dd,toast,isMobile}){
   const bk={pan:"",svc:"",fy:dd.fyOptions[0]||"2025-26",due:"",date:new Date().toISOString().split("T")[0],staff:"",fees:"",comm:"",rcvd:"",src:"",note:""};
   const[f,setF]=useState(bk),[err,setErr]=useState({}),[showP,setShowP]=useState(false);
   const sel=clients.find(c=>c.pan===f.pan);
@@ -1064,7 +1066,7 @@ function AssignWork({clients,works,setWorks,dd,toast}){
     setWorks(p=>[{id:Date.now(),pan:f.pan,cn:sel?.name||"",svc:f.svc,fy:f.fy,due:f.due,date:f.date||new Date().toISOString().split("T")[0],staff:f.staff,status:"Pending",fees:Number(f.fees)||0,comm:Number(f.comm)||0,rcvd:Number(f.rcvd)||0,src:f.src||sel?.src||"",note:f.note},...p]);
     setF(bk);setErr({});setShowP(false);toast(`Assigned - ${f.svc} for ${sel?.name}`);
   };
-  return <div style={{display:"grid",gridTemplateColumns:"1fr 270px",gap:16}}>
+  return <div style={{display:isMobile?"block":"grid",gridTemplateColumns:isMobile?"1fr":"1fr 270px",gap:16}}>
     <div style={{display:"flex",flexDirection:"column",gap:13}}>
       <Crd><SH icon="🔍" title="Select Client" acc={G.green}/>
         <PanPick clients={clients} val={f.pan} set={v=>{setF(p=>({...p,pan:v,src:clients.find(c=>c.pan===v)?.src||""}));setShowP(false);}}/>
@@ -1173,25 +1175,27 @@ function AssignWork({clients,works,setWorks,dd,toast}){
       </Crd>
       <Btn onClick={save} sty={{width:"100%",padding:13,fontSize:14}}>📋 Add to Work Tracker</Btn>
     </div>
-    <div style={{display:"flex",flexDirection:"column",gap:12}}>
-      <Crd><SH icon="⚡" title="Quick Service" acc={G.green}/>
-        <div style={{display:"flex",flexDirection:"column",gap:3}}>
-          {dd.services.map(s=><div key={s} onClick={()=>setF(p=>({...p,svc:s}))}
-            style={{padding:"7px 10px",borderRadius:7,cursor:"pointer",fontSize:12,background:f.svc===s?G.green+"18":"transparent",border:f.svc===s?`1px solid ${G.green}44`:"1px solid transparent",color:f.svc===s?G.green:G.mut,fontWeight:f.svc===s?700:400,display:"flex",alignItems:"center",gap:6}}>
-            <span style={{fontSize:7,color:f.svc===s?G.green:G.bdr}}>●</span>{s}
-          </div>)}
-        </div>
-      </Crd>
-      <Crd><SH icon="🕐" title="Recent" acc={G.vio}/>
-        <div style={{display:"flex",flexDirection:"column",gap:6}}>
-          {works.slice(0,4).map(w=><div key={w.id} style={{padding:"8px 10px",background:G.bg,borderRadius:8,border:`1px solid ${G.bdr}`}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{fontWeight:600,fontSize:12,color:G.txt}}>{w.cn}</span><Bdg label={isOD(w)?"Overdue":w.status}/></div>
-            <div style={{fontSize:11,color:G.mut,marginTop:2}}>{w.svc} · {w.fy}</div>
-            <div style={{fontSize:11,color:isOD(w)?G.red:G.mut,marginTop:1}}>Due: {fd(w.due)}</div>
-          </div>)}
-        </div>
-      </Crd>
-    </div>
+    {!isMobile && (
+      <div style={{display:"flex",flexDirection:"column",gap:12}}>
+        <Crd><SH icon="⚡" title="Quick Service" acc={G.green}/>
+          <div style={{display:"flex",flexDirection:"column",gap:3}}>
+            {dd.services.map(s=><div key={s} onClick={()=>setF(p=>({...p,svc:s}))}
+              style={{padding:"7px 10px",borderRadius:7,cursor:"pointer",fontSize:12,background:f.svc===s?G.green+"18":"transparent",border:f.svc===s?`1px solid ${G.green}44`:"1px solid transparent",color:f.svc===s?G.green:G.mut,fontWeight:f.svc===s?700:400,display:"flex",alignItems:"center",gap:6}}>
+              <span style={{fontSize:7,color:f.svc===s?G.green:G.bdr}}>●</span>{s}
+            </div>)}
+          </div>
+        </Crd>
+        <Crd><SH icon="🕐" title="Recent" acc={G.vio}/>
+          <div style={{display:"flex",flexDirection:"column",gap:6}}>
+            {works.slice(0,4).map(w=><div key={w.id} style={{padding:"8px 10px",background:G.bg,borderRadius:8,border:`1px solid ${G.bdr}`}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{fontWeight:600,fontSize:12,color:G.txt}}>{w.cn}</span><Bdg label={isOD(w)?"Overdue":w.status}/></div>
+              <div style={{fontSize:11,color:G.mut,marginTop:2}}>{w.svc} · {w.fy}</div>
+              <div style={{fontSize:11,color:isOD(w)?G.red:G.mut,marginTop:1}}>Due: {fd(w.due)}</div>
+            </div>)}
+          </div>
+        </Crd>
+      </div>
+    )}
   </div>;
 }
 
@@ -1935,6 +1939,12 @@ function InvoiceForm({invoices,setInvoices,clients,works,dd,toast,onClose,genId,
 function InvoicePrint({inv,clients,firmSettings,onClose,toast}){
   const [printStatus, setPrintStatus] = useState(false);
   const [hideAmount, setHideAmount] = useState(false);
+  const [windowWidth, setWindowWidth] = useState(typeof window !== "undefined" ? window.innerWidth : 800);
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
   const cl=clients.find(c=>c.pan===inv.pan);
   const F=firmSettings||{};
   const isGST=(inv.gst||0)>0;
@@ -2045,8 +2055,25 @@ function InvoicePrint({inv,clients,firmSettings,onClose,toast}){
       table{width:100%;border-collapse:collapse;}
       td,th{word-break:break-word;}
       #ftm-print-page{width:${PAGE_W}px;height:${PAGE_H}px;overflow:hidden;position:relative;}
-      @media print{@page{size:A4 portrait;margin:0;}body{margin:0;}}
+      @media print{
+        @page{size:A4 portrait;margin:0;}
+        body{margin:0;}
+        .no-print{display:none !important;}
+      }
+      @media screen {
+        body { background: #0f172a; padding: 75px 20px 20px; display: flex; flex-direction: column; align-items: center; width: 100%; min-height: 100vh; overflow-y: auto; }
+        #ftm-print-page { box-shadow: 0 10px 30px rgba(0,0,0,0.5); border-radius: 4px; }
+      }
     </style></head><body>
+    <div class="no-print" style="position:fixed;top:0;left:0;right:0;height:55px;background:#1e293b;border-bottom:1px solid #334155;display:flex;align-items:center;justify-content:space-between;padding:0 16px;z-index:9999;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#fff;box-shadow:0 2px 10px rgba(0,0,0,0.2);">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <button onclick="window.close()" style="background:#ef4444;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:bold;font-size:13px;display:flex;align-items:center;gap:6px;box-shadow:0 2px 5px rgba(0,0,0,0.2);">✕ Close & Return</button>
+        <button onclick="window.print()" style="background:#22c55e;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:bold;font-size:13px;display:flex;align-items:center;gap:6px;box-shadow:0 2px 5px rgba(0,0,0,0.2);">🖨️ Print / Save PDF</button>
+      </div>
+      <div style="font-size:12px;color:#94a3b8;max-width:55%;text-align:right;line-height:1.4;">
+        <b>Tip:</b> If print dialog doesn't open automatically, use browser Share menu → Print.
+      </div>
+    </div>
     <div id="ftm-print-page">${wrapper.outerHTML}</div>
     <script>
       window.onload = function() {
@@ -2071,42 +2098,78 @@ function InvoicePrint({inv,clients,firmSettings,onClose,toast}){
   const BDR=`1px solid ${clrB}`;
   const cs={fontFamily:"'Times New Roman',Times,serif",fontSize:bFsz,color:"#000"};
 
+  const availableWidth = Math.max(300, windowWidth - 24);
+  const isMobileView = windowWidth <= 768;
+  const scalePct = isMobileView && availableWidth < PAGE_W ? (availableWidth / PAGE_W) : 1;
+
   return <div style={{position:"fixed",inset:0,background:"#000D",zIndex:6000,display:"flex",flexDirection:"column",overflow:"hidden"}}>
     {/* ── Toolbar ── */}
-    <div style={{background:G.surf,borderBottom:`1px solid ${G.bdr}`,padding:"10px 20px",display:"flex",gap:10,alignItems:"center",justifyContent:"space-between",flexShrink:0}}>
-      <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
-        <span style={{fontWeight:700,fontSize:14,color:G.wh}}>🧾 {inv.id}</span>
-        <span style={{fontSize:11,padding:"2px 9px",borderRadius:20,fontWeight:700,background:isGST?G.green+"20":G.amb+"20",color:isGST?G.green:G.amb,border:`1px solid ${isGST?G.green:G.amb}44`}}>{isGST?`With GST (${inv.gst}%)`:"Without GST"}</span>
-        <span style={{fontSize:11,padding:"2px 9px",borderRadius:20,fontWeight:600,background:G.ind+"20",color:G.ind,border:`1px solid ${G.ind}44`}}>{invType}</span>
+    <div style={{
+      background: G.surf,
+      borderBottom: `1px solid ${G.bdr}`,
+      padding: isMobileView ? "8px 12px" : "10px 20px",
+      display: "flex",
+      flexDirection: isMobileView ? "column" : "row",
+      gap: isMobileView ? 8 : 10,
+      alignItems: isMobileView ? "stretch" : "center",
+      justifyContent: "space-between",
+      flexShrink: 0
+    }}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,width:isMobileView?"100%":"auto"}}>
+        <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+          <span style={{fontWeight:700,fontSize:14,color:G.wh}}>🧾 {inv.id}</span>
+          {!isMobileView && (
+            <>
+              <span style={{fontSize:11,padding:"2px 9px",borderRadius:20,fontWeight:700,background:isGST?G.green+"20":G.amb+"20",color:isGST?G.green:G.amb,border:`1px solid ${isGST?G.green:G.amb}44`}}>{isGST?`With GST (${inv.gst}%)`:"Without GST"}</span>
+              <span style={{fontSize:11,padding:"2px 9px",borderRadius:20,fontWeight:600,background:G.ind+"20",color:G.ind,border:`1px solid ${G.ind}44`}}>{invType}</span>
+            </>
+          )}
+        </div>
+        {isMobileView && (
+          <button onClick={onClose} style={{padding:"6px 12px",borderRadius:8,border:`1px solid ${G.bdr}`,background:"transparent",color:G.mut,cursor:"pointer",fontWeight:600,fontSize:12}}>✕ Close</button>
+        )}
       </div>
-      <div style={{display:"flex",gap:8,alignItems:"center"}}>
-        <label style={{display:"flex",alignItems:"center",gap:6,color:G.wh,fontSize:12,cursor:"pointer",marginRight:6,userSelect:"none"}}>
-          <input 
-            type="checkbox" 
-            checked={printStatus} 
-            onChange={e=>setPrintStatus(e.target.checked)} 
-            style={{cursor:"pointer",accentColor:G.green}}
-          />
-          Print Universal Stamp
-        </label>
-        <label style={{display:"flex",alignItems:"center",gap:6,color:G.wh,fontSize:12,cursor:"pointer",marginRight:12,userSelect:"none"}}>
-          <input 
-            type="checkbox" 
-            checked={hideAmount} 
-            onChange={e=>setHideAmount(e.target.checked)} 
-            style={{cursor:"pointer",accentColor:G.green}}
-          />
-          Hide Amount
-        </label>
-        {pdfMsg&&<span style={{fontSize:11,color:pdfMsg[0]==="✓"?G.green:G.red,fontWeight:600}}>{pdfMsg}</span>}
-        <button onClick={downloadPDF} disabled={pdfBusy} style={{padding:"8px 20px",borderRadius:9,border:"none",cursor:pdfBusy?"default":"pointer",background:`linear-gradient(135deg,${G.g2},${G.green})`,color:"#fff",fontWeight:700,fontSize:13,opacity:pdfBusy?.7:1}}>{pdfBusy?"⏳ Opening...":"🖨 Print / Save as PDF"}</button>
-        <button onClick={onClose} style={{padding:"8px 14px",borderRadius:9,border:`1px solid ${G.bdr}`,background:"transparent",color:G.mut,cursor:"pointer",fontWeight:600}}>✕ Close</button>
+      <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",justifyContent:isMobileView?"space-between":"flex-end"}}>
+        <div style={{display:"flex",gap:10}}>
+          <label style={{display:"flex",alignItems:"center",gap:6,color:G.wh,fontSize:12,cursor:"pointer",userSelect:"none"}}>
+            <input 
+              type="checkbox" 
+              checked={printStatus} 
+              onChange={e=>setPrintStatus(e.target.checked)} 
+              style={{cursor:"pointer",accentColor:G.green}}
+            />
+            <span>{isMobileView ? "Stamp" : "Print Universal Stamp"}</span>
+          </label>
+          <label style={{display:"flex",alignItems:"center",gap:6,color:G.wh,fontSize:12,cursor:"pointer",userSelect:"none"}}>
+            <input 
+              type="checkbox" 
+              checked={hideAmount} 
+              onChange={e=>setHideAmount(e.target.checked)} 
+              style={{cursor:"pointer",accentColor:G.green}}
+            />
+            <span>{isMobileView ? "Hide Amt" : "Hide Amount"}</span>
+          </label>
+        </div>
+        <div style={{display:"flex",gap:6,alignItems:"center"}}>
+          {pdfMsg&&<span style={{fontSize:11,color:pdfMsg[0]==="✓"?G.green:G.red,fontWeight:600}}>{pdfMsg}</span>}
+          <button onClick={downloadPDF} disabled={pdfBusy} style={{padding:"7px 14px",borderRadius:8,border:"none",cursor:pdfBusy?"default":"pointer",background:`linear-gradient(135deg,${G.g2},${G.green})`,color:"#fff",fontWeight:700,fontSize:12,opacity:pdfBusy?.7:1}}>{pdfBusy?"⏳...":"🖨 Print / PDF"}</button>
+          {!isMobileView && (
+            <button onClick={onClose} style={{padding:"8px 14px",borderRadius:9,border:`1px solid ${G.bdr}`,background:"transparent",color:G.mut,cursor:"pointer",fontWeight:600}}>✕ Close</button>
+          )}
+        </div>
       </div>
     </div>
 
     {/* ── Paper area ── */}
     <div style={{flex:1,overflowY:"auto",overflowX:"auto",background:"#D1D5DB",padding:"12px",display:"flex",flexDirection:"column",alignItems:"center"}}>
-      <div style={{width:PAGE_W,height:PAGE_H,position:"relative",flexShrink:0}}>
+      <div style={{
+        width: PAGE_W,
+        height: PAGE_H,
+        position: "relative",
+        flexShrink: 0,
+        zoom: scalePct,
+        transformOrigin: "top center"
+      }}>
       {/* REDESIGN: fixed height (not min-height) + flex column. Every section
           below is flexShrink:0 (never squeezed) except the service-table
           section, which is the one flexible region (flex:1) that naturally
@@ -10198,8 +10261,8 @@ export default function App(){
             <Logo sz={64}/><div style={{fontWeight:700,fontSize:17,marginTop:8}}>Owner Access Required</div>
             <button onClick={()=>{setPendingProt("fin");setShowOA(true);}} style={{padding:"11px 26px",borderRadius:11,border:"none",cursor:"pointer",background:`linear-gradient(135deg,${G.g2},${G.green})`,color:"#fff",fontWeight:700,fontSize:14}}>🔐 Unlock</button>
           </div>)}
-        {tab==="add"&&sub==="client"&&<AddClient clients={clients} setClients={setClients} dd={dd} toast={toast}/>}
-        {tab==="add"&&sub==="work"&&<AssignWork clients={clients} works={works} setWorks={setWorks} dd={dd} toast={toast}/>}
+        {tab==="add"&&sub==="client"&&<AddClient clients={clients} setClients={setClients} dd={dd} toast={toast} isMobile={isMobile}/>}
+        {tab==="add"&&sub==="work"&&<AssignWork clients={clients} works={works} setWorks={setWorks} dd={dd} toast={toast} isMobile={isMobile}/>}
         {tab==="clients"&&<ClientList clients={clients} setClients={setClients} dd={dd} toast={toast} onWhatsApp={handleWhatsApp} works={works} invoices={invoices} setTab={setTab} setOpenWorkId={setOpenWorkId} onViewProfile={setGlobalClientProfilePan}/>}
         {tab==="itr"&&<ITRComputationTab clients={clients} setClients={setClients} computations={computations} setComputations={setComputations} dd={dd} toast={toast} openComputationId={openComputationId} setOpenComputationId={setOpenComputationId} onWhatsApp={handleWhatsApp}/>}
         {tab==="tracker"&&<WorkTracker works={works} setWorks={setWorks} clients={clients} ownerOn={ownerOn} dd={dd} pws={pws} toast={toast} invoices={invoices} setInvoices={setInvoices} receipts={receipts} openWorkId={openWorkId} setOpenWorkId={setOpenWorkId} onWhatsApp={handleWhatsApp} onViewProfile={setGlobalClientProfilePan}/>}
