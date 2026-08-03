@@ -3,7 +3,7 @@ import {
   FileText, Plus, Save, Printer, FolderOpen, Settings, ChevronDown,
   User, Wallet, Home, Briefcase, TrendingUp, Coins, ShieldCheck,
   Scale, Receipt, CheckCircle2, AlertCircle, Trash2, Copy, X, Search, LayoutGrid, GripVertical,
-  FileSpreadsheet, FileDown
+  FileSpreadsheet, FileDown, Send
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import * as XLSXStyle from "xlsx-js-style";
@@ -9697,7 +9697,6 @@ export default function App(){
       if (lastLocalBackup !== today) {
         if (currentChecksum === lastLocalChecksum) {
           console.log("Local auto-backup skipped: No changes since last backup");
-          localStorage.setItem("ftm_last_autobackup", today);
           return;
         }
         
@@ -9734,7 +9733,6 @@ export default function App(){
       if (lastGoogleBackup !== today) {
         if (currentChecksum === lastGoogleChecksum) {
           console.log("Google Drive auto-backup skipped: No changes since last backup");
-          localStorage.setItem("ftm_last_google_backup", today);
           return;
         }
         setTimeout(() => {
