@@ -216,7 +216,7 @@ function Toasts({list}){
 }
 
 function F({label,req,children,w="100%"}){
-  return <div style={{display:"flex",flexDirection:"column",gap:4,width:w,minWidth:0}}>
+  return <div className="form-field" style={{display:"flex",flexDirection:"column",gap:4,width:w,minWidth:0}}>
     <label style={{fontSize:11,fontWeight:700,color:G.mut,textTransform:"uppercase",letterSpacing:.7}}>{label}{req&&<span style={{color:G.red}}> *</span>}</label>
     {children}
   </div>;
@@ -233,7 +233,7 @@ function S({val,set,opts,ph}){
     {opts.map(o=><option key={o} value={o} style={{background:"#0B1610"}}>{o}</option>)}
   </select>;
 }
-function R({children,gap=12}){return <div style={{display:"flex",gap,flexWrap:"wrap"}}>{children}</div>;}
+function R({children,gap=12}){return <div className="form-row" style={{display:"flex",gap,flexWrap:"wrap",width:"100%"}}>{children}</div>;}
 function Crd({children,sty={}}){return <div style={{background:G.surf,border:`1px solid ${G.bdr}`,borderRadius:16,padding:20,...sty}}>{children}</div>;}
 function SH({icon,title,acc=G.green}){
   return <div style={{display:"flex",alignItems:"center",gap:10,paddingBottom:11,borderBottom:`1px solid ${G.bdr}`,marginBottom:12}}>
@@ -4672,7 +4672,7 @@ function buildPrintCSS(ps) {
       flex-direction: column !important;
       box-sizing: border-box !important;
     }
-    .sheet-page { zoom: ${scale}; }
+    .sheet-page { zoom: ${scale} !important; transform: none !important; }
     .sheet-footer {
       margin-top: auto !important;
     }
@@ -6759,6 +6759,7 @@ function SheetView({ assessee, income, deductions, manualDeductions, config, cal
   const [pageSetupOpen, setPageSetupOpen] = useState(false);
   const [logoOpen, setLogoOpen] = useState(false);
   const logoDrag = React.useRef(null);
+  const [windowWidth, setWindowWidth] = useState(typeof window !== "undefined" ? window.innerWidth : 1024);
 
   /* -------- live "how many pages will this print as?" estimate --------
      Measures the actual (unscaled) rendered height of each section and
@@ -6773,6 +6774,7 @@ function SheetView({ assessee, income, deductions, manualDeductions, config, cal
 
   useEffect(() => {
     const measure = () => {
+      setWindowWidth(window.innerWidth);
       const MM_TO_PX_1 = 3.7795;
       const b = PAPER_SIZES[pageSetup.paperSize] || PAPER_SIZES.A4;
       const paperH = pageSetup.orientation === "landscape" ? b[0] : b[1];
@@ -6877,7 +6879,13 @@ function SheetView({ assessee, income, deductions, manualDeductions, config, cal
   const paperW = pageSetup.orientation === "landscape" ? base[1] : base[0];
   const paperH = pageSetup.orientation === "landscape" ? base[0] : base[1];
   const screenScale = 0.82; // fit comfortably in the main content column
-  const scalePct = Math.max(50, Math.min(150, num(pageSetup.scale) || 100)) / 100;
+  const sheetWidth = paperW * MM_TO_PX * screenScale;
+  const isMobileView = windowWidth <= 768;
+  const availableWidth = Math.max(300, windowWidth - 32);
+  const responsiveScale = (isMobileView && availableWidth < sheetWidth)
+    ? (availableWidth / sheetWidth)
+    : 1;
+  const scalePct = (Math.max(50, Math.min(150, num(pageSetup.scale) || 100)) / 100) * responsiveScale;
   const pageStyle = {
     width: `${paperW * MM_TO_PX * screenScale}px`,
     minHeight: `${paperH * MM_TO_PX * screenScale}px`,
@@ -6885,8 +6893,7 @@ function SheetView({ assessee, income, deductions, manualDeductions, config, cal
     paddingBottom: `${num(pageSetup.marginBottom) * MM_TO_PX * screenScale}px`,
     paddingLeft: `${num(pageSetup.marginLeft) * MM_TO_PX * screenScale}px`,
     paddingRight: `${num(pageSetup.marginRight) * MM_TO_PX * screenScale}px`,
-    transform: `scale(${scalePct})`,
-    transformOrigin: "top center",
+    zoom: scalePct,
     maxWidth: "none",
     position: "relative",
     display: "flex",
@@ -7792,13 +7799,60 @@ const CSS = `
   .sheet-page-liability { page-break-before: always; break-before: page; }
 }
 
-@media (max-width: 860px) {
-  .itc-app { flex-direction: column; }
-  .itc-sidebar { width: 100%; flex-direction: row; flex-wrap: wrap; position: static; height: auto; overflow-y: visible; }
-  .itc-nav { flex-direction: row; flex-wrap: wrap; }
-  .itc-main { padding: 20px; }
-  .itc-row, .itc-regime-grid, .sheet-grid { grid-template-columns: 1fr; }
-  .itc-manual-row { grid-template-columns: 1fr; }
+@media (max-width: 768px) {
+  .itc-app { flex-direction: column; height: 100vh; overflow: hidden; }
+  .itc-sidebar {
+    width: 100% !important;
+    height: auto !important;
+    position: relative !important;
+    flex-direction: column !important;
+    padding: 10px 12px !important;
+    gap: 8px !important;
+    background: var(--navy-deep) !important;
+    flex-shrink: 0 !important;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+  }
+  .itc-brand {
+    justify-content: space-between !important;
+    width: 100% !important;
+    padding: 0 !important;
+  }
+  .itc-brand button { display: none !important; }
+  .itc-sidebar-actions {
+    grid-template-columns: repeat(4, 1fr) !important;
+    width: 100% !important;
+    margin-top: 4px !important;
+  }
+  .itc-sidebar-actions .itc-sbtn {
+    padding: 6px 4px !important;
+    font-size: 11px !important;
+  }
+  .itc-ay-badge { display: none !important; }
+  .itc-nav {
+    flex-direction: row !important;
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
+    width: 100% !important;
+    padding: 2px 0 !important;
+    gap: 6px !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  .itc-nav::-webkit-scrollbar { display: none !important; }
+  .itc-nav-item {
+    flex-shrink: 0 !important;
+    padding: 6px 12px !important;
+    font-size: 12px !important;
+    border-radius: 20px !important;
+    justify-content: center !important;
+  }
+  .itc-main {
+    padding: 12px 12px 40px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-y: auto !important;
+  }
+  .itc-row, .itc-regime-grid, .sheet-grid { grid-template-columns: 1fr !important; }
+  .itc-manual-row { grid-template-columns: 1fr !important; }
 }
 
 /* PAN hyperlink -> jumps back to the client record in Fin-Tax Mitra (screen only; print stays identical to a normal cell) */
@@ -8868,6 +8922,7 @@ export default function App(){
   const [globalClientEditPan, setGlobalClientEditPan] = useState(null);
   const [globalClientProfilePan, setGlobalClientProfilePan] = useState(null);
   const [globalSearchQ, setGlobalSearchQ] = useState("");
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [openComputationId, setOpenComputationId] = useState(null);
   const [openInvoiceId, setOpenInvoiceId] = useState(null);
   const [openReceiptId, setOpenReceiptId] = useState(null);
@@ -9814,6 +9869,8 @@ export default function App(){
         .app-content{padding:12px !important;}
         .kpi-grid-3,.kpi-grid-4,.kpi-grid-5{grid-template-columns:repeat(2,1fr) !important;}
         table{font-size:11px !important;}
+        .form-row{flex-direction:column !important;gap:12px !important;}
+        .form-field{width:100% !important;}
       }
       @media (max-width:430px){
         .kpi-grid-3,.kpi-grid-4,.kpi-grid-5{grid-template-columns:1fr !important;}
@@ -9898,14 +9955,24 @@ export default function App(){
     {/* Main */}
     <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",minWidth:0}}>
       <div className="app-header no-print" style={{background:"#070E09",borderBottom:`1px solid ${G.bdr}`,height:50,display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0,gap:8,padding:"0 16px"}}>
-        <div style={{display:"flex",alignItems:"center",gap:10,minWidth:0}}>
-          <button className="mobile-hamburger" onClick={()=>setSideOpen(true)} style={{display:"none",background:"transparent",border:`1px solid ${G.bdr}`,color:G.txt,borderRadius:8,width:32,height:32,alignItems:"center",justifyContent:"center",fontSize:16,cursor:"pointer",flexShrink:0}}>☰</button>
-          <div style={{fontWeight:700,fontSize:15,color:G.txt,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{titles[tab]||""}</div>
-        </div>
+        {(!isMobile || !mobileSearchOpen) && (
+          <div style={{display:"flex",alignItems:"center",gap:10,minWidth:0}}>
+            <button className="mobile-hamburger" onClick={()=>setSideOpen(true)} style={{display:"none",background:"transparent",border:`1px solid ${G.bdr}`,color:G.txt,borderRadius:8,width:32,height:32,alignItems:"center",justifyContent:"center",fontSize:16,cursor:"pointer",flexShrink:0}}>☰</button>
+            <div style={{fontWeight:700,fontSize:15,color:G.txt,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{titles[tab]||""}</div>
+            {isMobile && (
+              <button onClick={() => setMobileSearchOpen(true)} style={{background:"transparent",border:"none",color:G.txt,fontSize:15,cursor:"pointer",padding:"4px 8px",marginLeft:4}}>🔍</button>
+            )}
+          </div>
+        )}
 
-        {/* Global Search Bar */}
-        <div style={{position:"relative",flex:1,maxWidth:320,marginLeft:20,marginRight:20,zIndex:6000}}>
-          <span style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:G.mut,fontSize:13}}>🔍</span>
+        {isMobile && mobileSearchOpen && (
+          <button onClick={() => { setMobileSearchOpen(false); setGlobalSearchQ(""); }} 
+            style={{background:"transparent",border:`1px solid ${G.bdr}`,color:G.txt,borderRadius:8,width:32,height:32,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0,marginRight:4}}>←</button>
+        )}
+
+        {(!isMobile || mobileSearchOpen) && (
+          <div style={{position:"relative",flex:1,maxWidth:isMobile?"none":320,marginLeft:isMobile?0:20,marginRight:isMobile?0:20,zIndex:6000}}>
+            <span style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:G.mut,fontSize:13}}>🔍</span>
           <input
             value={globalSearchQ}
             onChange={e=>setGlobalSearchQ(e.target.value)}
@@ -10113,7 +10180,7 @@ export default function App(){
               </div>
             );
           })()}
-        </div>
+        </div>)}
 
         <div style={{display:"flex",gap:10,alignItems:"center",flexShrink:0}}>
           {tab==="add"&&<div style={{display:"flex",gap:3,background:G.card,border:`1px solid ${G.bdr}`,borderRadius:9,padding:3}}>
