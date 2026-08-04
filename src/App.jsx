@@ -1061,10 +1061,88 @@ function AssignWork({clients,works,setWorks,dd,toast,isMobile}){
   const[mode,setMode]=useState("single");
   const[selPans,setSelPans]=useState([]);
   const[bulkQ,setBulkQ]=useState("");
+  const[bulkRows,setBulkRows] = useState([]);
+  
+  const[bulkDefaults,setBulkDefaults] = useState({
+    svc: "",
+    fy: dd.fyOptions[0] || "2025-26",
+    staff: "",
+    date: new Date().toISOString().split("T")[0],
+    due: "",
+    fees: "",
+    comm: "",
+    rcvd: "0",
+    src: "",
+    note: ""
+  });
 
   const sel=clients.find(c=>c.pan===f.pan);
   const hFees=v=>{const n=Number(v.replace(/\D/g,""));setF(p=>({...p,fees:v.replace(/\D/g,""),comm:p.comm||String(Math.round(n*0.1))}));};
   
+  useEffect(() => {
+    setBulkRows(prev => {
+      const updated = selPans.map(pan => {
+        const existing = prev.find(r => r.pan === pan);
+        if (existing) return existing;
+        const cl = clients.find(c => c.pan === pan);
+        return {
+          pan: pan,
+          cn: cl?.name || "",
+          svc: "",
+          fy: dd.fyOptions[0] || "2025-26",
+          staff: "",
+          date: new Date().toISOString().split("T")[0],
+          due: "",
+          fees: "",
+          comm: "",
+          rcvd: "0",
+          src: cl?.src || "",
+          note: ""
+        };
+      });
+      return updated;
+    });
+  }, [selPans, clients, dd.fyOptions]);
+
+  const applyBulkDefaults = () => {
+    setBulkRows(prev => prev.map(row => {
+      const nFees = bulkDefaults.fees ? Number(bulkDefaults.fees.replace(/\D/g,"")) : 0;
+      const nComm = bulkDefaults.comm ? Number(bulkDefaults.comm.replace(/\D/g,"")) : (nFees ? Math.round(nFees * 0.1) : "");
+      return {
+        ...row,
+        svc: bulkDefaults.svc || row.svc,
+        fy: bulkDefaults.fy || row.fy,
+        staff: bulkDefaults.staff || row.staff,
+        date: bulkDefaults.date || row.date,
+        due: bulkDefaults.due || row.due,
+        fees: bulkDefaults.fees !== "" ? bulkDefaults.fees : row.fees,
+        comm: bulkDefaults.comm !== "" ? String(nComm) : (bulkDefaults.fees !== "" ? String(nComm) : row.comm),
+        rcvd: bulkDefaults.rcvd !== "" ? bulkDefaults.rcvd : row.rcvd,
+        src: bulkDefaults.src || row.src,
+        note: bulkDefaults.note || row.note
+      };
+    }));
+    toast("Applied defaults to all selected rows!");
+  };
+
+  const updateRow = (index, field, val) => {
+    setBulkRows(prev => {
+      const next = [...prev];
+      const updatedRow = { ...next[index], [field]: val };
+      if (field === "fees") {
+        const cleanFees = val.replace(/\D/g, "");
+        updatedRow.fees = cleanFees;
+        if (!updatedRow.comm && cleanFees) {
+          updatedRow.comm = String(Math.round(Number(cleanFees) * 0.1));
+        }
+      } else if (field === "comm" || field === "rcvd") {
+        updatedRow[field] = val.replace(/\D/g, "");
+      }
+      next[index] = updatedRow;
+      return next;
+    });
+  };
+
   const save=()=>{
     const e={};if(!f.pan)e.pan="Select";if(!f.svc)e.svc="Select";if(!f.due)e.due="Required";if(!f.staff)e.staff="Required";if(!f.fees)e.fees="Enter";
     setErr(e);if(Object.keys(e).length){toast("Fix errors","err");return;}
@@ -1072,41 +1150,56 @@ function AssignWork({clients,works,setWorks,dd,toast,isMobile}){
     setF(bk);setErr({});setShowP(false);toast(`Assigned - ${f.svc} for ${sel?.name}`);
   };
 
-  const saveBulk=()=>{
-    const e={};
-    if(!selPans.length)e.pans="Select at least one client";
-    if(!f.svc)e.svc="Select";
-    if(!f.due)e.due="Required";
-    if(!f.staff)e.staff="Required";
-    if(!f.fees)e.fees="Enter";
-    setErr(e);
-    if(Object.keys(e).length){toast("Fix errors","err");return;}
-
-    const newWorks=selPans.map((pan, index)=>{
-      const cl=clients.find(c=>c.pan===pan);
+  const saveBulk = () => {
+    const e = {};
+    if (!bulkRows.length) {
+      e.pans = "Select at least one client";
+      setErr(e);
+      toast("No clients selected", "err");
+      return;
+    }
+    const rowErrors = {};
+    let hasError = false;
+    bulkRows.forEach((row, i) => {
+      const rowErr = {};
+      if (!row.svc) rowErr.svc = true;
+      if (!row.due) rowErr.due = true;
+      if (!row.staff) rowErr.staff = true;
+      if (!row.fees) rowErr.fees = true;
+      if (Object.keys(rowErr).length) {
+        rowErrors[i] = rowErr;
+        hasError = true;
+      }
+    });
+    if (hasError) {
+      setErr({ rows: rowErrors });
+      toast("Please fill required fields in all rows", "err");
+      return;
+    }
+    const newWorks = bulkRows.map((row, index) => {
       return {
-        id:Date.now() + index,
-        pan:pan,
-        cn:cl?.name||"",
-        svc:f.svc,
-        fy:f.fy,
-        due:f.due,
-        date:f.date||new Date().toISOString().split("T")[0],
-        staff:f.staff,
-        status:"Pending",
-        fees:Number(f.fees)||0,
-        comm:Number(f.comm)||0,
-        rcvd:Number(f.rcvd)||0,
-        src:f.src||cl?.src||"",
-        note:f.note
+        id: Date.now() + index,
+        pan: row.pan,
+        cn: row.cn,
+        svc: row.svc,
+        fy: row.fy,
+        due: row.due,
+        date: row.date || new Date().toISOString().split("T")[0],
+        staff: row.staff,
+        status: "Pending",
+        fees: Number(row.fees) || 0,
+        comm: Number(row.comm) || 0,
+        rcvd: Number(row.rcvd) || 0,
+        src: row.src || "",
+        note: row.note
       };
     });
-
-    setWorks(p=>[...newWorks,...p]);
+    setWorks(p => [...newWorks, ...p]);
     setF(bk);
     setSelPans([]);
+    setBulkRows([]);
     setErr({});
-    toast(`Assigned - ${f.svc} for ${newWorks.length} clients`);
+    toast(`Assigned - tasks for ${newWorks.length} clients`);
   };
 
   const filteredClients = useMemo(() => {
@@ -1114,6 +1207,19 @@ function AssignWork({clients,works,setWorks,dd,toast,isMobile}){
     const lq = bulkQ.toLowerCase();
     return clients.filter(c => c.name.toLowerCase().includes(lq) || c.pan.toLowerCase().includes(lq) || c.type.toLowerCase().includes(lq));
   }, [clients, bulkQ]);
+
+  const cellInputStyle = (isError) => ({
+    background: G.card,
+    border: `1.5px solid ${isError ? G.red : "#1A3020"}`,
+    borderRadius: 8,
+    color: G.wh,
+    fontSize: 12,
+    padding: "6px 10px",
+    outline: "none",
+    width: "100%",
+    boxSizing: "border-box",
+    fontFamily: "Segoe UI, sans-serif"
+  });
 
   return <div style={{display:"flex",flexDirection:"column",gap:14}}>
     {/* Mode Selector */}
@@ -1125,156 +1231,278 @@ function AssignWork({clients,works,setWorks,dd,toast,isMobile}){
     <div style={{display:isMobile?"block":"grid",gridTemplateColumns:isMobile?"1fr":"1fr 270px",gap:16}}>
       <div style={{display:"flex",flexDirection:"column",gap:13}}>
         {mode==="single" ? (
-          <Crd><SH icon="🔍" title="Select Client" acc={G.green}/>
-            <PanPick clients={clients} val={f.pan} set={v=>{setF(p=>({...p,pan:v,src:clients.find(c=>c.pan===v)?.src||""}));setShowP(false);}}/>
-            {err.pan&&<span style={{fontSize:11,color:G.red,marginTop:3,display:"block"}}>{err.pan}</span>}
-            {sel&&<div style={{marginTop:14,display:"flex",flexDirection:"column",gap:10}}>
-              {/* ── Full Client Details Card ── */}
-              <div style={{background:G.bg,border:`1px solid ${G.green}30`,borderRadius:13,overflow:"hidden"}}>
-                {/* Header */}
-                <div style={{background:`linear-gradient(135deg,${G.gd},${G.g2})`,padding:"12px 16px",display:"flex",gap:12,alignItems:"center"}}>
-                  <div style={{width:44,height:44,borderRadius:11,background:`linear-gradient(135deg,${G.g2},${G.green})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,fontWeight:800,color:"#fff",flexShrink:0,border:"2px solid #4ADE8055"}}>{sel.name[0]}</div>
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontWeight:800,fontSize:15,color:G.wh,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{sel.name}</div>
-                    {sel.biz&&<div style={{fontSize:12,color:G.g3,marginTop:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{sel.biz}</div>}
-                    <div style={{display:"flex",gap:8,marginTop:4,flexWrap:"wrap"}}>
-                      <span style={{fontSize:11,color:G.green,fontWeight:700,fontFamily:"monospace",background:G.green+"15",padding:"1px 8px",borderRadius:8}}>🆔 {sel.pan}</span>
-                      <span style={{fontSize:11,background:sel.status==="Active"?"#14532D":"#450A0A",color:sel.status==="Active"?"#4ADE80":"#FCA5A5",padding:"1px 8px",borderRadius:8,fontWeight:700}}>{sel.status}</span>
-                      <span style={{fontSize:11,color:G.mut,background:G.bdr,padding:"1px 8px",borderRadius:8}}>{sel.type}</span>
+          <>
+            <Crd><SH icon="🔍" title="Select Client" acc={G.green}/>
+              <PanPick clients={clients} val={f.pan} set={v=>{setF(p=>({...p,pan:v,src:clients.find(c=>c.pan===v)?.src||""}));setShowP(false);}}/>
+              {err.pan&&<span style={{fontSize:11,color:G.red,marginTop:3,display:"block"}}>{err.pan}</span>}
+              {sel&&<div style={{marginTop:14,display:"flex",flexDirection:"column",gap:10}}>
+                {/* ── Full Client Details Card ── */}
+                <div style={{background:G.bg,border:`1px solid ${G.green}30`,borderRadius:13,overflow:"hidden"}}>
+                  {/* Header */}
+                  <div style={{background:`linear-gradient(135deg,${G.gd},${G.g2})`,padding:"12px 16px",display:"flex",gap:12,alignItems:"center"}}>
+                    <div style={{width:44,height:44,borderRadius:11,background:`linear-gradient(135deg,${G.g2},${G.green})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,fontWeight:800,color:"#fff",flexShrink:0,border:"2px solid #4ADE8055"}}>{sel.name[0]}</div>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontWeight:800,fontSize:15,color:G.wh,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{sel.name}</div>
+                      {sel.biz&&<div style={{fontSize:12,color:G.g3,marginTop:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{sel.biz}</div>}
+                      <div style={{display:"flex",gap:8,marginTop:4,flexWrap:"wrap"}}>
+                        <span style={{fontSize:11,color:G.green,fontWeight:700,fontFamily:"monospace",background:G.green+"15",padding:"1px 8px",borderRadius:8}}>🆔 {sel.pan}</span>
+                        <span style={{fontSize:11,background:sel.status==="Active"?"#14532D":"#450A0A",color:sel.status==="Active"?"#4ADE80":"#FCA5A5",padding:"1px 8px",borderRadius:8,fontWeight:700}}>{sel.status}</span>
+                        <span style={{fontSize:11,color:G.mut,background:G.bdr,padding:"1px 8px",borderRadius:8}}>{sel.type}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-                {/* Details Grid */}
-                <div style={{padding:"12px 16px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-                  {[
-                    {l:"📱 Mobile",v:sel.mob},
-                    {l:"📍 State",v:sel.state},
-                    {l:"✉ Email",v:sel.email,full:true},
-                    {l:"📣 Source",v:sel.src},
-                    {l:"📦 GSTIN",v:sel.gstin||"Not registered",mono:true},
-                    {l:"📅 Client Since",v:sel.added?new Date(sel.added).toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}):"-"},
-                  ].map(d=><div key={d.l} style={{gridColumn:d.full?"1 / -1":"auto"}}>
-                    <div style={{fontSize:10,color:G.mut,fontWeight:700,marginBottom:2}}>{d.l}</div>
-                    <div style={{fontSize:12,color:d.mono?G.cyn:G.txt,fontFamily:d.mono?"monospace":"inherit",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{d.v||"-"}</div>
-                  </div>)}
-                </div>
-                {/* Remarks */}
-                {sel.note&&<div style={{padding:"0 16px 12px"}}>
-                  <div style={{fontSize:10,color:G.mut,fontWeight:700,marginBottom:3}}>📝 REMARKS</div>
-                  <div style={{fontSize:12,color:G.txt,background:G.surf,padding:"7px 10px",borderRadius:8,border:`1px solid ${G.bdr}`}}>{sel.note}</div>
-                </div>}
-                {/* Past Works for this client */}
-                {works.filter(w=>w.pan===sel.pan).length>0&&<div style={{padding:"0 16px 12px"}}>
-                  <div style={{fontSize:10,color:G.mut,fontWeight:700,marginBottom:6}}>📋 PAST ASSIGNMENTS ({works.filter(w=>w.pan===sel.pan).length})</div>
-                  <div style={{display:"flex",flexDirection:"column",gap:4}}>
-                    {works.filter(w=>w.pan===sel.pan).slice(0,4).map(w=><div key={w.id} style={{display:"flex",alignItems:"center",gap:8,padding:"5px 9px",background:G.surf,borderRadius:7,border:`1px solid ${G.bdr}`}}>
-                      <span style={{fontSize:11,color:G.txt,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{w.svc}</span>
-                      <span style={{fontSize:10,color:G.mut}}>{w.fy}</span>
-                      <span style={{fontSize:10,padding:"1px 7px",borderRadius:10,fontWeight:700,background:w.status==="Completed"?"#14532D":w.status==="In Progress"?"#1E1B4B":"#431407",color:w.status==="Completed"?"#4ADE80":w.status==="In Progress"?"#A5B4FC":"#FCD34D"}}>{w.status}</span>
+                  {/* Details Grid */}
+                  <div style={{padding:"12px 16px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                    {[
+                      {l:"📱 Mobile",v:sel.mob},
+                      {l:"📍 State",v:sel.state},
+                      {l:"✉ Email",v:sel.email,full:true},
+                      {l:"📣 Source",v:sel.src},
+                      {l:"📦 GSTIN",v:sel.gstin||"Not registered",mono:true},
+                      {l:"📅 Client Since",v:sel.added?new Date(sel.added).toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}):"-"},
+                    ].map(d=><div key={d.l} style={{gridColumn:d.full?"1 / -1":"auto"}}>
+                      <div style={{fontSize:10,color:G.mut,fontWeight:700,marginBottom:2}}>{d.l}</div>
+                      <div style={{fontSize:12,color:d.mono?G.cyn:G.txt,fontFamily:d.mono?"monospace":"inherit",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{d.v||"-"}</div>
                     </div>)}
                   </div>
-                </div>}
-              </div>
-              {/* Portal Credentials */}
-              <div style={{background:G.bg,border:`1px solid ${G.bdr}`,borderRadius:11,padding:"10px 14px"}}>
-                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
-                  <div style={{fontSize:11,color:G.mut,fontWeight:700}}>🔐 PORTAL CREDENTIALS ({PORTALS.filter(p=>sel.portals[p.key]?.on).length} active)</div>
-                  <button onClick={()=>setShowP(v=>!v)} style={{fontSize:11,padding:"3px 10px",borderRadius:7,border:`1px solid ${G.bdr}`,background:"transparent",color:G.mut,cursor:"pointer"}}>{showP?"🙈 Hide":"👁 Show"}</button>
-                </div>
-                <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:showP?8:0}}>
-                  {PORTALS.filter(p=>sel.portals[p.key]?.on).map(p=><span key={p.key} style={{fontSize:11,padding:"2px 8px",borderRadius:10,background:p.col+"18",color:p.col,fontWeight:600}}>{p.icon} {p.label}</span>)}
-                  {!PORTALS.some(p=>sel.portals[p.key]?.on)&&<span style={{fontSize:11,color:G.bdr}}>No portals configured</span>}
-                </div>
-                {showP&&<div style={{display:"flex",flexDirection:"column",gap:6,marginTop:4}}>
-                  {PORTALS.filter(p=>sel.portals[p.key]?.on).map(p=><div key={p.key} style={{display:"flex",gap:9,padding:"8px 11px",background:p.col+"0A",border:`1px solid ${p.col}22`,borderRadius:9}}>
-                    <span style={{fontSize:15,flexShrink:0}}>{p.icon}</span>
-                    <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontSize:10,color:p.col,fontWeight:700,marginBottom:2}}>{p.label}</div>
-                      <div style={{fontSize:11,color:G.mut}}>ID: <span style={{color:G.wh,fontFamily:"monospace",fontWeight:600}}>{sel.portals[p.key].id||"-"}</span></div>
-                      <div style={{fontSize:11,color:G.mut}}>PW: <span style={{color:G.wh,fontFamily:"monospace",fontWeight:600}}>{sel.portals[p.key].pw||"-"}</span></div>
+                  {/* Remarks */}
+                  {sel.note&&<div style={{padding:"0 16px 12px"}}>
+                    <div style={{fontSize:10,color:G.mut,fontWeight:700,marginBottom:3}}>📝 REMARKS</div>
+                    <div style={{fontSize:12,color:G.txt,background:G.surf,padding:"7px 10px",borderRadius:8,border:`1px solid ${G.bdr}`}}>{sel.note}</div>
+                  </div>}
+                  {/* Past Works for this client */}
+                  {works.filter(w=>w.pan===sel.pan).length>0&&<div style={{padding:"0 16px 12px"}}>
+                    <div style={{fontSize:10,color:G.mut,fontWeight:700,marginBottom:6}}>📋 PAST ASSIGNMENTS ({works.filter(w=>w.pan===sel.pan).length})</div>
+                    <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                      {works.filter(w=>w.pan===sel.pan).slice(0,4).map(w=><div key={w.id} style={{display:"flex",alignItems:"center",gap:8,padding:"5px 9px",background:G.surf,borderRadius:7,border:`1px solid ${G.bdr}`}}>
+                        <span style={{fontSize:11,color:G.txt,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{w.svc}</span>
+                        <span style={{fontSize:10,color:G.mut}}>{w.fy}</span>
+                        <span style={{fontSize:10,padding:"1px 7px",borderRadius:10,fontWeight:700,background:w.status==="Completed"?"#14532D":w.status==="In Progress"?"#1E1B4B":"#431407",color:w.status==="Completed"?"#4ADE80":w.status==="In Progress"?"#A5B4FC":"#FCD34D"}}>{w.status}</span>
+                      </div>)}
                     </div>
-                  </div>)}
-                  {!PORTALS.some(p=>sel.portals[p.key]?.on)&&<div style={{fontSize:12,color:G.mut}}>No portals configured for this client</div>}
-                </div>}
-              </div>
-            </div>}
-          </Crd>
-        ) : (
-          <Crd><SH icon="🔍" title="Select Clients" acc={G.green}/>
-            <div style={{position:"relative",marginBottom:10}}>
-              <span style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:G.mut}}>🔍</span>
-              <input value={bulkQ} onChange={e=>setBulkQ(e.target.value)} placeholder="Filter clients by name, PAN, type..." style={{...IS,paddingLeft:30,fontSize:12}}/>
-            </div>
-            <div style={{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap"}}>
-              <button onClick={()=>setSelPans(filteredClients.map(c=>c.pan))} style={{padding:"4px 10px",borderRadius:6,border:`1px solid ${G.bdr}`,background:"transparent",color:G.green,fontSize:11,fontWeight:700,cursor:"pointer"}}>Select All Filtered</button>
-              <button onClick={()=>setSelPans([])} style={{padding:"4px 10px",borderRadius:6,border:`1px solid ${G.bdr}`,background:"transparent",color:G.red,fontSize:11,fontWeight:700,cursor:"pointer"}}>Deselect All</button>
-              <button onClick={()=>setSelPans(clients.filter(c=>c.status==="Active").map(c=>c.pan))} style={{padding:"4px 10px",borderRadius:6,border:`1px solid ${G.bdr}`,background:"transparent",color:G.cyn,fontSize:11,fontWeight:700,cursor:"pointer"}}>Select Active Clients</button>
-            </div>
-            <div style={{maxHeight:250,overflowY:"auto",border:`1px solid ${G.bdr}`,borderRadius:9,background:G.bg,padding:6,display:"flex",flexDirection:"column",gap:4}}>
-              {filteredClients.length===0?<div style={{padding:12,textAlign:"center",color:G.mut,fontSize:12}}>No clients found</div>
-              :filteredClients.map(c=>{
-                const isChecked = selPans.includes(c.pan);
-                return <label key={c.pan} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 10px",borderRadius:6,background:isChecked?G.green+"0A":"transparent",border:`1px solid ${isChecked?G.green+"33":"transparent"}`,cursor:"pointer",userSelect:"none"}}>
-                  <input type="checkbox" checked={isChecked} onChange={()=>{
-                    setSelPans(p => p.includes(c.pan) ? p.filter(x=>x!==c.pan) : [...p, c.pan]);
-                  }} style={{accentColor:G.green,cursor:"pointer"}}/>
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontSize:12,fontWeight:600,color:isChecked?G.green:G.txt,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.name}</div>
-                    <div style={{fontSize:10,color:G.mut,fontFamily:"monospace"}}>{c.pan} · <span style={{color:G.cyn}}>{c.type}</span></div>
+                  </div>}
+                </div>
+                {/* Portal Credentials */}
+                <div style={{background:G.bg,border:`1px solid ${G.bdr}`,borderRadius:11,padding:"10px 14px"}}>
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+                    <div style={{fontSize:11,color:G.mut,fontWeight:700}}>🔐 PORTAL CREDENTIALS ({PORTALS.filter(p=>sel.portals[p.key]?.on).length} active)</div>
+                    <button onClick={()=>setShowP(v=>!v)} style={{fontSize:11,padding:"3px 10px",borderRadius:7,border:`1px solid ${G.bdr}`,background:"transparent",color:G.mut,cursor:"pointer"}}>{showP?"🙈 Hide":"👁 Show"}</button>
                   </div>
-                  <span style={{fontSize:10,padding:"1px 6px",borderRadius:4,background:c.status==="Active"?"#14532D":"#450A0A",color:c.status==="Active"?"#4ADE80":"#FCA5A5",fontWeight:700}}>{c.status}</span>
-                </label>;
-              })}
-            </div>
-            {err.pans&&<span style={{fontSize:11,color:G.red,marginTop:5,display:"block"}}>{err.pans}</span>}
-            <div style={{fontSize:11,color:G.mut,marginTop:6,fontWeight:600}}>Selected: {selPans.length} client(s)</div>
-          </Crd>
+                  <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:showP?8:0}}>
+                    {PORTALS.filter(p=>sel.portals[p.key]?.on).map(p=><span key={p.key} style={{fontSize:11,padding:"2px 8px",borderRadius:10,background:p.col+"18",color:p.col,fontWeight:600}}>{p.icon} {p.label}</span>)}
+                    {!PORTALS.some(p=>sel.portals[p.key]?.on)&&<span style={{fontSize:11,color:G.bdr}}>No portals configured</span>}
+                  </div>
+                  {showP&&<div style={{display:"flex",flexDirection:"column",gap:6,marginTop:4}}>
+                    {PORTALS.filter(p=>sel.portals[p.key]?.on).map(p=><div key={p.key} style={{display:"flex",gap:9,padding:"8px 11px",background:p.col+"0A",border:`1px solid ${p.col}22`,borderRadius:9}}>
+                      <span style={{fontSize:15,flexShrink:0}}>{p.icon}</span>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:10,color:p.col,fontWeight:700,marginBottom:2}}>{p.label}</div>
+                        <div style={{fontSize:11,color:G.mut}}>ID: <span style={{color:G.wh,fontFamily:"monospace",fontWeight:600}}>{sel.portals[p.key].id||"-"}</span></div>
+                        <div style={{fontSize:11,color:G.mut}}>PW: <span style={{color:G.wh,fontFamily:"monospace",fontWeight:600}}>{sel.portals[p.key].pw||"-"}</span></div>
+                      </div>
+                    </div>)}
+                    {!PORTALS.some(p=>sel.portals[p.key]?.on)&&<div style={{fontSize:12,color:G.mut}}>No portals configured for this client</div>}
+                  </div>}
+                </div>
+              </div>}
+            </Crd>
+            
+            <Crd><SH icon="📋" title="Work Details" acc={G.ind}/>
+              <div style={{display:"flex",flexDirection:"column",gap:11}}>
+                <F label="Service Type" req><S val={f.svc} set={v=>setF({...f,svc:v})} opts={dd.services} ph="Choose..."/>{err.svc&&<span style={{fontSize:11,color:G.red}}>{err.svc}</span>}</F>
+                <R>
+                  <F label="Financial Year" w="calc(50% - 6px)"><S val={f.fy} set={v=>setF({...f,fy:v})} opts={dd.fyOptions}/></F>
+                  <F label="Assign To" req w="calc(50% - 6px)"><S val={f.staff} set={v=>setF({...f,staff:v})} opts={dd.staff} ph="Staff..."/>{err.staff&&<span style={{fontSize:11,color:G.red}}>{err.staff}</span>}</F>
+                </R>
+                <R>
+                  <F label="Assign Date" w="calc(50% - 6px)"><I val={f.date || ""} set={v=>setF({...f,date:v})} type="date"/></F>
+                  <F label="Due Date" req w="calc(50% - 6px)"><I val={f.due} set={v=>setF({...f,due:v})} type="date" sty={{borderColor:err.due?G.red:G.bdr}}/>{err.due&&<span style={{fontSize:11,color:G.red}}>{err.due}</span>}</F>
+                </R>
+                <R>
+                  <F label="Source" w="calc(100%)"><S val={f.src} set={v=>setF({...f,src:v})} opts={dd.sources} ph="Select..."/></F>
+                </R>
+              </div>
+            </Crd>
+
+            <Crd><SH icon="💰" title="Fees & Commission" acc={G.amb}/>
+              <div style={{display:"flex",flexDirection:"column",gap:11}}>
+                <div style={{padding:"8px 12px",background:"#43140720",border:`1px solid ${G.amb}33`,borderRadius:9,fontSize:12,color:G.amb}}>💡 Commission auto 10% - editable. Tracked by Source.</div>
+                <R>
+                  <F label="Fees (₹)" req w="calc(33% - 8px)"><I val={f.fees} set={hFees} ph="0" sty={{borderColor:err.fees?G.red:G.bdr}}/>{err.fees&&<span style={{fontSize:11,color:G.red}}>{err.fees}</span>}</F>
+                  <F label="Commission (₹)" w="calc(33% - 8px)"><I val={f.comm} set={v=>setF({...f,comm:v.replace(/\D/g,"")})} ph="Auto 10%"/></F>
+                  <F label="Received (₹)" w="calc(33% - 8px)"><I val={f.rcvd} set={v=>setF({...f,rcvd:v.replace(/\D/g,"")})} ph="0"/></F>
+                </R>
+                <div style={{fontSize:11,color:G.mut,marginTop:-4}}>💡 "Received" here is just a placeholder until you raise & link an invoice — once linked from the Work Tracker, it's replaced by real payments recorded in Receipts.</div>
+                {f.fees&&<div style={{display:"flex",gap:12,padding:"8px 12px",background:G.green+"08",border:`1px solid ${G.green}20`,borderRadius:9,flexWrap:"wrap"}}>
+                  {[["Fees",inr(f.fees),G.green],["Comm.",inr(f.comm||0),G.amb],["O/S",inr((Number(f.fees)||0)-(Number(f.rcvd)||0)),G.red]].map(([l,v,col])=><div key={l} style={{fontSize:12}}><span style={{color:G.mut}}>{l}: </span><span style={{color:col,fontWeight:700}}>{v}</span></div>)}
+                </div>}
+                <F label="Remarks"><textarea value={f.note} onChange={e=>setF({...f,note:e.target.value})} rows={2} style={{...IS,resize:"vertical"}}/></F>
+              </div>
+            </Crd>
+            <Btn onClick={save} sty={{width:"100%",padding:13,fontSize:14}}>📋 Add to Work Tracker</Btn>
+          </>
+        ) : (
+          <>
+            <Crd><SH icon="🔍" title="Select Clients" acc={G.green}/>
+              <div style={{position:"relative",marginBottom:10}}>
+                <span style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:G.mut}}>🔍</span>
+                <input value={bulkQ} onChange={e=>setBulkQ(e.target.value)} placeholder="Filter clients by name, PAN, type..." style={{...IS,paddingLeft:30,fontSize:12}}/>
+              </div>
+              <div style={{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap"}}>
+                <button onClick={()=>setSelPans(filteredClients.map(c=>c.pan))} style={{padding:"4px 10px",borderRadius:6,border:`1px solid ${G.bdr}`,background:"transparent",color:G.green,fontSize:11,fontWeight:700,cursor:"pointer"}}>Select All Filtered</button>
+                <button onClick={()=>setSelPans([])} style={{padding:"4px 10px",borderRadius:6,border:`1px solid ${G.bdr}`,background:"transparent",color:G.red,fontSize:11,fontWeight:700,cursor:"pointer"}}>Deselect All</button>
+                <button onClick={()=>setSelPans(clients.filter(c=>c.status==="Active").map(c=>c.pan))} style={{padding:"4px 10px",borderRadius:6,border:`1px solid ${G.bdr}`,background:"transparent",color:G.cyn,fontSize:11,fontWeight:700,cursor:"pointer"}}>Select Active Clients</button>
+              </div>
+              <div style={{maxHeight:250,overflowY:"auto",border:`1px solid ${G.bdr}`,borderRadius:9,background:G.bg,padding:6,display:"flex",flexDirection:"column",gap:4}}>
+                {filteredClients.length===0?<div style={{padding:12,textAlign:"center",color:G.mut,fontSize:12}}>No clients found</div>
+                :filteredClients.map(c=>{
+                  const isChecked = selPans.includes(c.pan);
+                  return <label key={c.pan} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 10px",borderRadius:6,background:isChecked?G.green+"0A":"transparent",border:`1px solid ${isChecked?G.green+"33":"transparent"}`,cursor:"pointer",userSelect:"none"}}>
+                    <input type="checkbox" checked={isChecked} onChange={()=>{
+                      setSelPans(p => p.includes(c.pan) ? p.filter(x=>x!==c.pan) : [...p, c.pan]);
+                    }} style={{accentColor:G.green,cursor:"pointer"}}/>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:12,fontWeight:600,color:isChecked?G.green:G.txt,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.name}</div>
+                      <div style={{fontSize:10,color:G.mut,fontFamily:"monospace"}}>{c.pan} · <span style={{color:G.cyn}}>{c.type}</span></div>
+                    </div>
+                    <span style={{fontSize:10,padding:"1px 6px",borderRadius:4,background:c.status==="Active"?"#14532D":"#450A0A",color:c.status==="Active"?"#4ADE80":"#FCA5A5",fontWeight:700}}>{c.status}</span>
+                  </label>;
+                })}
+              </div>
+              {err.pans&&<span style={{fontSize:11,color:G.red,marginTop:5,display:"block"}}>{err.pans}</span>}
+              <div style={{fontSize:11,color:G.mut,marginTop:6,fontWeight:600}}>Selected: {selPans.length} client(s)</div>
+            </Crd>
+            
+            <Crd><SH icon="⚡" title="Quick Defaults" acc={G.vio}/>
+              <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                <div style={{fontSize:11,color:G.mut}}>Set values below and click Apply to instantly fill all rows.</div>
+                <R>
+                  <F label="Default Service" w="calc(33% - 8px)">
+                    <select value={bulkDefaults.svc} onChange={e=>setBulkDefaults(p=>({...p,svc:e.target.value}))} style={cellInputStyle(false)}>
+                      <option value="">Select...</option>
+                      {dd.services.map(s=><option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </F>
+                  <F label="Default FY" w="calc(33% - 8px)">
+                    <select value={bulkDefaults.fy} onChange={e=>setBulkDefaults(p=>({...p,fy:e.target.value}))} style={cellInputStyle(false)}>
+                      {dd.fyOptions.map(f=><option key={f} value={f}>{f}</option>)}
+                    </select>
+                  </F>
+                  <F label="Default Staff" w="calc(33% - 8px)">
+                    <select value={bulkDefaults.staff} onChange={e=>setBulkDefaults(p=>({...p,staff:e.target.value}))} style={cellInputStyle(false)}>
+                      <option value="">Select...</option>
+                      {dd.staff.map(s=><option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </F>
+                </R>
+                <R>
+                  <F label="Default Due Date" w="calc(33% - 8px)">
+                    <input type="date" value={bulkDefaults.due} onChange={e=>setBulkDefaults(p=>({...p,due:e.target.value}))} style={cellInputStyle(false)}/>
+                  </F>
+                  <F label="Default Fees (₹)" w="calc(33% - 8px)">
+                    <input type="text" value={bulkDefaults.fees} onChange={e=>setBulkDefaults(p=>({...p,fees:e.target.value.replace(/\D/g,"")}))} placeholder="0" style={cellInputStyle(false)}/>
+                  </F>
+                  <F label="Default Commission" w="calc(33% - 8px)">
+                    <input type="text" value={bulkDefaults.comm} onChange={e=>setBulkDefaults(p=>({...p,comm:e.target.value.replace(/\D/g,"")}))} placeholder="Auto 10%" style={cellInputStyle(false)}/>
+                  </F>
+                </R>
+                <button onClick={applyBulkDefaults} style={{alignSelf:"flex-end",padding:"6px 14px",borderRadius:6,border:"none",background:`linear-gradient(135deg,${G.gd},${G.g2})`,color:G.wh,fontSize:12,fontWeight:700,cursor:"pointer"}}>⚡ Apply Defaults to All Rows</button>
+              </div>
+            </Crd>
+            
+            <Crd><SH icon="📋" title="Bulk Customize Grid" acc={G.ind}/>
+              {bulkRows.length === 0 ? (
+                <div style={{padding:30,textAlign:"center",color:G.mut,fontSize:13}}>No clients selected yet. Select clients from the search panel above.</div>
+              ) : (
+                <div style={{display:"flex",flexDirection:"column",gap:12}}>
+                  <div style={{overflowX:"auto",border:`1px solid ${G.bdr}`,borderRadius:10,background:G.bg}}>
+                    <table style={{width:"100%",borderCollapse:"collapse",fontSize:12,minWidth:950}}>
+                      <thead>
+                        <tr style={{background:G.card,borderBottom:`1.5px solid ${G.bdr}`}}>
+                          <th style={{padding:"8px 10px",textAlign:"left",color:G.mut,fontWeight:700}}>Client Name & PAN</th>
+                          <th style={{padding:"8px 10px",textAlign:"left",color:G.mut,fontWeight:700,width:160}}>Service Type *</th>
+                          <th style={{padding:"8px 10px",textAlign:"left",color:G.mut,fontWeight:700,width:100}}>FY</th>
+                          <th style={{padding:"8px 10px",textAlign:"left",color:G.mut,fontWeight:700,width:130}}>Assign To *</th>
+                          <th style={{padding:"8px 10px",textAlign:"left",color:G.mut,fontWeight:700,width:125}}>Due Date *</th>
+                          <th style={{padding:"8px 10px",textAlign:"left",color:G.mut,fontWeight:700,width:90}}>Fees *</th>
+                          <th style={{padding:"8px 10px",textAlign:"left",color:G.mut,fontWeight:700,width:90}}>Comm.</th>
+                          <th style={{padding:"8px 10px",textAlign:"left",color:G.mut,fontWeight:700}}>Remarks</th>
+                          <th style={{padding:"8px 10px",width:40}}></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {bulkRows.map((row, i) => {
+                          const rowErr = err.rows?.[i] || {};
+                          return <tr key={row.pan} style={{borderBottom:`1px solid ${G.bdr}`,background:i%2?G.card+"40":"transparent"}}>
+                            <td style={{padding:"6px 10px"}}>
+                              <div style={{fontWeight:700,color:G.wh,whiteSpace:"nowrap",maxWidth:160,overflow:"hidden",textOverflow:"ellipsis"}} title={row.cn}>{row.cn}</div>
+                              <div style={{fontSize:10,color:G.mut,fontFamily:"monospace"}}>{row.pan}</div>
+                            </td>
+                            <td style={{padding:"4px"}}>
+                              <select value={row.svc} onChange={e=>updateRow(i,"svc",e.target.value)} style={cellInputStyle(rowErr.svc)}>
+                                <option value="">Choose...</option>
+                                {dd.services.map(s=><option key={s} value={s}>{s}</option>)}
+                              </select>
+                            </td>
+                            <td style={{padding:"4px"}}>
+                              <select value={row.fy} onChange={e=>updateRow(i,"fy",e.target.value)} style={cellInputStyle(false)}>
+                                {dd.fyOptions.map(f=><option key={f} value={f}>{f}</option>)}
+                              </select>
+                            </td>
+                            <td style={{padding:"4px"}}>
+                              <select value={row.staff} onChange={e=>updateRow(i,"staff",e.target.value)} style={cellInputStyle(rowErr.staff)}>
+                                <option value="">Staff...</option>
+                                {dd.staff.map(s=><option key={s} value={s}>{s}</option>)}
+                              </select>
+                            </td>
+                            <td style={{padding:"4px"}}>
+                              <input type="date" value={row.due} onChange={e=>updateRow(i,"due",e.target.value)} style={cellInputStyle(rowErr.due)}/>
+                            </td>
+                            <td style={{padding:"4px"}}>
+                              <input type="text" value={row.fees} onChange={e=>updateRow(i,"fees",e.target.value)} placeholder="0" style={cellInputStyle(rowErr.fees)}/>
+                            </td>
+                            <td style={{padding:"4px"}}>
+                              <input type="text" value={row.comm} onChange={e=>updateRow(i,"comm",e.target.value)} placeholder="Auto" style={cellInputStyle(false)}/>
+                            </td>
+                            <td style={{padding:"4px"}}>
+                              <input type="text" value={row.note} onChange={e=>updateRow(i,"note",e.target.value)} placeholder="Remarks..." style={cellInputStyle(false)}/>
+                            </td>
+                            <td style={{padding:"4px",textAlign:"center"}}>
+                              <button onClick={()=>setSelPans(p => p.filter(x=>x!==row.pan))} style={{background:"none",border:"none",color:G.red,fontSize:14,cursor:"pointer"}} title="Remove client">✕</button>
+                            </td>
+                          </tr>;
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:6}}>
+                    <div style={{fontSize:11,color:G.mut}}>💡 Double-check your row entries before clicking Assign. Fields marked with * are required.</div>
+                    <div style={{fontWeight:700,fontSize:13,color:G.green}}>Total Rows: {bulkRows.length}</div>
+                  </div>
+                </div>
+              )}
+            </Crd>
+            
+            <Btn onClick={saveBulk} sty={{width:"100%",padding:13,fontSize:14}}>
+              📋 Assign to {bulkRows.length} Client(s)
+            </Btn>
+          </>
         )}
-
-        <Crd><SH icon="📋" title="Work Details" acc={G.ind}/>
-          <div style={{display:"flex",flexDirection:"column",gap:11}}>
-            <F label="Service Type" req><S val={f.svc} set={v=>setF({...f,svc:v})} opts={dd.services} ph="Choose..."/>{err.svc&&<span style={{fontSize:11,color:G.red}}>{err.svc}</span>}</F>
-            <R>
-              <F label="Financial Year" w="calc(50% - 6px)"><S val={f.fy} set={v=>setF({...f,fy:v})} opts={dd.fyOptions}/></F>
-              <F label="Assign To" req w="calc(50% - 6px)"><S val={f.staff} set={v=>setF({...f,staff:v})} opts={dd.staff} ph="Staff..."/>{err.staff&&<span style={{fontSize:11,color:G.red}}>{err.staff}</span>}</F>
-            </R>
-            <R>
-              <F label="Assign Date" w="calc(50% - 6px)"><I val={f.date || ""} set={v=>setF({...f,date:v})} type="date"/></F>
-              <F label="Due Date" req w="calc(50% - 6px)"><I val={f.due} set={v=>setF({...f,due:v})} type="date" sty={{borderColor:err.due?G.red:G.bdr}}/>{err.due&&<span style={{fontSize:11,color:G.red}}>{err.due}</span>}</F>
-            </R>
-            <R>
-              <F label="Source" w="calc(100%)"><S val={f.src} set={v=>setF({...f,src:v})} opts={dd.sources} ph="Select..."/></F>
-            </R>
-          </div>
-        </Crd>
-
-        <Crd><SH icon="💰" title="Fees & Commission" acc={G.amb}/>
-          <div style={{display:"flex",flexDirection:"column",gap:11}}>
-            <div style={{padding:"8px 12px",background:"#43140720",border:`1px solid ${G.amb}33`,borderRadius:9,fontSize:12,color:G.amb}}>💡 Commission auto 10% - editable. Tracked by Source.</div>
-            <R>
-              <F label="Fees (₹)" req w="calc(33% - 8px)"><I val={f.fees} set={hFees} ph="0" sty={{borderColor:err.fees?G.red:G.bdr}}/>{err.fees&&<span style={{fontSize:11,color:G.red}}>{err.fees}</span>}</F>
-              <F label="Commission (₹)" w="calc(33% - 8px)"><I val={f.comm} set={v=>setF({...f,comm:v.replace(/\D/g,"")})} ph="Auto 10%"/></F>
-              <F label="Received (₹)" w="calc(33% - 8px)"><I val={f.rcvd} set={v=>setF({...f,rcvd:v.replace(/\D/g,"")})} ph="0"/></F>
-            </R>
-            <div style={{fontSize:11,color:G.mut,marginTop:-4}}>💡 "Received" here is just a placeholder until you raise & link an invoice — once linked from the Work Tracker, it's replaced by real payments recorded in Receipts.</div>
-            {f.fees&&<div style={{display:"flex",gap:12,padding:"8px 12px",background:G.green+"08",border:`1px solid ${G.green}20`,borderRadius:9,flexWrap:"wrap"}}>
-              {[["Fees",inr(f.fees),G.green],["Comm.",inr(f.comm||0),G.amb],["O/S",inr((Number(f.fees)||0)-(Number(f.rcvd)||0)),G.red]].map(([l,v,col])=><div key={l} style={{fontSize:12}}><span style={{color:G.mut}}>{l}: </span><span style={{color:col,fontWeight:700}}>{v}</span></div>)}
-            </div>}
-            <F label="Remarks"><textarea value={f.note} onChange={e=>setF({...f,note:e.target.value})} rows={2} style={{...IS,resize:"vertical"}}/></F>
-          </div>
-        </Crd>
-        <Btn onClick={mode==="single"?save:saveBulk} sty={{width:"100%",padding:13,fontSize:14}}>
-          {mode==="single"?"📋 Add to Work Tracker":`📋 Assign to ${selPans.length} Client(s)`}
-        </Btn>
       </div>
 
       {!isMobile && (
         <div style={{display:"flex",flexDirection:"column",gap:12}}>
           <Crd><SH icon="⚡" title="Quick Service" acc={G.green}/>
             <div style={{display:"flex",flexDirection:"column",gap:3}}>
-              {dd.services.map(s=><div key={s} onClick={()=>setF(p=>({...p,svc:s}))}
-                style={{padding:"7px 10px",borderRadius:7,cursor:"pointer",fontSize:12,background:f.svc===s?G.green+"18":"transparent",border:f.svc===s?`1px solid ${G.green}44`:"1px solid transparent",color:f.svc===s?G.green:G.mut,fontWeight:f.svc===s?700:400,display:"flex",alignItems:"center",gap:6}}>
-                <span style={{fontSize:7,color:f.svc===s?G.green:G.bdr}}>●</span>{s}
+              {dd.services.map(s=><div key={s} onClick={()=>{
+                if (mode === "single") {
+                  setF(p=>({...p,svc:s}));
+                } else {
+                  setBulkDefaults(p=>({...p,svc:s}));
+                }
+              }}
+                style={{padding:"7px 10px",borderRadius:7,cursor:"pointer",fontSize:12,background:(mode === "single" ? f.svc : bulkDefaults.svc)===s?G.green+"18":"transparent",border:(mode === "single" ? f.svc : bulkDefaults.svc)===s?`1px solid ${G.green}44`:"1px solid transparent",color:(mode === "single" ? f.svc : bulkDefaults.svc)===s?G.green:G.mut,fontWeight:(mode === "single" ? f.svc : bulkDefaults.svc)===s?700:400,display:"flex",alignItems:"center",gap:6}}>
+                <span style={{fontSize:7,color:(mode === "single" ? f.svc : bulkDefaults.svc)===s?G.green:G.bdr}}>●</span>{s}
               </div>)}
             </div>
           </Crd>
