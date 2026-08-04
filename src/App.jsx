@@ -1058,144 +1058,238 @@ function AddClient({clients,setClients,dd,toast,isMobile}){
 function AssignWork({clients,works,setWorks,dd,toast,isMobile}){
   const bk={pan:"",svc:"",fy:dd.fyOptions[0]||"2025-26",due:"",date:new Date().toISOString().split("T")[0],staff:"",fees:"",comm:"",rcvd:"",src:"",note:""};
   const[f,setF]=useState(bk),[err,setErr]=useState({}),[showP,setShowP]=useState(false);
+  const[mode,setMode]=useState("single");
+  const[selPans,setSelPans]=useState([]);
+  const[bulkQ,setBulkQ]=useState("");
+
   const sel=clients.find(c=>c.pan===f.pan);
   const hFees=v=>{const n=Number(v.replace(/\D/g,""));setF(p=>({...p,fees:v.replace(/\D/g,""),comm:p.comm||String(Math.round(n*0.1))}));};
+  
   const save=()=>{
     const e={};if(!f.pan)e.pan="Select";if(!f.svc)e.svc="Select";if(!f.due)e.due="Required";if(!f.staff)e.staff="Required";if(!f.fees)e.fees="Enter";
     setErr(e);if(Object.keys(e).length){toast("Fix errors","err");return;}
     setWorks(p=>[{id:Date.now(),pan:f.pan,cn:sel?.name||"",svc:f.svc,fy:f.fy,due:f.due,date:f.date||new Date().toISOString().split("T")[0],staff:f.staff,status:"Pending",fees:Number(f.fees)||0,comm:Number(f.comm)||0,rcvd:Number(f.rcvd)||0,src:f.src||sel?.src||"",note:f.note},...p]);
     setF(bk);setErr({});setShowP(false);toast(`Assigned - ${f.svc} for ${sel?.name}`);
   };
-  return <div style={{display:isMobile?"block":"grid",gridTemplateColumns:isMobile?"1fr":"1fr 270px",gap:16}}>
-    <div style={{display:"flex",flexDirection:"column",gap:13}}>
-      <Crd><SH icon="🔍" title="Select Client" acc={G.green}/>
-        <PanPick clients={clients} val={f.pan} set={v=>{setF(p=>({...p,pan:v,src:clients.find(c=>c.pan===v)?.src||""}));setShowP(false);}}/>
-        {err.pan&&<span style={{fontSize:11,color:G.red,marginTop:3,display:"block"}}>{err.pan}</span>}
-        {sel&&<div style={{marginTop:14,display:"flex",flexDirection:"column",gap:10}}>
-          {/* ── Full Client Details Card ── */}
-          <div style={{background:G.bg,border:`1px solid ${G.green}30`,borderRadius:13,overflow:"hidden"}}>
-            {/* Header */}
-            <div style={{background:`linear-gradient(135deg,${G.gd},${G.g2})`,padding:"12px 16px",display:"flex",gap:12,alignItems:"center"}}>
-              <div style={{width:44,height:44,borderRadius:11,background:`linear-gradient(135deg,${G.g2},${G.green})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,fontWeight:800,color:"#fff",flexShrink:0,border:"2px solid #4ADE8055"}}>{sel.name[0]}</div>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{fontWeight:800,fontSize:15,color:G.wh,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{sel.name}</div>
-                {sel.biz&&<div style={{fontSize:12,color:G.g3,marginTop:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{sel.biz}</div>}
-                <div style={{display:"flex",gap:8,marginTop:4,flexWrap:"wrap"}}>
-                  <span style={{fontSize:11,color:G.green,fontWeight:700,fontFamily:"monospace",background:G.green+"15",padding:"1px 8px",borderRadius:8}}>🆔 {sel.pan}</span>
-                  <span style={{fontSize:11,background:sel.status==="Active"?"#14532D":"#450A0A",color:sel.status==="Active"?"#4ADE80":"#FCA5A5",padding:"1px 8px",borderRadius:8,fontWeight:700}}>{sel.status}</span>
-                  <span style={{fontSize:11,color:G.mut,background:G.bdr,padding:"1px 8px",borderRadius:8}}>{sel.type}</span>
-                </div>
-              </div>
-            </div>
-            {/* Details Grid */}
-            <div style={{padding:"12px 16px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-              {[
-                {l:"📱 Mobile",v:sel.mob},
-                {l:"📍 State",v:sel.state},
-                {l:"✉ Email",v:sel.email,full:true},
-                {l:"📣 Source",v:sel.src},
-                {l:"📦 GSTIN",v:sel.gstin||"Not registered",mono:true},
-                {l:"📅 Client Since",v:sel.added?new Date(sel.added).toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}):"-"},
-              ].map(d=><div key={d.l} style={{gridColumn:d.full?"1 / -1":"auto"}}>
-                <div style={{fontSize:10,color:G.mut,fontWeight:700,marginBottom:2}}>{d.l}</div>
-                <div style={{fontSize:12,color:d.mono?G.cyn:G.txt,fontFamily:d.mono?"monospace":"inherit",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{d.v||"-"}</div>
-              </div>)}
-            </div>
-            {/* Remarks */}
-            {sel.note&&<div style={{padding:"0 16px 12px"}}>
-              <div style={{fontSize:10,color:G.mut,fontWeight:700,marginBottom:3}}>📝 REMARKS</div>
-              <div style={{fontSize:12,color:G.txt,background:G.surf,padding:"7px 10px",borderRadius:8,border:`1px solid ${G.bdr}`}}>{sel.note}</div>
-            </div>}
-            {/* Past Works for this client */}
-            {works.filter(w=>w.pan===sel.pan).length>0&&<div style={{padding:"0 16px 12px"}}>
-              <div style={{fontSize:10,color:G.mut,fontWeight:700,marginBottom:6}}>📋 PAST ASSIGNMENTS ({works.filter(w=>w.pan===sel.pan).length})</div>
-              <div style={{display:"flex",flexDirection:"column",gap:4}}>
-                {works.filter(w=>w.pan===sel.pan).slice(0,4).map(w=><div key={w.id} style={{display:"flex",alignItems:"center",gap:8,padding:"5px 9px",background:G.surf,borderRadius:7,border:`1px solid ${G.bdr}`}}>
-                  <span style={{fontSize:11,color:G.txt,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{w.svc}</span>
-                  <span style={{fontSize:10,color:G.mut}}>{w.fy}</span>
-                  <span style={{fontSize:10,padding:"1px 7px",borderRadius:10,fontWeight:700,background:w.status==="Completed"?"#14532D":w.status==="In Progress"?"#1E1B4B":"#431407",color:w.status==="Completed"?"#4ADE80":w.status==="In Progress"?"#A5B4FC":"#FCD34D"}}>{w.status}</span>
-                </div>)}
-              </div>
-            </div>}
-          </div>
-          {/* Portal Credentials */}
-          <div style={{background:G.bg,border:`1px solid ${G.bdr}`,borderRadius:11,padding:"10px 14px"}}>
-            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
-              <div style={{fontSize:11,color:G.mut,fontWeight:700}}>🔐 PORTAL CREDENTIALS ({PORTALS.filter(p=>sel.portals[p.key]?.on).length} active)</div>
-              <button onClick={()=>setShowP(v=>!v)} style={{fontSize:11,padding:"3px 10px",borderRadius:7,border:`1px solid ${G.bdr}`,background:"transparent",color:G.mut,cursor:"pointer"}}>{showP?"🙈 Hide":"👁 Show"}</button>
-            </div>
-            <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:showP?8:0}}>
-              {PORTALS.filter(p=>sel.portals[p.key]?.on).map(p=><span key={p.key} style={{fontSize:11,padding:"2px 8px",borderRadius:10,background:p.col+"18",color:p.col,fontWeight:600}}>{p.icon} {p.label}</span>)}
-              {!PORTALS.some(p=>sel.portals[p.key]?.on)&&<span style={{fontSize:11,color:G.bdr}}>No portals configured</span>}
-            </div>
-            {showP&&<div style={{display:"flex",flexDirection:"column",gap:6,marginTop:4}}>
-              {PORTALS.filter(p=>sel.portals[p.key]?.on).map(p=><div key={p.key} style={{display:"flex",gap:9,padding:"8px 11px",background:p.col+"0A",border:`1px solid ${p.col}22`,borderRadius:9}}>
-                <span style={{fontSize:15,flexShrink:0}}>{p.icon}</span>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontSize:10,color:p.col,fontWeight:700,marginBottom:2}}>{p.label}</div>
-                  <div style={{fontSize:11,color:G.mut}}>ID: <span style={{color:G.wh,fontFamily:"monospace",fontWeight:600}}>{sel.portals[p.key].id||"-"}</span></div>
-                  <div style={{fontSize:11,color:G.mut}}>PW: <span style={{color:G.wh,fontFamily:"monospace",fontWeight:600}}>{sel.portals[p.key].pw||"-"}</span></div>
-                </div>
-              </div>)}
-              {!PORTALS.some(p=>sel.portals[p.key]?.on)&&<div style={{fontSize:12,color:G.mut}}>No portals configured for this client</div>}
-            </div>}
-          </div>
-        </div>}
-      </Crd>
-      <Crd><SH icon="📋" title="Work Details" acc={G.ind}/>
-        <div style={{display:"flex",flexDirection:"column",gap:11}}>
-          <F label="Service Type" req><S val={f.svc} set={v=>setF({...f,svc:v})} opts={dd.services} ph="Choose..."/>{err.svc&&<span style={{fontSize:11,color:G.red}}>{err.svc}</span>}</F>
-          <R>
-            <F label="Financial Year" w="calc(50% - 6px)"><S val={f.fy} set={v=>setF({...f,fy:v})} opts={dd.fyOptions}/></F>
-            <F label="Assign To" req w="calc(50% - 6px)"><S val={f.staff} set={v=>setF({...f,staff:v})} opts={dd.staff} ph="Staff..."/>{err.staff&&<span style={{fontSize:11,color:G.red}}>{err.staff}</span>}</F>
-          </R>
-          <R>
-            <F label="Assign Date" w="calc(50% - 6px)"><I val={f.date || ""} set={v=>setF({...f,date:v})} type="date"/></F>
-            <F label="Due Date" req w="calc(50% - 6px)"><I val={f.due} set={v=>setF({...f,due:v})} type="date" sty={{borderColor:err.due?G.red:G.bdr}}/>{err.due&&<span style={{fontSize:11,color:G.red}}>{err.due}</span>}</F>
-          </R>
-          <R>
-            <F label="Source" w="calc(100%)"><S val={f.src} set={v=>setF({...f,src:v})} opts={dd.sources} ph="Select..."/></F>
-          </R>
-        </div>
-      </Crd>
-      <Crd><SH icon="💰" title="Fees & Commission" acc={G.amb}/>
-        <div style={{display:"flex",flexDirection:"column",gap:11}}>
-          <div style={{padding:"8px 12px",background:"#43140720",border:`1px solid ${G.amb}33`,borderRadius:9,fontSize:12,color:G.amb}}>💡 Commission auto 10% - editable. Tracked by Source.</div>
-          <R>
-            <F label="Fees (₹)" req w="calc(33% - 8px)"><I val={f.fees} set={hFees} ph="0" sty={{borderColor:err.fees?G.red:G.bdr}}/>{err.fees&&<span style={{fontSize:11,color:G.red}}>{err.fees}</span>}</F>
-            <F label="Commission (₹)" w="calc(33% - 8px)"><I val={f.comm} set={v=>setF({...f,comm:v.replace(/\D/g,"")})} ph="Auto 10%"/></F>
-            <F label="Received (₹)" w="calc(33% - 8px)"><I val={f.rcvd} set={v=>setF({...f,rcvd:v.replace(/\D/g,"")})} ph="0"/></F>
-          </R>
-          <div style={{fontSize:11,color:G.mut,marginTop:-4}}>💡 "Received" here is just a placeholder until you raise & link an invoice — once linked from the Work Tracker, it's replaced by real payments recorded in Receipts.</div>
-          {f.fees&&<div style={{display:"flex",gap:12,padding:"8px 12px",background:G.green+"08",border:`1px solid ${G.green}20`,borderRadius:9,flexWrap:"wrap"}}>
-            {[["Fees",inr(f.fees),G.green],["Comm.",inr(f.comm||0),G.amb],["O/S",inr((Number(f.fees)||0)-(Number(f.rcvd)||0)),G.red],["Net",inr((Number(f.rcvd)||0)-(Number(f.comm)||0)),G.cyn]].map(([l,v,col])=><div key={l} style={{fontSize:12}}><span style={{color:G.mut}}>{l}: </span><span style={{color:col,fontWeight:700}}>{v}</span></div>)}
-          </div>}
-          <F label="Remarks"><textarea value={f.note} onChange={e=>setF({...f,note:e.target.value})} rows={2} style={{...IS,resize:"vertical"}}/></F>
-        </div>
-      </Crd>
-      <Btn onClick={save} sty={{width:"100%",padding:13,fontSize:14}}>📋 Add to Work Tracker</Btn>
+
+  const saveBulk=()=>{
+    const e={};
+    if(!selPans.length)e.pans="Select at least one client";
+    if(!f.svc)e.svc="Select";
+    if(!f.due)e.due="Required";
+    if(!f.staff)e.staff="Required";
+    if(!f.fees)e.fees="Enter";
+    setErr(e);
+    if(Object.keys(e).length){toast("Fix errors","err");return;}
+
+    const newWorks=selPans.map((pan, index)=>{
+      const cl=clients.find(c=>c.pan===pan);
+      return {
+        id:Date.now() + index,
+        pan:pan,
+        cn:cl?.name||"",
+        svc:f.svc,
+        fy:f.fy,
+        due:f.due,
+        date:f.date||new Date().toISOString().split("T")[0],
+        staff:f.staff,
+        status:"Pending",
+        fees:Number(f.fees)||0,
+        comm:Number(f.comm)||0,
+        rcvd:Number(f.rcvd)||0,
+        src:f.src||cl?.src||"",
+        note:f.note
+      };
+    });
+
+    setWorks(p=>[...newWorks,...p]);
+    setF(bk);
+    setSelPans([]);
+    setErr({});
+    toast(`Assigned - ${f.svc} for ${newWorks.length} clients`);
+  };
+
+  const filteredClients = useMemo(() => {
+    if (!bulkQ) return clients;
+    const lq = bulkQ.toLowerCase();
+    return clients.filter(c => c.name.toLowerCase().includes(lq) || c.pan.toLowerCase().includes(lq) || c.type.toLowerCase().includes(lq));
+  }, [clients, bulkQ]);
+
+  return <div style={{display:"flex",flexDirection:"column",gap:14}}>
+    {/* Mode Selector */}
+    <div style={{display:"flex",gap:10,background:G.card,border:`1px solid ${G.bdr}`,borderRadius:20,padding:"4px 8px",width:"fit-content"}}>
+      <button onClick={()=>{setMode("single"); setErr({});}} style={{padding:"6px 16px",borderRadius:16,border:"none",cursor:"pointer",fontSize:12,fontWeight:700,background:mode==="single"?`linear-gradient(135deg,${G.g2},${G.green})`:"transparent",color:mode==="single"?"#fff":G.mut,transition:"all .2s"}}>👤 Single Client</button>
+      <button onClick={()=>{setMode("bulk"); setErr({});}} style={{padding:"6px 16px",borderRadius:16,border:"none",cursor:"pointer",fontSize:12,fontWeight:700,background:mode==="bulk"?`linear-gradient(135deg,${G.g2},${G.green})`:"transparent",color:mode==="bulk"?"#fff":G.mut,transition:"all .2s"}}>👥 Bulk Assign</button>
     </div>
-    {!isMobile && (
-      <div style={{display:"flex",flexDirection:"column",gap:12}}>
-        <Crd><SH icon="⚡" title="Quick Service" acc={G.green}/>
-          <div style={{display:"flex",flexDirection:"column",gap:3}}>
-            {dd.services.map(s=><div key={s} onClick={()=>setF(p=>({...p,svc:s}))}
-              style={{padding:"7px 10px",borderRadius:7,cursor:"pointer",fontSize:12,background:f.svc===s?G.green+"18":"transparent",border:f.svc===s?`1px solid ${G.green}44`:"1px solid transparent",color:f.svc===s?G.green:G.mut,fontWeight:f.svc===s?700:400,display:"flex",alignItems:"center",gap:6}}>
-              <span style={{fontSize:7,color:f.svc===s?G.green:G.bdr}}>●</span>{s}
-            </div>)}
+
+    <div style={{display:isMobile?"block":"grid",gridTemplateColumns:isMobile?"1fr":"1fr 270px",gap:16}}>
+      <div style={{display:"flex",flexDirection:"column",gap:13}}>
+        {mode==="single" ? (
+          <Crd><SH icon="🔍" title="Select Client" acc={G.green}/>
+            <PanPick clients={clients} val={f.pan} set={v=>{setF(p=>({...p,pan:v,src:clients.find(c=>c.pan===v)?.src||""}));setShowP(false);}}/>
+            {err.pan&&<span style={{fontSize:11,color:G.red,marginTop:3,display:"block"}}>{err.pan}</span>}
+            {sel&&<div style={{marginTop:14,display:"flex",flexDirection:"column",gap:10}}>
+              {/* ── Full Client Details Card ── */}
+              <div style={{background:G.bg,border:`1px solid ${G.green}30`,borderRadius:13,overflow:"hidden"}}>
+                {/* Header */}
+                <div style={{background:`linear-gradient(135deg,${G.gd},${G.g2})`,padding:"12px 16px",display:"flex",gap:12,alignItems:"center"}}>
+                  <div style={{width:44,height:44,borderRadius:11,background:`linear-gradient(135deg,${G.g2},${G.green})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,fontWeight:800,color:"#fff",flexShrink:0,border:"2px solid #4ADE8055"}}>{sel.name[0]}</div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontWeight:800,fontSize:15,color:G.wh,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{sel.name}</div>
+                    {sel.biz&&<div style={{fontSize:12,color:G.g3,marginTop:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{sel.biz}</div>}
+                    <div style={{display:"flex",gap:8,marginTop:4,flexWrap:"wrap"}}>
+                      <span style={{fontSize:11,color:G.green,fontWeight:700,fontFamily:"monospace",background:G.green+"15",padding:"1px 8px",borderRadius:8}}>🆔 {sel.pan}</span>
+                      <span style={{fontSize:11,background:sel.status==="Active"?"#14532D":"#450A0A",color:sel.status==="Active"?"#4ADE80":"#FCA5A5",padding:"1px 8px",borderRadius:8,fontWeight:700}}>{sel.status}</span>
+                      <span style={{fontSize:11,color:G.mut,background:G.bdr,padding:"1px 8px",borderRadius:8}}>{sel.type}</span>
+                    </div>
+                  </div>
+                </div>
+                {/* Details Grid */}
+                <div style={{padding:"12px 16px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                  {[
+                    {l:"📱 Mobile",v:sel.mob},
+                    {l:"📍 State",v:sel.state},
+                    {l:"✉ Email",v:sel.email,full:true},
+                    {l:"📣 Source",v:sel.src},
+                    {l:"📦 GSTIN",v:sel.gstin||"Not registered",mono:true},
+                    {l:"📅 Client Since",v:sel.added?new Date(sel.added).toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}):"-"},
+                  ].map(d=><div key={d.l} style={{gridColumn:d.full?"1 / -1":"auto"}}>
+                    <div style={{fontSize:10,color:G.mut,fontWeight:700,marginBottom:2}}>{d.l}</div>
+                    <div style={{fontSize:12,color:d.mono?G.cyn:G.txt,fontFamily:d.mono?"monospace":"inherit",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{d.v||"-"}</div>
+                  </div>)}
+                </div>
+                {/* Remarks */}
+                {sel.note&&<div style={{padding:"0 16px 12px"}}>
+                  <div style={{fontSize:10,color:G.mut,fontWeight:700,marginBottom:3}}>📝 REMARKS</div>
+                  <div style={{fontSize:12,color:G.txt,background:G.surf,padding:"7px 10px",borderRadius:8,border:`1px solid ${G.bdr}`}}>{sel.note}</div>
+                </div>}
+                {/* Past Works for this client */}
+                {works.filter(w=>w.pan===sel.pan).length>0&&<div style={{padding:"0 16px 12px"}}>
+                  <div style={{fontSize:10,color:G.mut,fontWeight:700,marginBottom:6}}>📋 PAST ASSIGNMENTS ({works.filter(w=>w.pan===sel.pan).length})</div>
+                  <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                    {works.filter(w=>w.pan===sel.pan).slice(0,4).map(w=><div key={w.id} style={{display:"flex",alignItems:"center",gap:8,padding:"5px 9px",background:G.surf,borderRadius:7,border:`1px solid ${G.bdr}`}}>
+                      <span style={{fontSize:11,color:G.txt,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{w.svc}</span>
+                      <span style={{fontSize:10,color:G.mut}}>{w.fy}</span>
+                      <span style={{fontSize:10,padding:"1px 7px",borderRadius:10,fontWeight:700,background:w.status==="Completed"?"#14532D":w.status==="In Progress"?"#1E1B4B":"#431407",color:w.status==="Completed"?"#4ADE80":w.status==="In Progress"?"#A5B4FC":"#FCD34D"}}>{w.status}</span>
+                    </div>)}
+                  </div>
+                </div>}
+              </div>
+              {/* Portal Credentials */}
+              <div style={{background:G.bg,border:`1px solid ${G.bdr}`,borderRadius:11,padding:"10px 14px"}}>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+                  <div style={{fontSize:11,color:G.mut,fontWeight:700}}>🔐 PORTAL CREDENTIALS ({PORTALS.filter(p=>sel.portals[p.key]?.on).length} active)</div>
+                  <button onClick={()=>setShowP(v=>!v)} style={{fontSize:11,padding:"3px 10px",borderRadius:7,border:`1px solid ${G.bdr}`,background:"transparent",color:G.mut,cursor:"pointer"}}>{showP?"🙈 Hide":"👁 Show"}</button>
+                </div>
+                <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:showP?8:0}}>
+                  {PORTALS.filter(p=>sel.portals[p.key]?.on).map(p=><span key={p.key} style={{fontSize:11,padding:"2px 8px",borderRadius:10,background:p.col+"18",color:p.col,fontWeight:600}}>{p.icon} {p.label}</span>)}
+                  {!PORTALS.some(p=>sel.portals[p.key]?.on)&&<span style={{fontSize:11,color:G.bdr}}>No portals configured</span>}
+                </div>
+                {showP&&<div style={{display:"flex",flexDirection:"column",gap:6,marginTop:4}}>
+                  {PORTALS.filter(p=>sel.portals[p.key]?.on).map(p=><div key={p.key} style={{display:"flex",gap:9,padding:"8px 11px",background:p.col+"0A",border:`1px solid ${p.col}22`,borderRadius:9}}>
+                    <span style={{fontSize:15,flexShrink:0}}>{p.icon}</span>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:10,color:p.col,fontWeight:700,marginBottom:2}}>{p.label}</div>
+                      <div style={{fontSize:11,color:G.mut}}>ID: <span style={{color:G.wh,fontFamily:"monospace",fontWeight:600}}>{sel.portals[p.key].id||"-"}</span></div>
+                      <div style={{fontSize:11,color:G.mut}}>PW: <span style={{color:G.wh,fontFamily:"monospace",fontWeight:600}}>{sel.portals[p.key].pw||"-"}</span></div>
+                    </div>
+                  </div>)}
+                  {!PORTALS.some(p=>sel.portals[p.key]?.on)&&<div style={{fontSize:12,color:G.mut}}>No portals configured for this client</div>}
+                </div>}
+              </div>
+            </div>}
+          </Crd>
+        ) : (
+          <Crd><SH icon="🔍" title="Select Clients" acc={G.green}/>
+            <div style={{position:"relative",marginBottom:10}}>
+              <span style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:G.mut}}>🔍</span>
+              <input value={bulkQ} onChange={e=>setBulkQ(e.target.value)} placeholder="Filter clients by name, PAN, type..." style={{...IS,paddingLeft:30,fontSize:12}}/>
+            </div>
+            <div style={{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap"}}>
+              <button onClick={()=>setSelPans(filteredClients.map(c=>c.pan))} style={{padding:"4px 10px",borderRadius:6,border:`1px solid ${G.bdr}`,background:"transparent",color:G.green,fontSize:11,fontWeight:700,cursor:"pointer"}}>Select All Filtered</button>
+              <button onClick={()=>setSelPans([])} style={{padding:"4px 10px",borderRadius:6,border:`1px solid ${G.bdr}`,background:"transparent",color:G.red,fontSize:11,fontWeight:700,cursor:"pointer"}}>Deselect All</button>
+              <button onClick={()=>setSelPans(clients.filter(c=>c.status==="Active").map(c=>c.pan))} style={{padding:"4px 10px",borderRadius:6,border:`1px solid ${G.bdr}`,background:"transparent",color:G.cyn,fontSize:11,fontWeight:700,cursor:"pointer"}}>Select Active Clients</button>
+            </div>
+            <div style={{maxHeight:250,overflowY:"auto",border:`1px solid ${G.bdr}`,borderRadius:9,background:G.bg,padding:6,display:"flex",flexDirection:"column",gap:4}}>
+              {filteredClients.length===0?<div style={{padding:12,textAlign:"center",color:G.mut,fontSize:12}}>No clients found</div>
+              :filteredClients.map(c=>{
+                const isChecked = selPans.includes(c.pan);
+                return <label key={c.pan} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 10px",borderRadius:6,background:isChecked?G.green+"0A":"transparent",border:`1px solid ${isChecked?G.green+"33":"transparent"}`,cursor:"pointer",userSelect:"none"}}>
+                  <input type="checkbox" checked={isChecked} onChange={()=>{
+                    setSelPans(p => p.includes(c.pan) ? p.filter(x=>x!==c.pan) : [...p, c.pan]);
+                  }} style={{accentColor:G.green,cursor:"pointer"}}/>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:12,fontWeight:600,color:isChecked?G.green:G.txt,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.name}</div>
+                    <div style={{fontSize:10,color:G.mut,fontFamily:"monospace"}}>{c.pan} · <span style={{color:G.cyn}}>{c.type}</span></div>
+                  </div>
+                  <span style={{fontSize:10,padding:"1px 6px",borderRadius:4,background:c.status==="Active"?"#14532D":"#450A0A",color:c.status==="Active"?"#4ADE80":"#FCA5A5",fontWeight:700}}>{c.status}</span>
+                </label>;
+              })}
+            </div>
+            {err.pans&&<span style={{fontSize:11,color:G.red,marginTop:5,display:"block"}}>{err.pans}</span>}
+            <div style={{fontSize:11,color:G.mut,marginTop:6,fontWeight:600}}>Selected: {selPans.length} client(s)</div>
+          </Crd>
+        )}
+
+        <Crd><SH icon="📋" title="Work Details" acc={G.ind}/>
+          <div style={{display:"flex",flexDirection:"column",gap:11}}>
+            <F label="Service Type" req><S val={f.svc} set={v=>setF({...f,svc:v})} opts={dd.services} ph="Choose..."/>{err.svc&&<span style={{fontSize:11,color:G.red}}>{err.svc}</span>}</F>
+            <R>
+              <F label="Financial Year" w="calc(50% - 6px)"><S val={f.fy} set={v=>setF({...f,fy:v})} opts={dd.fyOptions}/></F>
+              <F label="Assign To" req w="calc(50% - 6px)"><S val={f.staff} set={v=>setF({...f,staff:v})} opts={dd.staff} ph="Staff..."/>{err.staff&&<span style={{fontSize:11,color:G.red}}>{err.staff}</span>}</F>
+            </R>
+            <R>
+              <F label="Assign Date" w="calc(50% - 6px)"><I val={f.date || ""} set={v=>setF({...f,date:v})} type="date"/></F>
+              <F label="Due Date" req w="calc(50% - 6px)"><I val={f.due} set={v=>setF({...f,due:v})} type="date" sty={{borderColor:err.due?G.red:G.bdr}}/>{err.due&&<span style={{fontSize:11,color:G.red}}>{err.due}</span>}</F>
+            </R>
+            <R>
+              <F label="Source" w="calc(100%)"><S val={f.src} set={v=>setF({...f,src:v})} opts={dd.sources} ph="Select..."/></F>
+            </R>
           </div>
         </Crd>
-        <Crd><SH icon="🕐" title="Recent" acc={G.vio}/>
-          <div style={{display:"flex",flexDirection:"column",gap:6}}>
-            {works.slice(0,4).map(w=><div key={w.id} style={{padding:"8px 10px",background:G.bg,borderRadius:8,border:`1px solid ${G.bdr}`}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{fontWeight:600,fontSize:12,color:G.txt}}>{w.cn}</span><Bdg label={isOD(w)?"Overdue":w.status}/></div>
-              <div style={{fontSize:11,color:G.mut,marginTop:2}}>{w.svc} · {w.fy}</div>
-              <div style={{fontSize:11,color:isOD(w)?G.red:G.mut,marginTop:1}}>Due: {fd(w.due)}</div>
-            </div>)}
+
+        <Crd><SH icon="💰" title="Fees & Commission" acc={G.amb}/>
+          <div style={{display:"flex",flexDirection:"column",gap:11}}>
+            <div style={{padding:"8px 12px",background:"#43140720",border:`1px solid ${G.amb}33`,borderRadius:9,fontSize:12,color:G.amb}}>💡 Commission auto 10% - editable. Tracked by Source.</div>
+            <R>
+              <F label="Fees (₹)" req w="calc(33% - 8px)"><I val={f.fees} set={hFees} ph="0" sty={{borderColor:err.fees?G.red:G.bdr}}/>{err.fees&&<span style={{fontSize:11,color:G.red}}>{err.fees}</span>}</F>
+              <F label="Commission (₹)" w="calc(33% - 8px)"><I val={f.comm} set={v=>setF({...f,comm:v.replace(/\D/g,"")})} ph="Auto 10%"/></F>
+              <F label="Received (₹)" w="calc(33% - 8px)"><I val={f.rcvd} set={v=>setF({...f,rcvd:v.replace(/\D/g,"")})} ph="0"/></F>
+            </R>
+            <div style={{fontSize:11,color:G.mut,marginTop:-4}}>💡 "Received" here is just a placeholder until you raise & link an invoice — once linked from the Work Tracker, it's replaced by real payments recorded in Receipts.</div>
+            {f.fees&&<div style={{display:"flex",gap:12,padding:"8px 12px",background:G.green+"08",border:`1px solid ${G.green}20`,borderRadius:9,flexWrap:"wrap"}}>
+              {[["Fees",inr(f.fees),G.green],["Comm.",inr(f.comm||0),G.amb],["O/S",inr((Number(f.fees)||0)-(Number(f.rcvd)||0)),G.red]].map(([l,v,col])=><div key={l} style={{fontSize:12}}><span style={{color:G.mut}}>{l}: </span><span style={{color:col,fontWeight:700}}>{v}</span></div>)}
+            </div>}
+            <F label="Remarks"><textarea value={f.note} onChange={e=>setF({...f,note:e.target.value})} rows={2} style={{...IS,resize:"vertical"}}/></F>
           </div>
         </Crd>
+        <Btn onClick={mode==="single"?save:saveBulk} sty={{width:"100%",padding:13,fontSize:14}}>
+          {mode==="single"?"📋 Add to Work Tracker":`📋 Assign to ${selPans.length} Client(s)`}
+        </Btn>
       </div>
-    )}
+
+      {!isMobile && (
+        <div style={{display:"flex",flexDirection:"column",gap:12}}>
+          <Crd><SH icon="⚡" title="Quick Service" acc={G.green}/>
+            <div style={{display:"flex",flexDirection:"column",gap:3}}>
+              {dd.services.map(s=><div key={s} onClick={()=>setF(p=>({...p,svc:s}))}
+                style={{padding:"7px 10px",borderRadius:7,cursor:"pointer",fontSize:12,background:f.svc===s?G.green+"18":"transparent",border:f.svc===s?`1px solid ${G.green}44`:"1px solid transparent",color:f.svc===s?G.green:G.mut,fontWeight:f.svc===s?700:400,display:"flex",alignItems:"center",gap:6}}>
+                <span style={{fontSize:7,color:f.svc===s?G.green:G.bdr}}>●</span>{s}
+              </div>)}
+            </div>
+          </Crd>
+          <Crd><SH icon="🕐" title="Recent" acc={G.vio}/>
+            <div style={{display:"flex",flexDirection:"column",gap:6}}>
+              {works.slice(0,4).map(w=><div key={w.id} style={{padding:"8px 10px",background:G.bg,borderRadius:8,border:`1px solid ${G.bdr}`}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{fontWeight:600,fontSize:12,color:G.txt}}>{w.cn}</span><Bdg label={isOD(w)?"Overdue":w.status}/></div>
+                <div style={{fontSize:11,color:G.mut,marginTop:2}}>{w.svc} · {w.fy}</div>
+                <div style={{fontSize:11,color:isOD(w)?G.red:G.mut,marginTop:1}}>Due: {fd(w.due)}</div>
+              </div>)}
+            </div>
+          </Crd>
+        </div>
+      )}
+    </div>
   </div>;
 }
 
@@ -2675,8 +2769,98 @@ function PortalPw({pw,pid,toast}){
   </div>;
 }
 
-function ClientProfilePanel({client,onClose,works,setTab,setOpenWorkId,setEditClient,toast}){
+function PopupAssignModal({client, dd, setWorks, onClose, toast}) {
+  const bk={svc:"",fy:dd.fyOptions[0]||"2025-26",due:"",date:new Date().toISOString().split("T")[0],staff:"",fees:"",comm:"",rcvd:"",src:client.src||"",note:""};
+  const[f,setF]=useState(bk),[err,setErr]=useState({});
+  
+  const hFees=v=>{const n=Number(v.replace(/\D/g,""));setF(p=>({...p,fees:v.replace(/\D/g,""),comm:p.comm||String(Math.round(n*0.1))}));};
+  
+  const save=()=>{
+    const e={};
+    if(!f.svc)e.svc="Select";
+    if(!f.due)e.due="Required";
+    if(!f.staff)e.staff="Required";
+    if(!f.fees)e.fees="Enter";
+    setErr(e);
+    if(Object.keys(e).length){toast("Fix errors","err");return;}
+    
+    setWorks(p=>[{
+      id:Date.now(),
+      pan:client.pan,
+      cn:client.name||"",
+      svc:f.svc,
+      fy:f.fy,
+      due:f.due,
+      date:f.date||new Date().toISOString().split("T")[0],
+      staff:f.staff,
+      status:"Pending",
+      fees:Number(f.fees)||0,
+      comm:Number(f.comm)||0,
+      rcvd:Number(f.rcvd)||0,
+      src:f.src||client.src||"",
+      note:f.note
+    },...p]);
+    toast(`Assigned - ${f.svc} for ${client.name}`);
+    onClose();
+  };
+
+  return <div style={{position:"fixed",inset:0,background:"#000B",zIndex:8000,display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={onClose}>
+    <div style={{background:G.surf,border:`1px solid ${G.bdr}`,borderRadius:14,width:"min(480px,95vw)",maxHeight:"90vh",overflowY:"auto",boxShadow:"0 10px 40px #000C",animation:"fadeUp .25s ease"}} onClick={e=>e.stopPropagation()}>
+      {/* Header */}
+      <div style={{background:`linear-gradient(135deg,${G.gd},${G.g2})`,padding:"14px 18px",display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:`1px solid ${G.bdr}`}}>
+        <div>
+          <div style={{fontWeight:800,fontSize:14,color:G.wh}}>📋 Assign Work</div>
+          <div style={{fontSize:11,color:G.g3,marginTop:2}}>{client.name} ({client.pan})</div>
+        </div>
+        <button onClick={onClose} style={{background:"none",border:"none",color:G.wh,cursor:"pointer",fontSize:16}}>✕</button>
+      </div>
+      
+      {/* Body */}
+      <div style={{padding:"16px 18px",display:"flex",flexDirection:"column",gap:12}}>
+        <F label="Service Type" req><S val={f.svc} set={v=>setF({...f,svc:v})} opts={dd.services} ph="Choose..."/>{err.svc&&<span style={{fontSize:11,color:G.red}}>{err.svc}</span>}</F>
+        
+        <R>
+          <F label="Financial Year" w="calc(50% - 6px)"><S val={f.fy} set={v=>setF({...f,fy:v})} opts={dd.fyOptions}/></F>
+          <F label="Assign To" req w="calc(50% - 6px)"><S val={f.staff} set={v=>setF({...f,staff:v})} opts={dd.staff} ph="Staff..."/>{err.staff&&<span style={{fontSize:11,color:G.red}}>{err.staff}</span>}</F>
+        </R>
+        
+        <R>
+          <F label="Assign Date" w="calc(50% - 6px)"><I val={f.date || ""} set={v=>setF({...f,date:v})} type="date"/></F>
+          <F label="Due Date" req w="calc(50% - 6px)"><I val={f.due} set={v=>setF({...f,due:v})} type="date" sty={{borderColor:err.due?G.red:G.bdr}}/>{err.due&&<span style={{fontSize:11,color:G.red}}>{err.due}</span>}</F>
+        </R>
+        
+        <R>
+          <F label="Source" w="calc(100%)"><S val={f.src} set={v=>setF({...f,src:v})} opts={dd.sources} ph="Select..."/></F>
+        </R>
+        
+        <div style={{borderBottom:`1px solid ${G.bdr}`,margin:"6px 0"}}/>
+        
+        <div style={{fontSize:11,color:G.mut,fontWeight:700,letterSpacing:.5,textTransform:"uppercase"}}>Fees & Commission</div>
+        <R>
+          <F label="Fees (₹)" req w="calc(33% - 8px)"><I val={f.fees} set={hFees} ph="0" sty={{borderColor:err.fees?G.red:G.bdr}}/>{err.fees&&<span style={{fontSize:11,color:G.red}}>{err.fees}</span>}</F>
+          <F label="Commission (₹)" w="calc(33% - 8px)"><I val={f.comm} set={v=>setF({...f,comm:v.replace(/\D/g,"")})} ph="Auto 10%"/></F>
+          <F label="Received (₹)" w="calc(33% - 8px)"><I val={f.rcvd} set={v=>setF({...f,rcvd:v.replace(/\D/g,"")})} ph="0"/></F>
+        </R>
+        
+        {f.fees&&<div style={{display:"flex",gap:12,padding:"6px 10px",background:G.green+"08",border:`1px solid ${G.green}20`,borderRadius:8,flexWrap:"wrap"}}>
+          {[["Fees",inr(f.fees),G.green],["Comm.",inr(f.comm||0),G.amb],["O/S",inr((Number(f.fees)||0)-(Number(f.rcvd)||0)),G.red]].map(([l,v,col])=><div key={l} style={{fontSize:11}}><span style={{color:G.mut}}>{l}: </span><span style={{color:col,fontWeight:700}}>{v}</span></div>)}
+        </div>}
+        
+        <F label="Remarks"><textarea value={f.note} onChange={e=>setF({...f,note:e.target.value})} rows={2} style={{...IS,resize:"vertical",fontSize:12}}/></F>
+        
+        {/* Footer Actions */}
+        <div style={{display:"flex",gap:10,marginTop:10,justifyContent:"flex-end"}}>
+          <button onClick={onClose} style={{padding:"8px 16px",borderRadius:9,border:`1px solid ${G.bdr}`,background:"transparent",color:G.mut,cursor:"pointer",fontWeight:600,fontSize:13}}>Cancel</button>
+          <button onClick={save} style={{padding:"8px 20px",borderRadius:9,border:"none",cursor:"pointer",background:`linear-gradient(135deg,${G.g2},${G.green})`,color:"#fff",fontWeight:700,fontSize:13}}>Create Assignment</button>
+        </div>
+      </div>
+    </div>
+  </div>;
+}
+
+function ClientProfilePanel({client,onClose,works,setWorks,dd,setTab,setOpenWorkId,setEditClient,toast}){
   const[vpw,setVpw]=useState({});
+  const[showAssignPopup,setShowAssignPopup]=useState(false);
   return <div style={{position:"fixed",inset:0,zIndex:7000,display:"flex"}} onClick={onClose}>
     <div style={{flex:1,background:"#000A"}}/>
     <div style={{width:"min(520px,95vw)",background:G.surf,borderLeft:`1px solid ${G.green}44`,height:"100%",overflow:"auto",boxShadow:"-20px 0 60px #000C",animation:"slidePanel .25s ease"}} onClick={e=>e.stopPropagation()}>
@@ -2755,8 +2939,9 @@ function ClientProfilePanel({client,onClose,works,setTab,setOpenWorkId,setEditCl
 
         {/* All Assignments Activity */}
         {works && <div style={{background:G.card,border:`1px solid ${G.bdr}`,borderRadius:12,padding:"14px 16px"}}>
-          <div style={{fontSize:11,color:G.mut,fontWeight:700,letterSpacing:.7,textTransform:"uppercase",marginBottom:10}}>
-            📋 All Assignments ({works.filter(w=>w.pan===client.pan).length})
+          <div style={{fontSize:11,color:G.mut,fontWeight:700,letterSpacing:.7,textTransform:"uppercase",marginBottom:10,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <span>📋 All Assignments ({works.filter(w=>w.pan===client.pan).length})</span>
+            <button onClick={()=>setShowAssignPopup(true)} style={{background:`linear-gradient(135deg,${G.g2},${G.green})`,color:"#fff",border:"none",borderRadius:6,padding:"4px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>➕ Assign Work</button>
           </div>
           {works.filter(w=>w.pan===client.pan).length===0
           ?<div style={{fontSize:12,color:G.bdr}}>No assignments yet</div>
@@ -2824,6 +3009,7 @@ function ClientProfilePanel({client,onClose,works,setTab,setOpenWorkId,setEditCl
             </div>
           </div>)}
         </div>
+        {showAssignPopup && <PopupAssignModal client={client} dd={dd} setWorks={setWorks} onClose={()=>setShowAssignPopup(false)} toast={toast}/>}
       </div>
     </div>
   </div>;
@@ -10301,6 +10487,8 @@ export default function App(){
           client={c}
           onClose={() => setGlobalClientProfilePan(null)}
           works={works}
+          setWorks={setWorks}
+          dd={dd}
           setTab={setTab}
           setOpenWorkId={setOpenWorkId}
           setEditClient={setGlobalClientEditPan}
