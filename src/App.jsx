@@ -9477,7 +9477,15 @@ export default function App(){
         return !p || JSON.stringify(p) !== JSON.stringify(n);
       });
       if (addedOrUpdated.length > 0) {
-        const { error } = await supabase.from('works').upsert(addedOrUpdated);
+        const mapped = addedOrUpdated.map(w => {
+          const copy = { ...w };
+          if (copy.date) {
+            copy.created_at = copy.date;
+          }
+          delete copy.date;
+          return copy;
+        });
+        const { error } = await supabase.from('works').upsert(mapped);
         if (error) throw error;
       }
     } catch (err) {
