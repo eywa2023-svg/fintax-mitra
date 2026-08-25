@@ -8261,8 +8261,9 @@ const CSS = `
 
 @media print {
   .no-print { display: none !important; }
-  .itc-app { display: block; background: #fff; }
-  .itc-main { padding: 0; max-width: 100%; }
+  .itc-app { display: block !important; background: #fff !important; height: auto !important; overflow: visible !important; }
+  .itc-main { padding: 0 !important; max-width: 100% !important; height: auto !important; overflow: visible !important; }
+  .itc-page { height: auto !important; overflow: visible !important; }
   .itc-page-head { display: none; }
   .itc-page > *:not(.sheet-page) { display: none; }
   .sheet-page {
@@ -8273,7 +8274,7 @@ const CSS = `
      naturally across as many pages as its content needs at 100% scale.
      The tax liability section always starts on its own fresh page after
      that, whether the income section took one page or two. */
-  .sheet-page-liability { page-break-before: always; break-before: page; }
+  .sheet-page-liability { page-break-before: always !important; break-before: page !important; }
 }
 
 @media (max-width: 768px) {
