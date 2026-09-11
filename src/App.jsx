@@ -8606,12 +8606,26 @@ function AdminLogin({ setSession }) {
             border: "1px solid #EF4444",
             color: "#FCA5A5",
             borderRadius: "8px",
-            padding: "10px 14px",
+            padding: "12px 14px",
             fontSize: "12px",
             marginBottom: "20px",
-            textAlign: "left"
+            textAlign: "left",
+            lineHeight: 1.5
           }}>
-            ✕ {error}
+            <div style={{ fontWeight: "700", marginBottom: 4 }}>✕ {error}</div>
+            {(String(error).toLowerCase().includes("failed to fetch") || String(error).toLowerCase().includes("network")) && (
+              <div style={{ fontSize: 11, color: "#FDE68A", marginTop: 6, borderTop: "1px solid rgba(239,68,68,0.3)", paddingTop: 6 }}>
+                ⚠️ <strong>Supabase Database is Paused:</strong> Free-tier Supabase databases pause after 7 days of inactivity.<br />
+                <a
+                  href="https://supabase.com/dashboard/project/khbjccryqlhzbcbxztbb"
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ color: "#38BDF8", textDecoration: "underline", display: "inline-block", marginTop: 4, fontWeight: 600 }}
+                >
+                  Click here to open Supabase Dashboard & Resume Project ↗
+                </a>
+              </div>
+            )}
           </div>
         )}
         
@@ -9407,6 +9421,15 @@ export default function App(){
   const [openWorkId, setOpenWorkId] = useState(null);
   const [whatsappState, setWhatsappState] = useState(null);
   const syncFirmSettingsTimeoutRef = React.useRef(null);
+  const [dbStatus, setDbStatus] = useState({ paused: false, offline: false, cached: false, message: "" });
+
+  const saveCached = (key, val) => {
+    try {
+      localStorage.setItem(key, JSON.stringify(val));
+    } catch (e) {
+      console.warn("Cache write failed for " + key, e);
+    }
+  };
 
   const handleWhatsApp = (client, defaults = {}, downloadPdfFn = null) => {
     setWhatsappState({ phone: client?.mob || "", client, defaults, downloadPdfFn });
@@ -9598,6 +9621,7 @@ export default function App(){
   const setClients = (valOrFn) => {
     _setClients(prev => {
       const next = typeof valOrFn === 'function' ? valOrFn(prev) : valOrFn;
+      saveCached("ftm_cache_clients", next);
       if (syncEnabled) setTimeout(() => syncClientsToSupabase(prev, next), 0);
       return next;
     });
@@ -9606,6 +9630,7 @@ export default function App(){
   const setWorks = (valOrFn) => {
     _setWorks(prev => {
       const next = typeof valOrFn === 'function' ? valOrFn(prev) : valOrFn;
+      saveCached("ftm_cache_works", next);
       if (syncEnabled) setTimeout(() => syncWorksToSupabase(prev, next), 0);
       return next;
     });
@@ -9614,6 +9639,7 @@ export default function App(){
   const setInvoices = (valOrFn) => {
     _setInvoices(prev => {
       const next = typeof valOrFn === 'function' ? valOrFn(prev) : valOrFn;
+      saveCached("ftm_cache_invoices", next);
       if (syncEnabled) setTimeout(() => syncInvoicesToSupabase(prev, next), 0);
       return next;
     });
@@ -9622,6 +9648,7 @@ export default function App(){
   const setReceipts = (valOrFn) => {
     _setReceipts(prev => {
       const next = typeof valOrFn === 'function' ? valOrFn(prev) : valOrFn;
+      saveCached("ftm_cache_receipts", next);
       if (syncEnabled) setTimeout(() => syncReceiptsToSupabase(prev, next), 0);
       return next;
     });
@@ -9630,6 +9657,7 @@ export default function App(){
   const setComputations = (valOrFn) => {
     _setComputations(prev => {
       const next = typeof valOrFn === 'function' ? valOrFn(prev) : valOrFn;
+      saveCached("ftm_cache_computations", next);
       if (syncEnabled) setTimeout(() => syncComputationsToSupabase(prev, next), 0);
       return next;
     });
@@ -9671,6 +9699,9 @@ export default function App(){
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setAuthLoading(false);
+    }).catch(err => {
+      console.warn("getSession error:", err);
+      setAuthLoading(false);
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(prev => {
@@ -9701,129 +9732,185 @@ export default function App(){
   }, [firmSettings, syncEnabled]);
 
   // Database fetch & seeding
+  const loadData = React.useCallback(async (isManualRetry = false) => {
+    if (!syncEnabled) setDbLoading(true);
+    try {
+      let { data: dbClients, error: errClients } = await supabase.from('clients').select('*');
+      if (errClients) throw errClients;
+      let { data: dbWorks, error: errWorks } = await supabase.from('works').select('*');
+      if (errWorks) throw errWorks;
+      let { data: dbInvoices, error: errInvoices } = await supabase.from('invoices').select('*');
+      if (errInvoices) throw errInvoices;
+      if (dbInvoices) {
+        dbInvoices = dbInvoices.map(inv => ({
+          ...inv,
+          workId: inv.workId == null ? "" : String(inv.workId)
+        }));
+      }
+      let { data: dbReceipts, error: errReceipts } = await supabase.from('receipts').select('*');
+      if (errReceipts) throw errReceipts;
+      if (dbInvoices && dbReceipts) {
+        dbInvoices = dbInvoices.map(inv => ({
+          ...inv,
+          status: computeInvStatus(inv, dbReceipts)
+        }));
+      }
+      let { data: dbComputations, error: errComputations } = await supabase.from('computations').select('*');
+      if (errComputations) throw errComputations;
+      let { data: dbFirm, error: errFirm } = await supabase.from('firm_settings').select('*').maybeSingle();
+      if (errFirm) throw errFirm;
+      let { data: dbDev, error: errDev } = await supabase.from('developer_settings').select('*').maybeSingle();
+      if (errDev) throw errDev;
+
+      if (!dbFirm) {
+        const defaultFirm = { id: 1, settings: {
+          name:"Fin-Tax Mitra",
+          addr:"17, Sebadol Road, Belgharia, Kolkata, West Bengal - 700049",
+          phone:"7980718092",
+          email:"care.fintaxmitra@gmail.com",
+          bankName:"Kotak Mahindra Bank",
+          bankHolder:"BILTU DEY",
+          bankAcc:"1449547644",
+          bankIFSC:"KKBK0000328",
+          upiId:"7319440039@kotak",
+          terms:"Fees once paid are non-refundable. The client is responsible for ensuring data accuracy and timely submission. Fin-Tax Mitra is not liable for any penalties or losses resulting from client delays or incorrect data.",
+          logo:null, stamp:null, signature:null, qrCode:null, statusStamp:null,
+          autoBackup:true,
+          googleClientId:"738596578042-qd24uv0mkqe5j9bvjm8d4blpntg3vm7b.apps.googleusercontent.com",
+          googleDriveEnabled:false,
+          whatsappTemplates: [
+            { id: "t1", name: "Due Date Reminder", text: "Dear {name}, this is a friendly reminder that your filing for {taskName} is due on {dueDate}. Please share the necessary documents at the earliest. Regards, {firmName}" },
+            { id: "t2", name: "ITR Computation Ready", text: "Dear {name}, your ITR computation for AY {ay} has been prepared. Please review the attached summary. Regards, {firmName}" },
+            { id: "t3", name: "Invoice Notification", text: "Dear {name}, we have raised Invoice {invoiceNo} for ₹{invoiceAmt}. Please find the invoice details attached. Regards, {firmName}" },
+            { id: "t4", name: "Bulk Promotion / Greeting", text: "Dear {name}, Fin-Tax Mitra is now accepting tax planning documents for FY {fy}. Avoid last-minute rushes and schedule your consultation today! Contact: {firmPhone}" },
+          ],
+        }};
+        const { error } = await supabase.from('firm_settings').insert(defaultFirm);
+        if (error) throw new Error("Seeding firm settings failed: " + error.message);
+        dbFirm = defaultFirm;
+      }
+      if (!dbDev) {
+        const defaultDev = { id: 1, dropdown_defaults: DEF_DD, passwords: DEF_PW };
+        const { error } = await supabase.from('developer_settings').insert(defaultDev);
+        if (error) throw new Error("Seeding dev settings failed: " + error.message);
+        dbDev = defaultDev;
+      }
+
+      _setClients(dbClients);
+      const formattedWorks = (dbWorks || []).map(w => {
+        let assignDate = w.date;
+        if (!assignDate) {
+          if (w.created_at) {
+            assignDate = w.created_at.split('T')[0];
+          } else {
+            assignDate = new Date().toISOString().split('T')[0];
+          }
+        }
+        return {
+          ...w,
+          date: assignDate
+        };
+      });
+      _setWorks(formattedWorks);
+      _setInvoices(dbInvoices);
+      _setReceipts(dbReceipts);
+      _setComputations(dbComputations || []);
+      let localImages = {};
+      try {
+        const saved = localStorage.getItem("ftm_firm_images");
+        if (saved) localImages = JSON.parse(saved);
+      } catch (e) {
+        console.error("Error loading local images:", e);
+      }
+      const imageKeys = ['logo', 'stamp', 'signature', 'qrCode', 'statusStamp'];
+      const dbSettings = dbFirm.settings || {};
+      const needsMigration = imageKeys.some(k => localImages[k] && !dbSettings[k]);
+
+      _setFirmSettings(prev => {
+        const merged = {
+          ...prev,
+          ...dbSettings,
+          ...localImages,
+          whatsappTemplates: dbSettings.whatsappTemplates || prev.whatsappTemplates
+        };
+        if (needsMigration) {
+          console.log("Auto-migrating localStorage images to Supabase...");
+          setTimeout(() => syncFirmSettingsToSupabase(merged), 500);
+        }
+        return merged;
+      });
+      _setDd(dbDev.dropdown_defaults);
+      _setPws(dbDev.passwords);
+      setSyncEnabled(true);
+      setDbStatus({ paused: false, offline: false, cached: false, message: "" });
+
+      // Save fresh snapshots to localStorage for offline resilience
+      saveCached("ftm_cache_clients", dbClients);
+      saveCached("ftm_cache_works", formattedWorks);
+      saveCached("ftm_cache_invoices", dbInvoices);
+      saveCached("ftm_cache_receipts", dbReceipts);
+      saveCached("ftm_cache_computations", dbComputations || []);
+      saveCached("ftm_cache_firm", dbSettings);
+      saveCached("ftm_cache_dev", dbDev);
+
+      if (isManualRetry) {
+        toast("Connected to Supabase database successfully!", "ok");
+      }
+    } catch (err) {
+      console.error("Error loading data from Supabase:", err);
+      const errMsg = String(err?.message || err);
+      const isFetchErr = errMsg.toLowerCase().includes("failed to fetch") || errMsg.toLowerCase().includes("network");
+
+      // Attempt fallback to cached data in localStorage
+      let hasCache = false;
+      try {
+        const rawClients = localStorage.getItem("ftm_cache_clients");
+        const rawWorks = localStorage.getItem("ftm_cache_works");
+        const rawInvoices = localStorage.getItem("ftm_cache_invoices");
+        const rawReceipts = localStorage.getItem("ftm_cache_receipts");
+        const rawComputations = localStorage.getItem("ftm_cache_computations");
+        const rawFirm = localStorage.getItem("ftm_cache_firm");
+        const rawDev = localStorage.getItem("ftm_cache_dev");
+
+        if (rawClients || rawWorks) {
+          hasCache = true;
+          if (rawClients) _setClients(JSON.parse(rawClients));
+          if (rawWorks) _setWorks(JSON.parse(rawWorks));
+          if (rawInvoices) _setInvoices(JSON.parse(rawInvoices));
+          if (rawReceipts) _setReceipts(JSON.parse(rawReceipts));
+          if (rawComputations) _setComputations(JSON.parse(rawComputations));
+          if (rawFirm) _setFirmSettings(prev => ({ ...prev, ...JSON.parse(rawFirm) }));
+          if (rawDev) {
+            const d = JSON.parse(rawDev);
+            if (d.dropdown_defaults) _setDd(d.dropdown_defaults);
+            if (d.passwords) _setPws(d.passwords);
+          }
+        }
+      } catch (cacheErr) {
+        console.error("Error loading cached fallback:", cacheErr);
+      }
+
+      setDbStatus({
+        paused: isFetchErr,
+        offline: true,
+        cached: hasCache,
+        message: isFetchErr ? "Supabase database is paused or unreachable (Failed to fetch)." : "Database error: " + errMsg
+      });
+
+      if (hasCache) {
+        toast("Supabase is paused/offline. Displaying saved offline data.", "warn");
+      } else {
+        toast(isFetchErr ? "Supabase project is paused. Resume in dashboard." : "Database load failed: " + errMsg, "err");
+      }
+    } finally {
+      setDbLoading(false);
+    }
+  }, [syncEnabled]);
+
   useEffect(() => {
     if (!session) return;
-    const loadData = async () => {
-      if (!syncEnabled) setDbLoading(true);
-      try {
-        let { data: dbClients, error: errClients } = await supabase.from('clients').select('*');
-        if (errClients) throw errClients;
-        let { data: dbWorks, error: errWorks } = await supabase.from('works').select('*');
-        if (errWorks) throw errWorks;
-        let { data: dbInvoices, error: errInvoices } = await supabase.from('invoices').select('*');
-        if (errInvoices) throw errInvoices;
-        if (dbInvoices) {
-          dbInvoices = dbInvoices.map(inv => ({
-            ...inv,
-            workId: inv.workId == null ? "" : String(inv.workId)
-          }));
-        }
-        let { data: dbReceipts, error: errReceipts } = await supabase.from('receipts').select('*');
-        if (errReceipts) throw errReceipts;
-        if (dbInvoices && dbReceipts) {
-          dbInvoices = dbInvoices.map(inv => ({
-            ...inv,
-            status: computeInvStatus(inv, dbReceipts)
-          }));
-        }
-        let { data: dbComputations, error: errComputations } = await supabase.from('computations').select('*');
-        if (errComputations) throw errComputations;
-        let { data: dbFirm, error: errFirm } = await supabase.from('firm_settings').select('*').maybeSingle();
-        if (errFirm) throw errFirm;
-        let { data: dbDev, error: errDev } = await supabase.from('developer_settings').select('*').maybeSingle();
-        if (errDev) throw errDev;
-
-
-
-        if (!dbFirm) {
-          const defaultFirm = { id: 1, settings: {
-            name:"Fin-Tax Mitra",
-            addr:"17, Sebadol Road, Belgharia, Kolkata, West Bengal - 700049",
-            phone:"7980718092",
-            email:"care.fintaxmitra@gmail.com",
-            bankName:"Kotak Mahindra Bank",
-            bankHolder:"BILTU DEY",
-            bankAcc:"1449547644",
-            bankIFSC:"KKBK0000328",
-            upiId:"7319440039@kotak",
-            terms:"Fees once paid are non-refundable. The client is responsible for ensuring data accuracy and timely submission. Fin-Tax Mitra is not liable for any penalties or losses resulting from client delays or incorrect data.",
-            logo:null, stamp:null, signature:null, qrCode:null, statusStamp:null,
-            autoBackup:true,
-            googleClientId:"738596578042-qd24uv0mkqe5j9bvjm8d4blpntg3vm7b.apps.googleusercontent.com",
-            googleDriveEnabled:false,
-            whatsappTemplates: [
-              { id: "t1", name: "Due Date Reminder", text: "Dear {name}, this is a friendly reminder that your filing for {taskName} is due on {dueDate}. Please share the necessary documents at the earliest. Regards, {firmName}" },
-              { id: "t2", name: "ITR Computation Ready", text: "Dear {name}, your ITR computation for AY {ay} has been prepared. Please review the attached summary. Regards, {firmName}" },
-              { id: "t3", name: "Invoice Notification", text: "Dear {name}, we have raised Invoice {invoiceNo} for ₹{invoiceAmt}. Please find the invoice details attached. Regards, {firmName}" },
-              { id: "t4", name: "Bulk Promotion / Greeting", text: "Dear {name}, Fin-Tax Mitra is now accepting tax planning documents for FY {fy}. Avoid last-minute rushes and schedule your consultation today! Contact: {firmPhone}" },
-            ],
-          }};
-          const { error } = await supabase.from('firm_settings').insert(defaultFirm);
-          if (error) throw new Error("Seeding firm settings failed: " + error.message);
-          dbFirm = defaultFirm;
-        }
-        if (!dbDev) {
-          const defaultDev = { id: 1, dropdown_defaults: DEF_DD, passwords: DEF_PW };
-          const { error } = await supabase.from('developer_settings').insert(defaultDev);
-          if (error) throw new Error("Seeding dev settings failed: " + error.message);
-          dbDev = defaultDev;
-        }
-
-        _setClients(dbClients);
-        const formattedWorks = (dbWorks || []).map(w => {
-          let assignDate = w.date;
-          if (!assignDate) {
-            if (w.created_at) {
-              assignDate = w.created_at.split('T')[0];
-            } else {
-              assignDate = new Date().toISOString().split('T')[0];
-            }
-          }
-          return {
-            ...w,
-            date: assignDate
-          };
-        });
-        _setWorks(formattedWorks);
-        _setInvoices(dbInvoices);
-        _setReceipts(dbReceipts);
-        _setComputations(dbComputations || []);
-        let localImages = {};
-        try {
-          const saved = localStorage.getItem("ftm_firm_images");
-          if (saved) localImages = JSON.parse(saved);
-        } catch (e) {
-          console.error("Error loading local images:", e);
-        }
-        const imageKeys = ['logo', 'stamp', 'signature', 'qrCode', 'statusStamp'];
-        const dbSettings = dbFirm.settings || {};
-        const needsMigration = imageKeys.some(k => localImages[k] && !dbSettings[k]);
-
-        _setFirmSettings(prev => {
-          const merged = {
-            ...prev,
-            ...dbSettings,
-            ...localImages,
-            whatsappTemplates: dbSettings.whatsappTemplates || prev.whatsappTemplates
-          };
-          if (needsMigration) {
-            console.log("Auto-migrating localStorage images to Supabase...");
-            setTimeout(() => syncFirmSettingsToSupabase(merged), 500);
-          }
-          return merged;
-        });
-        _setDd(dbDev.dropdown_defaults);
-        _setPws(dbDev.passwords);
-        setSyncEnabled(true);
-      } catch (err) {
-        console.error("Error loading data from Supabase:", err);
-        toast("Database load failed: " + err.message, "err");
-      } finally {
-        setDbLoading(false);
-      }
-    };
     loadData();
-  }, [session]);
+  }, [session, loadData]);
   const[tab,setTab]=useState("wdash"),[sub,setSub]=useState("client");
   const[toasts,setToasts]=useState([]);
   const[showOA,setShowOA]=useState(false),[showDA,setShowDA]=useState(false);
@@ -10440,6 +10527,73 @@ export default function App(){
     </div>
     {/* Main */}
     <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",minWidth:0}}>
+      {dbStatus.paused && (
+        <div className="no-print" style={{
+          background: "#451A03",
+          borderBottom: "1px solid #D97706",
+          color: "#FEF3C7",
+          padding: "10px 16px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          flexWrap: "wrap",
+          gap: 10,
+          zIndex: 10000,
+          fontSize: 13,
+          boxShadow: "0 2px 10px rgba(0,0,0,0.3)"
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 18 }}>⏸️</span>
+            <div>
+              <strong style={{ color: "#FDE68A" }}>Supabase Database is Paused (Failed to fetch).</strong>
+              <span style={{ marginLeft: 6, opacity: 0.9 }}>
+                Free-tier projects pause after 7 days of inactivity.
+              </span>
+              {dbStatus.cached && (
+                <span style={{ marginLeft: 8, background: "rgba(245, 158, 11, 0.25)", border: "1px solid rgba(245, 158, 11, 0.4)", color: "#FDE68A", padding: "2px 8px", borderRadius: 4, fontWeight: 700, fontSize: 11 }}>
+                  Viewing Locally Saved Data
+                </span>
+              )}
+            </div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <a
+              href="https://supabase.com/dashboard/project/khbjccryqlhzbcbxztbb"
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                background: "#D97706",
+                color: "#FFFFFF",
+                padding: "6px 14px",
+                borderRadius: 6,
+                fontWeight: 700,
+                fontSize: 12,
+                textDecoration: "none",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4
+              }}
+            >
+              Resume Project in Supabase ↗
+            </a>
+            <button
+              onClick={() => loadData(true)}
+              style={{
+                background: "rgba(255,255,255,0.15)",
+                border: "1px solid rgba(255,255,255,0.3)",
+                color: "#fff",
+                padding: "6px 14px",
+                borderRadius: 6,
+                fontWeight: 600,
+                fontSize: 12,
+                cursor: "pointer"
+              }}
+            >
+              ↻ Retry Connection
+            </button>
+          </div>
+        </div>
+      )}
       <div className="app-header no-print" style={{background:"#070E09",borderBottom:`1px solid ${G.bdr}`,height:50,display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0,gap:8,padding:"0 16px"}}>
         {(!isMobile || !mobileSearchOpen) && (
           <div style={{display:"flex",alignItems:"center",gap:10,minWidth:0}}>
