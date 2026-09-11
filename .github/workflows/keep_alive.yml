@@ -5,6 +5,11 @@ on:
     # Run every 3 days at 06:00 UTC to keep the Supabase database awake (inactivity pauses after 7 days)
     - cron: '0 6 */3 * *'
   workflow_dispatch:
+    inputs:
+      log_message:
+        description: 'Reason for manual ping'
+        required: false
+        default: 'Manual keep-alive ping'
   push:
     paths:
       - '.github/workflows/keep_alive.yml'
@@ -15,6 +20,7 @@ jobs:
     steps:
       - name: Ping Supabase Database
         run: |
+          echo "Trigger reason: ${{ github.event.inputs.log_message || 'Scheduled/Push trigger' }}"
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X GET \
             "https://khbjccryqlhzbcbxztbb.supabase.co/rest/v1/firm_settings?select=id" \
             -H "apikey: sb_publishable_FINud7LWZen4GjZT6xzvtg_s2AjKQMg" \
