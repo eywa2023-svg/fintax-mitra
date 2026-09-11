@@ -14,10 +14,17 @@ on:
     paths:
       - '.github/workflows/keep_alive.yml'
 
+# Allow workflow to commit heartbeat to prevent GitHub 60-day inactivity rule
+permissions:
+  contents: write
+
 jobs:
   keep-alive:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Ping Supabase Database
         run: |
           echo "Trigger reason: ${{ github.event.inputs.log_message || 'Scheduled/Push trigger' }}"
@@ -30,4 +37,34 @@ jobs:
             echo "Supabase successfully pinged. Inactivity counter reset."
           else
             echo "Supabase ping returned HTTP status $STATUS"
+          fi
+
+      - name: Monthly Heartbeat (Prevent GitHub 60-Day Inactivity Rule)
+        run: |
+          HEARTBEAT_FILE=".github/heartbeat.txt"
+          CURRENT_TIME=$(date +%s)
+          NEED_COMMIT=false
+
+          if [ ! -f "$HEARTBEAT_FILE" ]; then
+            NEED_COMMIT=true
+          else
+            LAST_MODIFIED=$(git log -1 --format="%ct" -- "$HEARTBEAT_FILE" 2>/dev/null || echo 0)
+            DAYS_PASSED=$(( (CURRENT_TIME - LAST_MODIFIED) / 86400 ))
+            echo "Days since last heartbeat commit: $DAYS_PASSED"
+            if [ "$DAYS_PASSED" -ge 25 ]; then
+              NEED_COMMIT=true
+            fi
+          fi
+
+          if [ "$NEED_COMMIT" = true ]; then
+            echo "Updating heartbeat to keep GitHub repository active..."
+            echo "Repository Heartbeat Timestamp: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" > "$HEARTBEAT_FILE"
+            git config --global user.name "github-actions[bot]"
+            git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add "$HEARTBEAT_FILE"
+            git commit -m "Auto-heartbeat to keep GitHub Actions active [skip ci]" || true
+            git push || true
+            echo "Heartbeat check completed."
+          else
+            echo "Heartbeat is fresh. No commit needed today."
           fi
