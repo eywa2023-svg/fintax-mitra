@@ -2,14 +2,14 @@
 
 on:
   schedule:
-    # Run every 3 days at 06:00 UTC to keep the Supabase database awake (inactivity pauses after 7 days)
-    - cron: '0 6 */3 * *'
+    # Run every 2 days at 06:00 UTC to guarantee database activity well within the 7-day window
+    - cron: '0 6 */2 * *'
   workflow_dispatch:
     inputs:
       log_message:
         description: 'Reason for manual ping'
         required: false
-        default: 'Manual keep-alive ping'
+        default: 'Manual keep-alive write'
   push:
     paths:
       - '.github/workflows/keep_alive.yml'
@@ -25,18 +25,36 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Ping Supabase Database
+      - name: Perform Database Write to Keep-Alive Table
         run: |
           echo "Trigger reason: ${{ github.event.inputs.log_message || 'Scheduled/Push trigger' }}"
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X GET \
+          
+          # 1. Attempt an actual database write (UPSERT) to the dedicated keep_alive table
+          # This forces PostgreSQL WAL logging and transaction commits which Supabase monitors for activity
+          WRITE_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+            "https://khbjccryqlhzbcbxztbb.supabase.co/rest/v1/keep_alive" \
+            -H "apikey: sb_publishable_FINud7LWZen4GjZT6xzvtg_s2AjKQMg" \
+            -H "Authorization: Bearer sb_publishable_FINud7LWZen4GjZT6xzvtg_s2AjKQMg" \
+            -H "Content-Type: application/json" \
+            -H "Prefer: resolution=merge-duplicates" \
+            -d '{"id": 1, "last_ping": "now()"}')
+          
+          echo "Supabase keep_alive write HTTP status: $WRITE_STATUS"
+
+          # 2. Fallback GET query
+          GET_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X GET \
             "https://khbjccryqlhzbcbxztbb.supabase.co/rest/v1/firm_settings?select=id" \
             -H "apikey: sb_publishable_FINud7LWZen4GjZT6xzvtg_s2AjKQMg" \
             -H "Authorization: Bearer sb_publishable_FINud7LWZen4GjZT6xzvtg_s2AjKQMg")
-          echo "Supabase HTTP status response: $STATUS"
-          if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 400 ]; then
-            echo "Supabase successfully pinged. Inactivity counter reset."
+          
+          echo "Supabase fallback GET HTTP status: $GET_STATUS"
+
+          if [ "$WRITE_STATUS" -ge 200 ] && [ "$WRITE_STATUS" -lt 400 ]; then
+            echo "SUCCESS: Database write committed to keep_alive table. Supabase activity counter reset."
+          elif [ "$GET_STATUS" -ge 200 ] && [ "$GET_STATUS" -lt 400 ]; then
+            echo "NOTICE: Read query succeeded ($GET_STATUS), but keep_alive write returned $WRITE_STATUS (make sure keep_alive table is created in Supabase SQL editor)."
           else
-            echo "Supabase ping returned HTTP status $STATUS"
+            echo "WARNING: Both write and read requests failed."
           fi
 
       - name: Monthly Heartbeat (Prevent GitHub 60-Day Inactivity Rule)
