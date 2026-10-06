@@ -31,15 +31,19 @@ jobs:
           
           # 1. Attempt an actual database write (UPSERT) to the dedicated keep_alive table
           # This forces PostgreSQL WAL logging and transaction commits which Supabase monitors for activity
-          WRITE_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+          RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST \
             "https://khbjccryqlhzbcbxztbb.supabase.co/rest/v1/keep_alive" \
             -H "apikey: sb_publishable_FINud7LWZen4GjZT6xzvtg_s2AjKQMg" \
             -H "Authorization: Bearer sb_publishable_FINud7LWZen4GjZT6xzvtg_s2AjKQMg" \
             -H "Content-Type: application/json" \
-            -H "Prefer: resolution=merge-duplicates" \
+            -H "Prefer: resolution=merge-duplicates,return=representation" \
             -d '{"id": 1, "last_ping": "now()"}')
           
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          WRITE_STATUS=$(echo "$RESPONSE" | tail -n 1 | cut -d':' -f2)
+          
           echo "Supabase keep_alive write HTTP status: $WRITE_STATUS"
+          echo "Supabase response body: $BODY"
 
           # 2. Fallback GET query
           GET_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X GET \
@@ -52,7 +56,7 @@ jobs:
           if [ "$WRITE_STATUS" -ge 200 ] && [ "$WRITE_STATUS" -lt 400 ]; then
             echo "SUCCESS: Database write committed to keep_alive table. Supabase activity counter reset."
           elif [ "$GET_STATUS" -ge 200 ] && [ "$GET_STATUS" -lt 400 ]; then
-            echo "NOTICE: Read query succeeded ($GET_STATUS), but keep_alive write returned $WRITE_STATUS (make sure keep_alive table is created in Supabase SQL editor)."
+            echo "NOTICE: Read query succeeded ($GET_STATUS), but keep_alive write returned $WRITE_STATUS."
           else
             echo "WARNING: Both write and read requests failed."
           fi
